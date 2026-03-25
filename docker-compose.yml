@@ -1,0 +1,37 @@
+services:
+  ksef-api:
+    build:
+      context: ./src
+      dockerfile: KSeFGateway.Api/Dockerfile
+      args:
+        GITHUB_PAT: ${GITHUB_PAT}
+    ports:
+      - "${KSEF_API_PORT:-8080}:8080"
+    environment:
+      - KSEF_TOKEN=${KSEF_TOKEN}
+      - KSEF_NIP=${KSEF_NIP}
+      - KSEF_ENV=${KSEF_ENV:-TEST}
+      - PDF_SERVICE_URL=http://ksef-pdf:3000
+    healthcheck:
+      test: ["CMD", "curl", "-sf", "http://localhost:8080/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+    depends_on:
+      ksef-pdf:
+        condition: service_healthy
+    restart: unless-stopped
+
+  ksef-pdf:
+    build:
+      context: ./pdf-service
+      dockerfile: Dockerfile
+    expose:
+      - "3000"
+    healthcheck:
+      test: ["CMD", "curl", "-sf", "http://localhost:3000/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped

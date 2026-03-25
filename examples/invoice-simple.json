@@ -1,0 +1,49 @@
+{
+  "invoiceNumber": "FV/EXAMPLE/003/03/2026",
+  "issueDate": "2026-03-24",
+  "issuePlace": "Warszawa",
+  "saleDate": "2026-03-24",
+  "currency": "PLN",
+  "type": "VAT",
+  "seller": {
+    "nip": "SELLER_NIP",
+    "name": "Przykładowa Firma sp. z o.o.",
+    "address": {
+      "street": "ul. Sprzedawcy 10",
+      "city": "00-001 Warszawa",
+      "country": "PL"
+    },
+    "email": "firma@example.com",
+    "phone": "123456789"
+  },
+  "buyer": {
+    "nip": "5265877635",
+    "name": "Klient Testowy sp. z o.o.",
+    "address": {
+      "street": "ul. Kupiecka 5",
+      "city": "30-001 Kraków",
+      "country": "PL"
+    }
+  },
+  "items": [
+    {
+      "name": "Usługa konsultingowa IT",
+      "unit": "godz.",
+      "quantity": 10,
+      "unitPrice": 80.00,
+      "vatRate": 23
+    },
+    {
+      "name": "Konfiguracja serwera",
+      "unit": "szt.",
+      "quantity": 1,
+      "unitPrice": 200.00,
+      "vatRate": 23
+    }
+  ],
+  "payment": {
+    "paid": true,
+    "date": "2026-03-24",
+    "method": "transfer"
+  }
+}

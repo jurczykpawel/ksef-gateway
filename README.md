@@ -355,6 +355,42 @@ Two containers, no database, no Redis. Auth state in memory (restart = re-auth i
 
 ---
 
+## Cloud Deployment
+
+### AWS Lambda
+
+Deploy as a serverless Lambda function with Function URL (no API Gateway - avoids 29s timeout).
+
+```bash
+cd deploy/aws
+sam build --build-arg GITHUB_PAT=<your-pat>
+sam deploy --guided
+```
+
+See [`deploy/aws/README.md`](deploy/aws/README.md) for details.
+
+### Azure Container Apps
+
+Deploy as managed containers - mirrors Docker Compose, zero code changes.
+
+```bash
+az deployment group create \
+  --resource-group ksef-gateway \
+  --template-file deploy/azure/main.bicep \
+  --parameters ksefToken=<token> ksefNip=<nip>
+```
+
+See [`deploy/azure/README.md`](deploy/azure/README.md) for details.
+
+| | Docker Compose | AWS Lambda | Azure Container Apps |
+|---|---|---|---|
+| Cold start | None | ~3-5s | ~5-10s (or 0 with minReplicas=1) |
+| Cost (low traffic) | Server cost | Near-zero | ~$10-15/month |
+| PDF service | Included | Separate deployment | Included (internal container) |
+| Multi-NIP | `contexts.json` mount | Env vars (single NIP) | Env vars or Azure Files |
+
+---
+
 ## Roadmap
 
 - [x] Auto-discovery of 60+ SDK endpoints via reflection
@@ -368,12 +404,12 @@ Two containers, no database, no Redis. Auth state in memory (restart = re-auth i
 - [x] Docker one-command setup
 - [x] Client-side rate limiting (proactive, per official MF limits)
 - [x] `POST /ksef/invoice` - friendly JSON with auto VAT calculation
-- [x] 57 unit/integration tests (SdkReflector, RateLimiter, InvoiceXmlBuilder, XSD validation)
-- [x] GitHub Actions CI
+- [x] 81 unit/integration tests (SdkReflector, RateLimiter, InvoiceXmlBuilder, XSD validation, KSeF E2E)
+- [x] GitHub Actions CI + TruffleHog secret scanning
 - [x] Multi-NIP / multi-tenant mode
 - [x] Bruno collection for manual and automated testing
-- [ ] JSON Schema auto-generated from XSD (validation + docs)
-- [ ] AWS Lambda deployment support
+- [x] AWS Lambda deployment support
+- [x] Azure Container Apps deployment support
 
 ---
 

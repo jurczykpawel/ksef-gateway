@@ -1,3 +1,4 @@
+using Amazon.Lambda.AspNetCoreServer.Hosting;
 using KSeF.Client.DI;
 using KSeF.Client.Core.Interfaces.Clients;
 using Scalar.AspNetCore;
@@ -7,6 +8,11 @@ using KSeFGateway.Api.Endpoints;
 using KSeFGateway.Api.Middleware;
 
 var builder = WebApplication.CreateBuilder(args);
+
+// Auto-detect AWS Lambda environment
+var isLambda = Environment.GetEnvironmentVariable("AWS_LAMBDA_FUNCTION_NAME") is not null;
+if (isLambda)
+    builder.Services.AddAWSLambdaHosting(LambdaEventSource.HttpApi);
 
 // Map env vars to configuration
 builder.Configuration.AddEnvironmentVariables();
@@ -38,11 +44,14 @@ builder.Services.AddHttpClient();
 // OpenAPI (.NET 9 built-in)
 builder.Services.AddOpenApi();
 
-// Configure request size for large invoices (up to 3MB with attachments)
-builder.WebHost.ConfigureKestrel(opts =>
+// Configure request size for large invoices (Kestrel only, Lambda has its own limits)
+if (!isLambda)
 {
-    opts.Limits.MaxRequestBodySize = 10 * 1024 * 1024; // 10MB
-});
+    builder.WebHost.ConfigureKestrel(opts =>
+    {
+        opts.Limits.MaxRequestBodySize = 10 * 1024 * 1024; // 10MB
+    });
+}
 
 var app = builder.Build();
 

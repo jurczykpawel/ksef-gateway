@@ -1,9 +1,11 @@
 using System.Text;
+using System.Text.Json;
 using KSeF.Client.Api.Builders.Online;
 using KSeF.Client.Core.Interfaces.Clients;
 using KSeF.Client.Core.Interfaces.Services;
 using KSeF.Client.Core.Models.Sessions.OnlineSession;
 using KSeFGateway.Api.Auth;
+using KSeFGateway.Api.Invoice;
 using KSeFGateway.Api.Models;
 using Microsoft.AspNetCore.Mvc;
 
@@ -256,6 +258,110 @@ public static class WorkflowEndpoints
         })
         .WithTags("Workflows")
         .WithName("send_invoice_json")
+        .WithOpenApi();
+
+        // POST /ksef/invoice - send invoice as friendly JSON object
+        // Auto-builds FA(3) XML from structured data (seller, buyer, items)
+        app.MapPost("/ksef/invoice", async (HttpContext httpContext) =>
+        {
+            var tokenManager = httpContext.RequestServices.GetRequiredService<TokenManager>();
+            var ksefClient = httpContext.RequestServices.GetRequiredService<IKSeFClient>();
+            var cryptoService = httpContext.RequestServices.GetRequiredService<ICryptographyService>();
+            var logger = httpContext.RequestServices.GetRequiredService<ILogger<Program>>();
+
+            var accessToken = tokenManager.GetCurrentAccessToken();
+            if (accessToken is null)
+                return Results.Json(ApiResponse.Fail("Not authenticated with KSeF"), statusCode: 503);
+
+            InvoiceRequest invoiceReq;
+            try
+            {
+                invoiceReq = await JsonSerializer.DeserializeAsync<InvoiceRequest>(
+                    httpContext.Request.Body,
+                    new JsonSerializerOptions { PropertyNameCaseInsensitive = true },
+                    httpContext.RequestAborted)
+                    ?? throw new InvalidOperationException("Empty request body");
+            }
+            catch (Exception ex)
+            {
+                return Results.Json(ApiResponse.Fail($"Invalid invoice JSON: {ex.Message}"), statusCode: 400);
+            }
+
+            try
+            {
+                // 1. Build FA(3) XML from friendly JSON
+                var invoiceXml = InvoiceXmlBuilder.Build(invoiceReq);
+                var invoiceBytes = Encoding.UTF8.GetBytes(invoiceXml);
+                logger.LogInformation("Built FA(3) XML ({Size} bytes) from friendly JSON", invoiceBytes.Length);
+
+                // 2-6: Same flow as POST /ksef/send
+                var encryptionData = cryptoService.GetEncryptionData();
+
+                var openReq = OpenOnlineSessionRequestBuilder
+                    .Create()
+                    .WithFormCode(systemCode: "FA (3)", schemaVersion: "1-0E", value: "FA")
+                    .WithEncryption(
+                        encryptedSymmetricKey: encryptionData.EncryptionInfo.EncryptedSymmetricKey,
+                        initializationVector: encryptionData.EncryptionInfo.InitializationVector)
+                    .Build();
+
+                var session = await ksefClient.OpenOnlineSessionAsync(openReq, accessToken);
+
+                var encrypted = cryptoService.EncryptBytesWithAES256(
+                    invoiceBytes, encryptionData.CipherKey, encryptionData.CipherIv);
+                var invoiceMeta = cryptoService.GetMetaData(invoiceBytes);
+                var encryptedMeta = cryptoService.GetMetaData(encrypted);
+
+                var sendReq = SendInvoiceOnlineSessionRequestBuilder
+                    .Create()
+                    .WithInvoiceHash(invoiceMeta.HashSHA, invoiceMeta.FileSize)
+                    .WithEncryptedDocumentHash(encryptedMeta.HashSHA, encryptedMeta.FileSize)
+                    .WithEncryptedDocumentContent(Convert.ToBase64String(encrypted))
+                    .Build();
+
+                var sendResult = await ksefClient.SendOnlineSessionInvoiceAsync(
+                    sendReq, session.ReferenceNumber, accessToken);
+
+                await ksefClient.CloseOnlineSessionAsync(session.ReferenceNumber, accessToken);
+
+                string? ksefNumber = null;
+                string? statusDescription = null;
+                for (int i = 0; i < 30; i++)
+                {
+                    await Task.Delay(2000, httpContext.RequestAborted);
+                    try
+                    {
+                        var invoiceStatus = await ksefClient.GetSessionInvoiceAsync(
+                            session.ReferenceNumber, sendResult.ReferenceNumber, accessToken);
+                        statusDescription = invoiceStatus?.Status?.Description;
+                        if (invoiceStatus?.KsefNumber is not null)
+                        {
+                            ksefNumber = invoiceStatus.KsefNumber;
+                            break;
+                        }
+                    }
+                    catch { }
+                }
+
+                return Results.Json(ApiResponse.Ok(new
+                {
+                    ksefNumber,
+                    status = ksefNumber is not null ? "accepted" : "pending",
+                    statusDescription,
+                    sessionReferenceNumber = session.ReferenceNumber,
+                    invoiceReferenceNumber = sendResult.ReferenceNumber
+                }));
+            }
+            catch (Exception ex)
+            {
+                var msg = ex.InnerException is not null
+                    ? $"{ex.Message} -> {ex.InnerException.Message}" : ex.Message;
+                logger.LogError(ex, "Invoice send failed");
+                return Results.Json(ApiResponse.Fail(msg), statusCode: 500);
+            }
+        })
+        .WithTags("Workflows")
+        .WithName("send_invoice_friendly")
         .WithOpenApi();
     }
 }

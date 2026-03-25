@@ -23,7 +23,7 @@ public static class HealthEndpoints
         .WithName("health")
         .ExcludeFromDescription();
 
-        app.MapGet("/ksef/status", async (
+        app.MapGet("/ksef/status", (
             [FromServices] TokenManager tokenManager,
             [FromServices] IConfiguration config) =>
         {

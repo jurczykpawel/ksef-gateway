@@ -20,4 +20,8 @@
     <ProjectReference Include="..\KSeFGateway.Api\KSeFGateway.Api.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <None Include="Schemas\**\*.xsd" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
 </Project>

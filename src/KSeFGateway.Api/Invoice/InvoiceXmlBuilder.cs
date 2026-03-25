@@ -147,9 +147,12 @@ public static class InvoiceXmlBuilder
         if (req.Payment != null)
         {
             writer.WriteStartElement("Platnosc");
-            WriteElement(writer, "Zaplacono", req.Payment.Paid ? "1" : "2");
-            if (req.Payment.Date != null)
-                WriteElement(writer, "DataZaplaty", req.Payment.Date);
+            if (req.Payment.Paid)
+            {
+                WriteElement(writer, "Zaplacono", "1");
+                if (req.Payment.Date != null)
+                    WriteElement(writer, "DataZaplaty", req.Payment.Date);
+            }
             var paymentCode = PaymentMethodMap.GetValueOrDefault(req.Payment.Method, "6");
             WriteElement(writer, "FormaPlatnosci", paymentCode);
             writer.WriteEndElement();

@@ -27,13 +27,10 @@ builder.Services.AddKSeFClient(options =>
 });
 builder.Services.AddCryptographyClient();
 
-// Auth: ContextProvider + TokenPool (replaces TokenManager, supports multi-NIP)
+// Auth: ContextProvider + TokenPool (multi-NIP)
 builder.Services.AddSingleton<ContextProvider>();
 builder.Services.AddSingleton<TokenPool>();
 builder.Services.AddHostedService(sp => sp.GetRequiredService<TokenPool>());
-// Backward compat: register TokenManager as wrapper around TokenPool
-builder.Services.AddSingleton<TokenManager>(sp =>
-    new TokenManager(sp.GetRequiredService<TokenPool>(), sp.GetRequiredService<ContextProvider>()));
 
 // HTTP client for PDF service
 builder.Services.AddHttpClient();

@@ -46,6 +46,7 @@ builder.WebHost.ConfigureKestrel(opts =>
 var app = builder.Build();
 
 // Middleware
+app.UseMiddleware<RateLimitMiddleware>();
 app.UseMiddleware<ErrorHandlingMiddleware>();
 
 // OpenAPI JSON + Scalar UI

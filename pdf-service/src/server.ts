@@ -1,6 +1,6 @@
 import express from "express";
 import crypto from "crypto";
-import { xml2js } from "xml-js";
+import { xml2js, js2xml } from "xml-js";
 import pdfMake from "pdfmake/build/pdfmake.js";
 import pdfFonts from "pdfmake/build/vfs_fonts.js";
 
@@ -135,6 +135,64 @@ function buildVerificationUrl(xml: string, _nrKSeF: string): string {
   const qrBaseUrl = process.env.KSEF_QR_URL || "https://qr-test.ksef.mf.gov.pl";
   return `${qrBaseUrl}/invoice/${nip}/${dateFormatted}/${hashB64Url}`;
 }
+
+// POST /json-to-xml - converts JSON (xml-js compact format) to FA(3) XML
+// The JSON structure mirrors XML 1:1. No manual mapping needed.
+// When XSD changes, JSON structure changes automatically.
+app.post("/json-to-xml", (req, res) => {
+  const json = req.body;
+
+  if (!json || !json.Faktura) {
+    res.status(400).json({
+      error: 'Missing root "Faktura" element. Send JSON in xml-js compact format.',
+      example: {
+        Faktura: {
+          _attributes: { xmlns: "http://crd.gov.pl/wzor/2025/06/25/13775/" },
+          Naglowek: {
+            KodFormularza: {
+              _attributes: { kodSystemowy: "FA (3)", wersjaSchemy: "1-0E" },
+              _text: "FA",
+            },
+            WariantFormularza: { _text: "3" },
+            DataWytworzeniaFa: { _text: "2026-01-01T00:00:00Z" },
+            SystemInfo: { _text: "my-system" },
+          },
+          Podmiot1: {
+            DaneIdentyfikacyjne: {
+              NIP: { _text: "1234567890" },
+              Nazwa: { _text: "Seller sp. z o.o." },
+            },
+            Adres: {
+              KodKraju: { _text: "PL" },
+              AdresL1: { _text: "ul. Test 1" },
+              AdresL2: { _text: "00-001 Warszawa" },
+            },
+          },
+          "...": "see FA(3) XSD for full structure",
+        },
+      },
+    });
+    return;
+  }
+
+  try {
+    // Inject namespace if missing
+    if (!json.Faktura._attributes?.xmlns) {
+      json.Faktura._attributes = {
+        ...json.Faktura._attributes,
+        xmlns: "http://crd.gov.pl/wzor/2025/06/25/13775/",
+      };
+    }
+
+    const xml =
+      '<?xml version="1.0" encoding="utf-8"?>' +
+      js2xml(json, { compact: true, spaces: 0 });
+
+    res.contentType("application/xml").send(xml);
+  } catch (err: any) {
+    res.status(500).json({ error: `JSON to XML conversion failed: ${err.message}` });
+  }
+});
 
 app.listen(PORT, "0.0.0.0", () => {
   console.log(`ksef-pdf-service listening on port ${PORT}`);

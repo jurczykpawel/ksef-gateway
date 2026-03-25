@@ -200,5 +200,62 @@ public static class WorkflowEndpoints
         .WithTags("Workflows")
         .WithName("get_invoice_pdf")
         .WithOpenApi();
+
+        // POST /ksef/send/json - send invoice as JSON (xml-js compact format)
+        // Converts JSON→XML via pdf-service, then sends XML to KSeF via /ksef/send
+        app.MapPost("/ksef/send/json", async (HttpContext httpContext) =>
+        {
+            var config = httpContext.RequestServices.GetRequiredService<IConfiguration>();
+            var httpClientFactory = httpContext.RequestServices.GetRequiredService<IHttpClientFactory>();
+            var tokenManager = httpContext.RequestServices.GetRequiredService<TokenManager>();
+
+            if (tokenManager.GetCurrentAccessToken() is null)
+                return Results.Json(ApiResponse.Fail("Not authenticated with KSeF"), statusCode: 503);
+
+            try
+            {
+                // 1. Read JSON body
+                using var reader = new StreamReader(httpContext.Request.Body, Encoding.UTF8);
+                var jsonBody = await reader.ReadToEndAsync(httpContext.RequestAborted);
+
+                if (string.IsNullOrWhiteSpace(jsonBody))
+                    return Results.Json(ApiResponse.Fail("Empty request body"), statusCode: 400);
+
+                // 2. Convert JSON → XML via pdf-service
+                var pdfServiceUrl = config["PDF_SERVICE_URL"] ?? "http://ksef-pdf:3000";
+                var client = httpClientFactory.CreateClient();
+
+                var convertRequest = new HttpRequestMessage(HttpMethod.Post, $"{pdfServiceUrl}/json-to-xml");
+                convertRequest.Content = new StringContent(jsonBody, Encoding.UTF8, "application/json");
+
+                var convertResponse = await client.SendAsync(convertRequest, httpContext.RequestAborted);
+                if (!convertResponse.IsSuccessStatusCode)
+                {
+                    var error = await convertResponse.Content.ReadAsStringAsync(httpContext.RequestAborted);
+                    return Results.Json(ApiResponse.Fail($"JSON→XML conversion failed: {error}"), statusCode: 400);
+                }
+
+                var invoiceXml = await convertResponse.Content.ReadAsStringAsync(httpContext.RequestAborted);
+
+                // 3. Forward XML to /ksef/send (internal call via the same gateway)
+                var sendRequest = new HttpRequestMessage(HttpMethod.Post, $"http://localhost:8080/ksef/send");
+                sendRequest.Content = new StringContent(invoiceXml, Encoding.UTF8, "application/xml");
+
+                var sendResponse = await client.SendAsync(sendRequest, httpContext.RequestAborted);
+                var sendResult = await sendResponse.Content.ReadAsStringAsync(httpContext.RequestAborted);
+
+                httpContext.Response.ContentType = "application/json";
+                httpContext.Response.StatusCode = (int)sendResponse.StatusCode;
+                await httpContext.Response.WriteAsync(sendResult, httpContext.RequestAborted);
+                return Results.Empty;
+            }
+            catch (Exception ex)
+            {
+                return Results.Json(ApiResponse.Fail(ex.Message), statusCode: 500);
+            }
+        })
+        .WithTags("Workflows")
+        .WithName("send_invoice_json")
+        .WithOpenApi();
     }
 }

@@ -157,5 +157,48 @@ public static class WorkflowEndpoints
         .WithTags("Workflows")
         .WithName("get_invoice")
         .WithOpenApi();
+
+        // GET /ksef/invoice/{ksefNumber}/pdf - download invoice as PDF with QR
+        app.MapGet("/ksef/invoice/{ksefNumber}/pdf", async (
+            string ksefNumber,
+            [FromServices] IKSeFClient ksefClient,
+            [FromServices] TokenManager tokenManager,
+            [FromServices] IConfiguration config,
+            [FromServices] IHttpClientFactory httpClientFactory) =>
+        {
+            var accessToken = tokenManager.GetCurrentAccessToken();
+            if (accessToken is null)
+                return Results.Json(ApiResponse.Fail("Not authenticated"), statusCode: 503);
+
+            try
+            {
+                // 1. Download XML from KSeF
+                var xml = await ksefClient.GetInvoiceAsync(ksefNumber, accessToken);
+
+                // 2. Send to PDF service with KSeF number (triggers QR generation)
+                var pdfServiceUrl = config["PDF_SERVICE_URL"] ?? "http://ksef-pdf:3000";
+                var client = httpClientFactory.CreateClient();
+                var pdfRequest = new HttpRequestMessage(HttpMethod.Post,
+                    $"{pdfServiceUrl}/pdf/invoice?nrKSeF={Uri.EscapeDataString(ksefNumber)}");
+                pdfRequest.Content = new StringContent(xml, Encoding.UTF8, "application/xml");
+
+                var pdfResponse = await client.SendAsync(pdfRequest);
+                if (!pdfResponse.IsSuccessStatusCode)
+                {
+                    var error = await pdfResponse.Content.ReadAsStringAsync();
+                    return Results.Json(ApiResponse.Fail($"PDF generation failed: {error}"), statusCode: 502);
+                }
+
+                var pdfBytes = await pdfResponse.Content.ReadAsByteArrayAsync();
+                return Results.File(pdfBytes, "application/pdf", $"faktura-{ksefNumber}.pdf");
+            }
+            catch (Exception ex)
+            {
+                return Results.Json(ApiResponse.Fail(ex.Message), statusCode: 500);
+            }
+        })
+        .WithTags("Workflows")
+        .WithName("get_invoice_pdf")
+        .WithOpenApi();
     }
 }

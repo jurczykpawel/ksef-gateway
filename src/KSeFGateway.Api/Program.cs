@@ -31,6 +31,9 @@ builder.Services.AddCryptographyClient();
 builder.Services.AddSingleton<TokenManager>();
 builder.Services.AddHostedService(sp => sp.GetRequiredService<TokenManager>());
 
+// HTTP client for PDF service
+builder.Services.AddHttpClient();
+
 // OpenAPI (.NET 9 built-in)
 builder.Services.AddOpenApi();
 

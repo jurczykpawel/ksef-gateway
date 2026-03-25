@@ -52,16 +52,29 @@ Interactive API docs via [Scalar](https://scalar.com/) at `/scalar/v1`.
 
 ### Prerequisites
 - Docker & Docker Compose
-- KSeF token ([how to generate](https://github.com/CIRFMF/ksef-docs/blob/main/tokeny-ksef.md))
-- GitHub PAT with `read:packages` scope (for CIRFMF SDK access)
+- GitHub PAT with `read:packages` scope ([create here](https://github.com/settings/tokens/new?scopes=read:packages) - needed for CIRFMF SDK)
 
-### Run
+### 1. Generate a KSeF test token
+
+The built-in token generator creates a test entity with a self-signed certificate on the KSeF TEST environment and generates a token - all automatically:
 
 ```bash
 git clone https://github.com/jurczykpawel/ksef-gateway.git
 cd ksef-gateway
 cp .env.example .env
-# Edit .env: set KSEF_TOKEN, KSEF_NIP, GITHUB_PAT
+# Edit .env: set GITHUB_PAT only
+
+# Generate test token (one-time setup)
+docker compose --profile tools run --rm token-generator
+```
+
+This outputs `KSEF_TOKEN`, `KSEF_NIP`, and `KSEF_ENV` values. Copy them into your `.env` file.
+
+> **Note:** The token generator only works on the KSeF TEST environment and uses a random NIP with a self-signed certificate. For DEMO/PRODUCTION, you need a real qualified certificate - see [CIRFMF docs](https://github.com/CIRFMF/ksef-docs/blob/main/tokeny-ksef.md).
+
+### 2. Run the gateway
+
+```bash
 docker-compose up --build
 ```
 

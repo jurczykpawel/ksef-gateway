@@ -35,3 +35,12 @@ services:
       timeout: 5s
       retries: 5
     restart: unless-stopped
+
+  # One-off tool: generates KSeF token on TEST environment
+  # Usage: docker compose run --rm token-generator
+  token-generator:
+    build:
+      context: ./tools/TokenGenerator
+      args:
+        GITHUB_PAT: ${GITHUB_PAT}
+    profiles: ["tools"]

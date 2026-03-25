@@ -15,9 +15,9 @@ builder.Configuration.AddEnvironmentVariables();
 var ksefEnv = builder.Configuration["KSEF_ENV"] ?? "TEST";
 var baseUrl = ksefEnv.ToUpperInvariant() switch
 {
-    "PRODUCTION" or "PRD" => "https://api.ksef.mf.gov.pl/v2",
-    "DEMO" => "https://api-demo.ksef.mf.gov.pl/v2",
-    _ => "https://api-test.ksef.mf.gov.pl/v2"
+    "PRODUCTION" or "PRD" => "https://api.ksef.mf.gov.pl",
+    "DEMO" => "https://api-demo.ksef.mf.gov.pl",
+    _ => "https://api-test.ksef.mf.gov.pl"
 };
 
 // Register CIRFMF KSeF SDK

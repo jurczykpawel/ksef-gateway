@@ -1,5 +1,6 @@
 using KSeF.Client.Core.Interfaces;
 using KSeF.Client.Core.Interfaces.Services;
+using KSeF.Client.Core.Models;
 using KSeF.Client.Core.Models.Authorization;
 
 namespace KSeFGateway.Api.Auth;
@@ -82,6 +83,7 @@ public class TokenManager : BackgroundService
             contextIdentifierValue: _ksefNip,
             tokenKsef: _ksefToken,
             cryptographyService: cryptoService,
+            encryptionMethod: EncryptionMethodEnum.Rsa,
             cancellationToken: ct);
 
         UpdateStateFromAuth(result);

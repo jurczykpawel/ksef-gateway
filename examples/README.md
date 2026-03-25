@@ -114,3 +114,46 @@ Runs all examples end-to-end:
 ```bash
 KSEF_NIP=3270165758 ./examples/test.sh
 ```
+
+Expected output:
+
+```
+=== KSeF Gateway Test ===
+
+1. Health check
+{ "status": "ok", "discoveredEndpoints": 60, "authenticated": true, ... }
+
+2. Gateway status
+{ "success": true, "data": { "mode": "single-nip", "contexts": [...] } }
+
+3. Configured contexts
+{ "success": true, "data": [{ "nip": "3270165758", "authenticated": true }] }
+
+4. Send invoice (XML)
+   POST http://localhost:8080/ksef/send
+{ "success": true, "data": { "ksefNumber": "3270165758-...", "status": "accepted" } }
+
+5. Send invoice (JSON - xml-js format)
+   POST http://localhost:8080/ksef/send/json
+{ "success": true, "data": { "ksefNumber": "3270165758-...", "status": "accepted" } }
+
+6. Send invoice (friendly JSON)
+   POST http://localhost:8080/ksef/invoice
+{ "success": true, "data": { "ksefNumber": "3270165758-...", "status": "accepted" } }
+
+7. Download invoice XML
+   GET http://localhost:8080/ksef/invoice/3270165758-...
+<?xml version="1.0" encoding="utf-8"?>
+<Faktura xmlns="http://crd.gov.pl/wzor/2025/06/25/13775/">
+   ...
+
+8. Download invoice PDF
+   GET http://localhost:8080/ksef/invoice/3270165758-.../pdf
+   Saved to /tmp/ksef-test-invoice.pdf (32100 bytes)
+
+=== Done ===
+```
+
+Each invoice send (steps 4-6) takes ~30-60 seconds because the gateway opens a session, encrypts, sends, closes, and polls for the KSeF number.
+
+The PDF (step 8) contains the official KSeF layout with QR verification code.

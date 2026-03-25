@@ -7,6 +7,8 @@
 ![.NET](https://img.shields.io/badge/.NET-9.0-512BD4)
 ![Open Source](https://img.shields.io/badge/Open%20Source-100%25-brightgreen)
 
+[![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com/deploy?repo=https://github.com/jurczykpawel/ksef-gateway)
+
 ---
 
 ## Why KSeF Gateway?
@@ -357,6 +359,12 @@ Two containers, no database, no Redis. Auth state in memory (restart = re-auth i
 
 ## Cloud Deployment
 
+### Render (one-click)
+
+[![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com/deploy?repo=https://github.com/jurczykpawel/ksef-gateway)
+
+Click the button, set three env vars (`GITHUB_PAT`, `KSEF_TOKEN`, `KSEF_NIP`), done. Both services (API + PDF) deploy automatically from `render.yaml`.
+
 ### AWS Lambda
 
 Deploy as a serverless Lambda function with Function URL (no API Gateway - avoids 29s timeout).
@@ -382,12 +390,13 @@ az deployment group create \
 
 See [`deploy/azure/README.md`](deploy/azure/README.md) for details.
 
-| | Docker Compose | AWS Lambda | Azure Container Apps |
-|---|---|---|---|
-| Cold start | None | ~3-5s | ~5-10s (or 0 with minReplicas=1) |
-| Cost (low traffic) | Server cost | Near-zero | ~$10-15/month |
-| PDF service | Included | Separate deployment | Included (internal container) |
-| Multi-NIP | `contexts.json` mount | Env vars (single NIP) | Env vars or Azure Files |
+| | Docker Compose | Render | AWS Lambda | Azure Container Apps |
+|---|---|---|---|---|
+| Setup | `docker compose up` | One-click button | SAM CLI | Azure CLI + Bicep |
+| Cold start | None | ~30s (free tier) | ~3-5s | ~5-10s (or 0 with minReplicas=1) |
+| Cost (low traffic) | Server cost | Free tier available | Near-zero | ~$10-15/month |
+| PDF service | Included | Included | Separate deployment | Included (internal container) |
+| Multi-NIP | `contexts.json` mount | Env vars | Env vars (single NIP) | Env vars or Azure Files |
 
 ---
 

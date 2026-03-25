@@ -1,0 +1,40 @@
+services:
+  - type: web
+    name: ksef-api
+    runtime: docker
+    dockerfilePath: src/KSeFGateway.Api/Dockerfile
+    dockerContext: src
+    plan: free
+    healthCheckPath: /health
+    envVars:
+      - key: KSEF_TOKEN
+        sync: false
+      - key: KSEF_NIP
+        sync: false
+      - key: KSEF_ENV
+        value: TEST
+      - key: PDF_SERVICE_URL
+        fromService:
+          name: ksef-pdf
+          type: web
+          property: hostport
+          envVarKey: RENDER_SERVICE_URL
+      - key: GITHUB_PAT
+        sync: false
+    buildFilter:
+      paths:
+        - src/**
+    docker:
+      buildArgs:
+        GITHUB_PAT: ${GITHUB_PAT}
+
+  - type: web
+    name: ksef-pdf
+    runtime: docker
+    dockerfilePath: pdf-service/Dockerfile
+    dockerContext: pdf-service
+    plan: free
+    healthCheckPath: /health
+    buildFilter:
+      paths:
+        - pdf-service/**

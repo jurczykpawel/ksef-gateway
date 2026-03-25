@@ -115,19 +115,25 @@ app.post("/pdf/invoice", async (req, res) => {
 });
 
 // Build KSeF QR verification URL from invoice XML
-// Format: https://qr-test.ksef.mf.gov.pl/invoice/{NIP}/{DD-MM-RRRR}/{SHA256-Base64URL}
+// Format: https://qr-test.ksef.mf.gov.pl/invoice/{NIP_sprzedawcy}/{P_1_DD-MM-RRRR}/{SHA256-Base64URL}
 function buildVerificationUrl(xml: string, _nrKSeF: string): string {
+  // SHA-256 of the invoice XML file
   const hash = crypto.createHash("sha256").update(xml, "utf8").digest();
   const hashB64Url = hash.toString("base64url");
 
-  // Extract NIP and date from KSeF number: NIP-RRRRMMDD-...-..
-  const parts = _nrKSeF.split("-");
-  const nip = parts[0];
-  const dateRaw = parts[1]; // RRRRMMDD
-  const dateFormatted = `${dateRaw.slice(6, 8)}-${dateRaw.slice(4, 6)}-${dateRaw.slice(0, 4)}`; // DD-MM-RRRR
+  // Extract NIP and P_1 date from XML (not from KSeF number)
+  const parsed = parseXmlString(xml) as any;
+  const invoice = parsed?.Faktura;
 
-  // Use TEST environment URL (TODO: make configurable)
-  return `https://qr-test.ksef.mf.gov.pl/invoice/${nip}/${dateFormatted}/${hashB64Url}`;
+  const nip = invoice?.Podmiot1?.DaneIdentyfikacyjne?.NIP?._text || "";
+  const p1 = invoice?.Fa?.P_1?._text || ""; // YYYY-MM-DD
+
+  // Convert P_1 from YYYY-MM-DD to DD-MM-YYYY
+  const [year, month, day] = p1.split("-");
+  const dateFormatted = `${day}-${month}-${year}`;
+
+  const qrBaseUrl = process.env.KSEF_QR_URL || "https://qr-test.ksef.mf.gov.pl";
+  return `${qrBaseUrl}/invoice/${nip}/${dateFormatted}/${hashB64Url}`;
 }
 
 app.listen(PORT, "0.0.0.0", () => {

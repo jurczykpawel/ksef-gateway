@@ -1,4 +1,5 @@
 import express from "express";
+import crypto from "crypto";
 import { xml2js } from "xml-js";
 import pdfMake from "pdfmake/build/pdfmake.js";
 import pdfFonts from "pdfmake/build/vfs_fonts.js";
@@ -35,12 +36,35 @@ function parseXmlString(xmlStr: string): unknown {
   return stripPrefixes(xml2js(xmlStr, { compact: true }));
 }
 
+// POST /pdf/invoice
+// Content-Type: application/xml → raw XML body
+// Content-Type: application/json → { xml: "...", nrKSeF?: "...", qrCode?: "..." }
+// Query params: ?nrKSeF=...&qrCode=...
 app.post("/pdf/invoice", async (req, res) => {
-  const xml = typeof req.body === "string" ? req.body : req.body?.xml;
+  let xml: string;
+  let nrKSeF: string | undefined;
+  let qrCode: string | undefined;
 
-  if (!xml) {
-    res.status(400).json({ error: "Missing invoice XML. Send as body with Content-Type: application/xml" });
+  if (typeof req.body === "string") {
+    // XML body
+    xml = req.body;
+    nrKSeF = req.query.nrKSeF as string | undefined;
+    qrCode = req.query.qrCode as string | undefined;
+  } else if (req.body?.xml) {
+    // JSON body
+    xml = req.body.xml;
+    nrKSeF = req.body.nrKSeF;
+    qrCode = req.body.qrCode;
+  } else {
+    res.status(400).json({
+      error: "Missing invoice XML. Send as XML body or JSON { xml, nrKSeF?, qrCode? }",
+    });
     return;
+  }
+
+  // Auto-generate QR verification URL if nrKSeF provided but qrCode not
+  if (nrKSeF && !qrCode) {
+    qrCode = buildVerificationUrl(xml, nrKSeF);
   }
 
   try {
@@ -53,30 +77,32 @@ app.post("/pdf/invoice", async (req, res) => {
 
     const kodSystemowy = invoice?.Naglowek?.KodFormularza?._attributes?.kodSystemowy;
 
-    // Dynamic import of the appropriate generator
     let generateFn: (invoice: any, additionalData: any) => any;
 
     switch (kodSystemowy) {
-      case "FA (3)":
+      case "FA (3)": {
         const { generateFA3 } = await import("../lib/src/lib-public/FA3-generator.js");
         generateFn = generateFA3;
         break;
-      case "FA (2)":
+      }
+      case "FA (2)": {
         const { generateFA2 } = await import("../lib/src/lib-public/FA2-generator.js");
         generateFn = generateFA2;
         break;
-      case "FA (1)":
+      }
+      case "FA (1)": {
         const { generateFA1 } = await import("../lib/src/lib-public/FA1-generator.js");
         generateFn = generateFA1;
         break;
+      }
       default:
-        res.status(400).json({ error: `Unsupported schema: ${kodSystemowy}. Expected FA (1), FA (2), or FA (3)` });
+        res.status(400).json({ error: `Unsupported schema: ${kodSystemowy}` });
         return;
     }
 
-    const pdf = generateFn(invoice, {});
+    const additionalData = { nrKSeF: nrKSeF ?? "", qrCode };
+    const pdf = generateFn(invoice, additionalData);
 
-    // pdfmake getBuffer for Node.js
     pdf.getBuffer((buffer: Buffer) => {
       res.contentType("application/pdf");
       res.setHeader("Content-Disposition", "inline; filename=faktura.pdf");
@@ -87,6 +113,22 @@ app.post("/pdf/invoice", async (req, res) => {
     res.status(500).json({ error: `PDF generation failed: ${err.message}` });
   }
 });
+
+// Build KSeF QR verification URL from invoice XML
+// Format: https://qr-test.ksef.mf.gov.pl/invoice/{NIP}/{DD-MM-RRRR}/{SHA256-Base64URL}
+function buildVerificationUrl(xml: string, _nrKSeF: string): string {
+  const hash = crypto.createHash("sha256").update(xml, "utf8").digest();
+  const hashB64Url = hash.toString("base64url");
+
+  // Extract NIP and date from KSeF number: NIP-RRRRMMDD-...-..
+  const parts = _nrKSeF.split("-");
+  const nip = parts[0];
+  const dateRaw = parts[1]; // RRRRMMDD
+  const dateFormatted = `${dateRaw.slice(6, 8)}-${dateRaw.slice(4, 6)}-${dateRaw.slice(0, 4)}`; // DD-MM-RRRR
+
+  // Use TEST environment URL (TODO: make configurable)
+  return `https://qr-test.ksef.mf.gov.pl/invoice/${nip}/${dateFormatted}/${hashB64Url}`;
+}
 
 app.listen(PORT, "0.0.0.0", () => {
   console.log(`ksef-pdf-service listening on port ${PORT}`);

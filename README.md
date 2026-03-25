@@ -295,30 +295,37 @@ The token lives until revoked. The gateway uses it daily: encrypts it with KSeF'
 
 For production you need a **qualified e-signature** (podpis kwalifikowany) - the same one used for JPK, e-PIT, etc. Common providers: SimplySign (Asseco), Certum, Szafir (KIR), e-dowod.
 
-**Via KSeF Portal (recommended):**
+> **Companies (sp. z o.o., SA, fundacje):** Before first login, submit the **ZAW-FA** form to your tax office. Sole proprietors (JDG) do not need this.
 
-1. Go to [ksef.mf.gov.pl](https://ksef.mf.gov.pl/)
+**Via Aplikacja Podatnika KSeF 2.0:**
+
+1. Go to [ap.ksef.mf.gov.pl](https://ap.ksef.mf.gov.pl/)
 2. Click **Zaloguj** and authenticate with one of:
    - Podpis kwalifikowany (SimplySign, Certum, Szafir)
-   - Profil Zaufany (ePUAP)
-   - e-Dowod (electronic ID card)
-3. After login, go to **Tokeny** (Tokens)
-4. Click **Generuj token** (Generate token)
-5. Select permissions:
-   - **Odczyt faktur** (InvoiceRead) - downloading invoices
+   - Profil Zaufany (ePUAP / mObywatel / e-banking)
+   - e-Dowod (electronic ID card with NFC)
+3. Enter your company **NIP** and click **Uwierzytelnij**
+4. Review and sign the authentication request
+5. Navigate to the **Tokeny** tab
+6. Click **Generuj token**
+7. Enter a descriptive **name** for the token (e.g. "ksef-gateway API")
+8. Select permissions:
    - **Wystawianie faktur** (InvoiceWrite) - sending invoices
-6. Confirm with your e-signature
-7. Copy the generated token
-8. Set in your `.env`:
-   ```
-   KSEF_TOKEN=<the token you just generated>
-   KSEF_NIP=<your company NIP>
-   KSEF_ENV=PRODUCTION
-   ```
+   - **Odczyt faktur** (InvoiceRead) - downloading invoices
+9. Confirm with your e-signature
+10. **Copy the token immediately** - it is displayed only once
+11. Set in your `.env`:
+    ```
+    KSEF_TOKEN=<the token you just copied>
+    KSEF_NIP=<your company NIP>
+    KSEF_ENV=PRODUCTION
+    ```
 
-The token is valid until you revoke it. You only need to do this once.
+You only need to do this once. If you lose the token, revoke it in the portal and generate a new one.
 
-> **Who can generate a token?** Only a person authorized to represent the company (owner, board member, or someone with a KSeF authorization granted by the owner). The e-signature must be linked to the company's NIP.
+> **Who can generate a token?** Only a person authorized to represent the company (owner, board member, or someone with a KSeF authorization granted by them).
+
+> **Token expiration:** All KSeF tokens expire **December 31, 2026**. From January 1, 2027, only KSeF certificates will be accepted. Tokens are a transitional authentication method.
 
 ---
 

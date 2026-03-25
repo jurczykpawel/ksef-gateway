@@ -25,6 +25,39 @@ public static class InvoiceXmlBuilder
 
     public static string Build(InvoiceRequest req)
     {
+        ArgumentNullException.ThrowIfNull(req);
+        ArgumentNullException.ThrowIfNull(req.Seller, nameof(req.Seller));
+        ArgumentNullException.ThrowIfNull(req.Buyer, nameof(req.Buyer));
+
+        if (string.IsNullOrWhiteSpace(req.Seller.Nip))
+            throw new ArgumentException("Seller NIP is required.", nameof(req.Seller));
+        if (string.IsNullOrWhiteSpace(req.Seller.Name))
+            throw new ArgumentException("Seller name is required.", nameof(req.Seller));
+        if (string.IsNullOrWhiteSpace(req.Buyer.Nip))
+            throw new ArgumentException("Buyer NIP is required.", nameof(req.Buyer));
+        if (string.IsNullOrWhiteSpace(req.Buyer.Name))
+            throw new ArgumentException("Buyer name is required.", nameof(req.Buyer));
+        if (string.IsNullOrWhiteSpace(req.InvoiceNumber))
+            throw new ArgumentException("Invoice number is required.", nameof(req.InvoiceNumber));
+        if (string.IsNullOrWhiteSpace(req.IssueDate))
+            throw new ArgumentException("Issue date is required.", nameof(req.IssueDate));
+        if (string.IsNullOrWhiteSpace(req.SaleDate))
+            throw new ArgumentException("Sale date is required.", nameof(req.SaleDate));
+        if (req.Items == null || req.Items.Count == 0)
+            throw new ArgumentException("At least one invoice item is required.", nameof(req.Items));
+
+        foreach (var item in req.Items)
+        {
+            if (string.IsNullOrWhiteSpace(item.Name))
+                throw new ArgumentException("Item name is required.", nameof(req.Items));
+            if (item.Quantity <= 0)
+                throw new ArgumentException($"Item '{item.Name}': quantity must be greater than zero.", nameof(req.Items));
+            if (item.UnitPrice < 0)
+                throw new ArgumentException($"Item '{item.Name}': unit price cannot be negative.", nameof(req.Items));
+            if (VatRateToSuffix(item.VatRate) == null)
+                throw new ArgumentException($"Item '{item.Name}': unsupported VAT rate {item.VatRate}%. Supported: 0, 5, 8, 23.", nameof(req.Items));
+        }
+
         // Calculate totals per VAT rate
         var lines = req.Items.Select((item, idx) => new
         {
@@ -44,11 +77,11 @@ public static class InvoiceXmlBuilder
         // Group by VAT rate for P_13/P_14 fields
         var vatGroups = lines.GroupBy(l => l.VatRate).OrderByDescending(g => g.Key).ToList();
 
-        var sb = new StringBuilder();
-        using var writer = XmlWriter.Create(sb, new XmlWriterSettings
+        using var ms = new MemoryStream();
+        using var writer = XmlWriter.Create(ms, new XmlWriterSettings
         {
             Indent = true,
-            Encoding = Encoding.UTF8,
+            Encoding = new UTF8Encoding(encoderShouldEmitUTF8Identifier: false),
             OmitXmlDeclaration = false
         });
 
@@ -63,7 +96,7 @@ public static class InvoiceXmlBuilder
         writer.WriteString("FA");
         writer.WriteEndElement();
         WriteElement(writer, "WariantFormularza", "3");
-        WriteElement(writer, "DataWytworzeniaFa", DateTimeOffset.UtcNow.ToString("o"));
+        WriteElement(writer, "DataWytworzeniaFa", DateTime.UtcNow.ToString("yyyy-MM-dd'T'HH:mm:ss'Z'"));
         WriteElement(writer, "SystemInfo", "ksef-gateway");
         writer.WriteEndElement(); // Naglowek
 
@@ -163,7 +196,7 @@ public static class InvoiceXmlBuilder
         writer.WriteEndDocument();
         writer.Flush();
 
-        return sb.ToString();
+        return Encoding.UTF8.GetString(ms.ToArray());
     }
 
     private static void WriteElement(XmlWriter writer, string name, string value)

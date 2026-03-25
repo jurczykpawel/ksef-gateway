@@ -1,6 +1,7 @@
 using System.Text;
 using System.Text.Json;
 using KSeF.Client.Api.Builders.Online;
+using KSeF.Client.Core.Exceptions;
 using KSeF.Client.Core.Interfaces.Clients;
 using KSeF.Client.Core.Interfaces.Services;
 using KSeF.Client.Core.Models.Sessions.OnlineSession;
@@ -62,15 +63,8 @@ public static class WorkflowEndpoints
             if (accessToken is null)
                 return Results.Json(ApiResponse.Fail("Not authenticated"), statusCode: 503);
 
-            try
-            {
-                var xml = await ksefClient.GetInvoiceAsync(ksefNumber, accessToken);
-                return Results.Content(xml, "application/xml");
-            }
-            catch (Exception ex)
-            {
-                return Results.Json(ApiResponse.Fail(ex.Message), statusCode: 500);
-            }
+            var xml = await ksefClient.GetInvoiceAsync(ksefNumber, accessToken);
+            return Results.Content(xml, "application/xml");
         })
         .WithTags("Workflows")
         .WithName("get_invoice")
@@ -109,6 +103,10 @@ public static class WorkflowEndpoints
 
                 var pdfBytes = await pdfResponse.Content.ReadAsByteArrayAsync();
                 return Results.File(pdfBytes, "application/pdf", $"faktura-{ksefNumber}.pdf");
+            }
+            catch (KsefApiException)
+            {
+                throw; // let ErrorHandlingMiddleware return 502
             }
             catch (Exception ex)
             {
@@ -309,14 +307,24 @@ public static class WorkflowEndpoints
                         ksefNumber = invoiceStatus.KsefNumber;
                         break;
                     }
+                    // KSeF returned a status with an error description - invoice rejected
+                    if (statusDescription is not null)
+                        break;
                 }
                 catch { }
+            }
+
+            if (ksefNumber is null)
+            {
+                var reason = statusDescription ?? "KSeF did not assign a reference number within the timeout period.";
+                logger.LogWarning("Invoice rejected or timed out: {Reason}", reason);
+                return Results.Json(ApiResponse.Fail($"KSeF rejected invoice: {reason}"), statusCode: 502);
             }
 
             return Results.Json(ApiResponse.Ok(new
             {
                 ksefNumber,
-                status = ksefNumber is not null ? "accepted" : "pending",
+                status = "accepted",
                 statusDescription,
                 sessionReferenceNumber = session.ReferenceNumber,
                 invoiceReferenceNumber = sendResult.ReferenceNumber

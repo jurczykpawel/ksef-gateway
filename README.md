@@ -68,6 +68,29 @@ curl -o faktura.pdf http://localhost:8080/ksef/invoice/{ksefNumber}/pdf
 
 ---
 
+## Testing with Bruno
+
+A [Bruno](https://www.usebruno.com/) collection is included in the `bruno/` directory - all endpoints with assertions.
+
+**Setup:**
+1. Install Bruno (desktop app or CLI: `npm install -g @usebruno/cli`)
+2. Open collection in Bruno desktop: **Open Collection** → select `bruno/`
+3. Select environment `local`
+4. Set `sellerNip` to your NIP
+
+**Run with CLI:**
+```bash
+# Health/status (no token required)
+cd bruno && bru run health.bru status.bru contexts.bru --env local
+
+# Full collection (requires KSEF_TOKEN + KSEF_NIP in .env)
+bru run --env local
+```
+
+`send-xml.bru` and `send-invoice.bru` automatically save the returned `ksefNumber` as a variable - after sending, `get-invoice-xml` and `get-invoice-pdf` work immediately.
+
+---
+
 ## API Endpoints
 
 ### Workflow Endpoints (high-level)
@@ -345,11 +368,12 @@ Two containers, no database, no Redis. Auth state in memory (restart = re-auth i
 - [x] Docker one-command setup
 - [x] Client-side rate limiting (proactive, per official MF limits)
 - [x] `POST /ksef/invoice` - friendly JSON with auto VAT calculation
-- [x] 48 unit tests (SdkReflector, RateLimiter, InvoiceXmlBuilder)
+- [x] 57 unit/integration tests (SdkReflector, RateLimiter, InvoiceXmlBuilder, XSD validation)
 - [x] GitHub Actions CI
+- [x] Multi-NIP / multi-tenant mode
+- [x] Bruno collection for manual and automated testing
 - [ ] JSON Schema auto-generated from XSD (validation + docs)
 - [ ] AWS Lambda deployment support
-- [ ] Multi-NIP / multi-tenant mode
 
 ---
 

@@ -207,4 +207,111 @@ public class InvoiceXmlBuilderTests
 
         Assert.Null(doc.Root!.Element(Ns + "Podmiot1")!.Element(Ns + "DaneKontaktowe"));
     }
+
+    // ── Error paths ──────────────────────────────────────────────────────────
+
+    [Fact]
+    public void Build_NullSeller_ThrowsArgumentNullException()
+    {
+        var req = MinimalInvoice() with { Seller = null! };
+        Assert.Throws<ArgumentNullException>(() => InvoiceXmlBuilder.Build(req));
+    }
+
+    [Fact]
+    public void Build_NullBuyer_ThrowsArgumentNullException()
+    {
+        var req = MinimalInvoice() with { Buyer = null! };
+        Assert.Throws<ArgumentNullException>(() => InvoiceXmlBuilder.Build(req));
+    }
+
+    [Theory]
+    [InlineData("")]
+    [InlineData("   ")]
+    public void Build_BlankSellerNip_ThrowsArgumentException(string nip)
+    {
+        var req = MinimalInvoice() with { Seller = MinimalInvoice().Seller with { Nip = nip } };
+        var ex = Assert.Throws<ArgumentException>(() => InvoiceXmlBuilder.Build(req));
+        Assert.Contains("Seller NIP", ex.Message);
+    }
+
+    [Theory]
+    [InlineData("")]
+    [InlineData("   ")]
+    public void Build_BlankBuyerNip_ThrowsArgumentException(string nip)
+    {
+        var req = MinimalInvoice() with { Buyer = MinimalInvoice().Buyer with { Nip = nip } };
+        var ex = Assert.Throws<ArgumentException>(() => InvoiceXmlBuilder.Build(req));
+        Assert.Contains("Buyer NIP", ex.Message);
+    }
+
+    [Fact]
+    public void Build_EmptyInvoiceNumber_ThrowsArgumentException()
+    {
+        var req = MinimalInvoice() with { InvoiceNumber = "" };
+        var ex = Assert.Throws<ArgumentException>(() => InvoiceXmlBuilder.Build(req));
+        Assert.Contains("Invoice number", ex.Message);
+    }
+
+    [Fact]
+    public void Build_EmptyItems_ThrowsArgumentException()
+    {
+        var req = MinimalInvoice() with { Items = [] };
+        var ex = Assert.Throws<ArgumentException>(() => InvoiceXmlBuilder.Build(req));
+        Assert.Contains("item", ex.Message);
+    }
+
+    [Fact]
+    public void Build_NullItems_ThrowsArgumentException()
+    {
+        var req = MinimalInvoice() with { Items = null! };
+        Assert.Throws<ArgumentException>(() => InvoiceXmlBuilder.Build(req));
+    }
+
+    [Fact]
+    public void Build_ZeroQuantity_ThrowsArgumentException()
+    {
+        var req = MinimalInvoice() with
+        {
+            Items = [new InvoiceItem { Name = "Item", Quantity = 0, UnitPrice = 100m, VatRate = 23 }]
+        };
+        var ex = Assert.Throws<ArgumentException>(() => InvoiceXmlBuilder.Build(req));
+        Assert.Contains("quantity", ex.Message);
+    }
+
+    [Fact]
+    public void Build_NegativeUnitPrice_ThrowsArgumentException()
+    {
+        var req = MinimalInvoice() with
+        {
+            Items = [new InvoiceItem { Name = "Item", Quantity = 1, UnitPrice = -10m, VatRate = 23 }]
+        };
+        var ex = Assert.Throws<ArgumentException>(() => InvoiceXmlBuilder.Build(req));
+        Assert.Contains("negative", ex.Message);
+    }
+
+    [Theory]
+    [InlineData(13)]
+    [InlineData(21)]
+    [InlineData(100)]
+    public void Build_UnsupportedVatRate_ThrowsArgumentException(int vatRate)
+    {
+        var req = MinimalInvoice() with
+        {
+            Items = [new InvoiceItem { Name = "Item", Quantity = 1, UnitPrice = 100m, VatRate = vatRate }]
+        };
+        var ex = Assert.Throws<ArgumentException>(() => InvoiceXmlBuilder.Build(req));
+        Assert.Contains("VAT rate", ex.Message);
+        Assert.Contains(vatRate.ToString(), ex.Message);
+    }
+
+    [Fact]
+    public void Build_BlankItemName_ThrowsArgumentException()
+    {
+        var req = MinimalInvoice() with
+        {
+            Items = [new InvoiceItem { Name = "  ", Quantity = 1, UnitPrice = 100m, VatRate = 23 }]
+        };
+        var ex = Assert.Throws<ArgumentException>(() => InvoiceXmlBuilder.Build(req));
+        Assert.Contains("Item name", ex.Message);
+    }
 }

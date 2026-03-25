@@ -1,0 +1,81 @@
+meta {
+  name: Send invoice (friendly JSON)
+  type: http
+  seq: 6
+}
+
+post {
+  url: {{baseUrl}}/ksef/invoice
+  body: json
+  auth: none
+}
+
+headers {
+  Content-Type: application/json
+}
+
+body:json {
+  {
+    "invoiceNumber": "FV/EXAMPLE/003/03/2026",
+    "issueDate": "2026-03-24",
+    "issuePlace": "Warszawa",
+    "saleDate": "2026-03-24",
+    "currency": "PLN",
+    "type": "VAT",
+    "seller": {
+      "nip": "{{sellerNip}}",
+      "name": "Przykładowa Firma sp. z o.o.",
+      "address": {
+        "street": "ul. Sprzedawcy 10",
+        "city": "00-001 Warszawa",
+        "country": "PL"
+      },
+      "email": "firma@example.com",
+      "phone": "123456789"
+    },
+    "buyer": {
+      "nip": "5265877635",
+      "name": "Klient Testowy sp. z o.o.",
+      "address": {
+        "street": "ul. Kupiecka 5",
+        "city": "30-001 Kraków",
+        "country": "PL"
+      }
+    },
+    "items": [
+      {
+        "name": "Usługa konsultingowa IT",
+        "unit": "godz.",
+        "quantity": 10,
+        "unitPrice": 80.00,
+        "vatRate": 23
+      },
+      {
+        "name": "Konfiguracja serwera",
+        "unit": "szt.",
+        "quantity": 1,
+        "unitPrice": 200.00,
+        "vatRate": 23
+      }
+    ],
+    "payment": {
+      "paid": true,
+      "date": "2026-03-24",
+      "method": "transfer"
+    }
+  }
+}
+
+assert {
+  res.status: eq 200
+  res.body.success: eq true
+  res.body.data.ksefNumber: isDefined
+  res.body.data.status: eq accepted
+}
+
+script:post-response {
+  const data = res.getBody()?.data;
+  if (data?.ksefNumber) {
+    bru.setVar("ksefNumber", data.ksefNumber);
+  }
+}

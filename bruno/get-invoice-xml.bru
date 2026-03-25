@@ -1,0 +1,15 @@
+meta {
+  name: Download invoice XML
+  type: http
+  seq: 7
+}
+
+get {
+  url: {{baseUrl}}/ksef/invoice/{{ksefNumber}}
+  body: none
+  auth: none
+}
+
+assert {
+  res.status: eq 200
+}

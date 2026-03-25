@@ -291,6 +291,35 @@ The token lives until revoked. The gateway uses it daily: encrypts it with KSeF'
 | Token generation | Same flow | Same flow |
 | Who does it | Script (one command) | Business owner (one time) |
 
+### Production Token (step by step)
+
+For production you need a **qualified e-signature** (podpis kwalifikowany) - the same one used for JPK, e-PIT, etc. Common providers: SimplySign (Asseco), Certum, Szafir (KIR), e-dowod.
+
+**Via KSeF Portal (recommended):**
+
+1. Go to [ksef.mf.gov.pl](https://ksef.mf.gov.pl/)
+2. Click **Zaloguj** and authenticate with one of:
+   - Podpis kwalifikowany (SimplySign, Certum, Szafir)
+   - Profil Zaufany (ePUAP)
+   - e-Dowod (electronic ID card)
+3. After login, go to **Tokeny** (Tokens)
+4. Click **Generuj token** (Generate token)
+5. Select permissions:
+   - **Odczyt faktur** (InvoiceRead) - downloading invoices
+   - **Wystawianie faktur** (InvoiceWrite) - sending invoices
+6. Confirm with your e-signature
+7. Copy the generated token
+8. Set in your `.env`:
+   ```
+   KSEF_TOKEN=<the token you just generated>
+   KSEF_NIP=<your company NIP>
+   KSEF_ENV=PRODUCTION
+   ```
+
+The token is valid until you revoke it. You only need to do this once.
+
+> **Who can generate a token?** Only a person authorized to represent the company (owner, board member, or someone with a KSeF authorization granted by the owner). The e-signature must be linked to the company's NIP.
+
 ---
 
 ## Configuration

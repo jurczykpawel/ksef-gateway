@@ -57,6 +57,7 @@ app.MapScalarApiReference(options =>
 var endpoints = SdkReflector.DiscoverEndpoints();
 app.MapDiscoveredEndpoints(endpoints);
 app.MapHealthEndpoints(endpoints.Count);
+app.MapWorkflowEndpoints();
 
 app.Logger.LogInformation(
     "Discovered {Count} SDK endpoints across {Groups} groups",

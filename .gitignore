@@ -36,6 +36,9 @@ coverage/
 ## Docker
 docker-compose.override.yml
 
+## Output
+output/
+
 ## OS
 .DS_Store
 Thumbs.db

@@ -44,3 +44,14 @@ services:
       args:
         GITHUB_PAT: ${GITHUB_PAT}
     profiles: ["tools"]
+
+  # One-off tool: authenticates, sends an invoice, downloads it back
+  # Usage: docker compose run --rm invoice-demo
+  invoice-demo:
+    build:
+      context: ./tools/InvoiceDemo
+      args:
+        GITHUB_PAT: ${GITHUB_PAT}
+    volumes:
+      - ./output:/app/output
+    profiles: ["tools"]

@@ -74,8 +74,9 @@ curl -o faktura.pdf http://localhost:8080/ksef/invoice/{ksefNumber}/pdf
 
 | Method | Endpoint | Input | Output |
 |--------|----------|-------|--------|
+| `POST` | `/ksef/invoice` | Friendly JSON `{seller, buyer, items}` | KSeF number |
 | `POST` | `/ksef/send` | FA(3) XML body | KSeF number |
-| `POST` | `/ksef/send/json` | JSON (xml-js format) | KSeF number |
+| `POST` | `/ksef/send/json` | JSON (xml-js format, 1:1 with XML) | KSeF number |
 | `GET` | `/ksef/invoice/{ksefNumber}` | - | Invoice XML |
 | `GET` | `/ksef/invoice/{ksefNumber}/pdf` | - | PDF with QR code |
 | `GET` | `/ksef/status` | - | Gateway + KSeF status |
@@ -342,11 +343,13 @@ Two containers, no database, no Redis. Auth state in memory (restart = re-auth i
 - [x] Token generator for TEST environment
 - [x] Scalar API documentation
 - [x] Docker one-command setup
-- [ ] Client-side rate limiting (respect KSeF limits proactively)
+- [x] Client-side rate limiting (proactive, per official MF limits)
+- [x] `POST /ksef/invoice` - friendly JSON with auto VAT calculation
+- [x] 48 unit tests (SdkReflector, RateLimiter, InvoiceXmlBuilder)
+- [x] GitHub Actions CI
 - [ ] JSON Schema auto-generated from XSD (validation + docs)
 - [ ] AWS Lambda deployment support
 - [ ] Multi-NIP / multi-tenant mode
-- [ ] Friendly JSON format (`{seller, buyer, items}`) with auto-mapping
 
 ---
 

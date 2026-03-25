@@ -29,6 +29,8 @@ jobs:
             --store-password-in-clear-text
 
       - name: Restore
+        env:
+          GITHUB_PAT: ${{ secrets.CIRFMF_PAT }}
         run: dotnet restore KSeFGateway.Api/KSeFGateway.Api.csproj && dotnet restore KSeFGateway.Api.Tests/KSeFGateway.Api.Tests.csproj
 
       - name: Build

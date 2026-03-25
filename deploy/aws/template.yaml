@@ -1,0 +1,52 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: KSeF Gateway - AWS Lambda deployment
+
+Parameters:
+  KSeFToken:
+    Type: String
+    NoEcho: true
+    Description: KSeF authentication token
+  KSeFNip:
+    Type: String
+    Description: NIP for KSeF authentication context
+  KSeFEnv:
+    Type: String
+    Default: TEST
+    AllowedValues: [TEST, DEMO, PRODUCTION]
+    Description: KSeF environment
+  PdfServiceUrl:
+    Type: String
+    Default: ''
+    Description: URL of the PDF service (optional, leave empty to disable PDF endpoints)
+
+Globals:
+  Function:
+    Timeout: 900
+    MemorySize: 512
+
+Resources:
+  KSeFGatewayFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      PackageType: Image
+      Architectures:
+        - x86_64
+      Environment:
+        Variables:
+          KSEF_TOKEN: !Ref KSeFToken
+          KSEF_NIP: !Ref KSeFNip
+          KSEF_ENV: !Ref KSeFEnv
+          PDF_SERVICE_URL: !Ref PdfServiceUrl
+      FunctionUrlConfig:
+        AuthType: NONE
+    Metadata:
+      Dockerfile: Dockerfile.lambda
+      DockerContext: ../../src
+      DockerBuildArgs:
+        GITHUB_PAT: ''
+
+Outputs:
+  GatewayUrl:
+    Description: KSeF Gateway Function URL
+    Value: !GetAtt KSeFGatewayFunctionUrl.FunctionUrl

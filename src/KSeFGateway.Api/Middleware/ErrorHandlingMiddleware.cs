@@ -44,9 +44,12 @@ public class ErrorHandlingMiddleware
         }
     }
 
+    private static readonly JsonSerializerOptions JsonOptions =
+        new() { PropertyNamingPolicy = JsonNamingPolicy.CamelCase };
+
     private static async Task WriteResponse(HttpContext context, ApiResponse response)
     {
         context.Response.ContentType = "application/json";
-        await JsonSerializer.SerializeAsync(context.Response.Body, response);
+        await JsonSerializer.SerializeAsync(context.Response.Body, response, JsonOptions);
     }
 }

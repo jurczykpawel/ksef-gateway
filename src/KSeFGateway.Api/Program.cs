@@ -1,3 +1,4 @@
+using Amazon.Lambda.AspNetCoreServer.Hosting;
 using KSeF.Client.DI;
 using KSeF.Client.Core.Interfaces.Clients;
 using Scalar.AspNetCore;
@@ -7,6 +8,11 @@ using KSeFGateway.Api.Endpoints;
 using KSeFGateway.Api.Middleware;
 
 var builder = WebApplication.CreateBuilder(args);
+
+// Auto-detect AWS Lambda environment
+var isLambda = Environment.GetEnvironmentVariable("AWS_LAMBDA_FUNCTION_NAME") is not null;
+if (isLambda)
+    builder.Services.AddAWSLambdaHosting(LambdaEventSource.HttpApi);
 
 // Map env vars to configuration
 builder.Configuration.AddEnvironmentVariables();
@@ -27,9 +33,10 @@ builder.Services.AddKSeFClient(options =>
 });
 builder.Services.AddCryptographyClient();
 
-// Auth
-builder.Services.AddSingleton<TokenManager>();
-builder.Services.AddHostedService(sp => sp.GetRequiredService<TokenManager>());
+// Auth: ContextProvider + TokenPool (multi-NIP)
+builder.Services.AddSingleton<ContextProvider>();
+builder.Services.AddSingleton<TokenPool>();
+builder.Services.AddHostedService(sp => sp.GetRequiredService<TokenPool>());
 
 // HTTP client for PDF service
 builder.Services.AddHttpClient();
@@ -37,15 +44,19 @@ builder.Services.AddHttpClient();
 // OpenAPI (.NET 9 built-in)
 builder.Services.AddOpenApi();
 
-// Configure request size for large invoices (up to 3MB with attachments)
-builder.WebHost.ConfigureKestrel(opts =>
+// Configure request size for large invoices (Kestrel only, Lambda has its own limits)
+if (!isLambda)
 {
-    opts.Limits.MaxRequestBodySize = 10 * 1024 * 1024; // 10MB
-});
+    builder.WebHost.ConfigureKestrel(opts =>
+    {
+        opts.Limits.MaxRequestBodySize = 10 * 1024 * 1024; // 10MB
+    });
+}
 
 var app = builder.Build();
 
 // Middleware
+app.UseMiddleware<RateLimitMiddleware>();
 app.UseMiddleware<ErrorHandlingMiddleware>();
 
 // OpenAPI JSON + Scalar UI
@@ -74,5 +85,10 @@ foreach (var group in endpoints.GroupBy(e => e.GroupName))
         group.Key,
         string.Join(", ", group.Select(e => e.MethodName)));
 }
+
+var contextProvider = app.Services.GetRequiredService<ContextProvider>();
+app.Logger.LogInformation("Contexts: {Count} ({Mode} mode)",
+    contextProvider.GetAll().Count,
+    contextProvider.IsMultiNip ? "multi-NIP" : "single-NIP");
 
 app.Run();

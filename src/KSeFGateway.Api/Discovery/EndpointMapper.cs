@@ -3,6 +3,7 @@ using System.Text.Json;
 using KSeF.Client.Core.Interfaces.Clients;
 using KSeFGateway.Api.Auth;
 using KSeFGateway.Api.Models;
+using System.IO;
 
 namespace KSeFGateway.Api.Discovery;
 
@@ -33,11 +34,18 @@ public static class EndpointMapper
         {
             try
             {
-                var tokenManager = context.RequestServices.GetRequiredService<TokenManager>();
+                var pool = context.RequestServices.GetRequiredService<TokenPool>();
+                var ctxProvider = context.RequestServices.GetRequiredService<ContextProvider>();
                 var ksefClient = context.RequestServices.GetRequiredService<IKSeFClient>();
-                var accessToken = tokenManager.GetCurrentAccessToken();
+
+                // For raw SDK endpoints: use X-KSeF-NIP header or default context
+                var nip = ContextResolver.ResolveNip(context, ctxProvider);
+                if (nip is null)
+                    return Results.Json(ApiResponse.Fail("No KSeF context. Set X-KSeF-NIP header or configure default."), statusCode: 400);
+
+                var accessToken = await pool.GetAccessTokenAsync(nip, context.RequestAborted);
                 if (accessToken is null)
-                    return Results.Json(ApiResponse.Fail("Not authenticated with KSeF"), statusCode: 503);
+                    return Results.Json(ApiResponse.Fail($"Not authenticated with KSeF for NIP {nip}"), statusCode: 503);
 
                 var args = await BuildArguments(
                     endpoint, context, accessToken);

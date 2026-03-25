@@ -1,0 +1,112 @@
+meta {
+  name: Send invoice (JSON - xml-js format)
+  type: http
+  seq: 5
+}
+
+post {
+  url: {{baseUrl}}/ksef/send/json
+  body: json
+  auth: none
+}
+
+headers {
+  Content-Type: application/json
+}
+
+assert {
+  res.status: eq 200
+  res.body.success: eq true
+  res.body.data.ksefNumber: isDefined
+  res.body.data.status: eq accepted
+}
+
+body:json {
+  {
+    "Faktura": {
+      "Naglowek": {
+        "KodFormularza": {
+          "_attributes": { "kodSystemowy": "FA (3)", "wersjaSchemy": "1-0E" },
+          "_text": "FA"
+        },
+        "WariantFormularza": { "_text": "3" },
+        "DataWytworzeniaFa": { "_text": "2026-03-25T12:00:00Z" },
+        "SystemInfo": { "_text": "ksef-gateway-example" }
+      },
+      "Podmiot1": {
+        "DaneIdentyfikacyjne": {
+          "NIP": { "_text": "{{sellerNip}}" },
+          "Nazwa": { "_text": "Przykładowa Firma sp. z o.o." }
+        },
+        "Adres": {
+          "KodKraju": { "_text": "PL" },
+          "AdresL1": { "_text": "ul. Sprzedawcy 10" },
+          "AdresL2": { "_text": "00-001 Warszawa" }
+        },
+        "DaneKontaktowe": {
+          "Email": { "_text": "firma@example.com" },
+          "Telefon": { "_text": "123456789" }
+        }
+      },
+      "Podmiot2": {
+        "DaneIdentyfikacyjne": {
+          "NIP": { "_text": "5265877635" },
+          "Nazwa": { "_text": "Klient Testowy sp. z o.o." }
+        },
+        "Adres": {
+          "KodKraju": { "_text": "PL" },
+          "AdresL1": { "_text": "ul. Kupiecka 5" },
+          "AdresL2": { "_text": "30-001 Kraków" }
+        },
+        "JST": { "_text": "2" },
+        "GV": { "_text": "2" }
+      },
+      "Fa": {
+        "KodWaluty": { "_text": "PLN" },
+        "P_1": { "_text": "2026-03-24" },
+        "P_1M": { "_text": "Warszawa" },
+        "P_2": { "_text": "FV/EXAMPLE/002/03/2026" },
+        "P_6": { "_text": "2026-03-24" },
+        "P_13_1": { "_text": "1000.00" },
+        "P_14_1": { "_text": "230.00" },
+        "P_15": { "_text": "1230.00" },
+        "Adnotacje": {
+          "P_16": { "_text": "2" },
+          "P_17": { "_text": "2" },
+          "P_18": { "_text": "2" },
+          "P_18A": { "_text": "2" },
+          "Zwolnienie": { "P_19N": { "_text": "1" } },
+          "NoweSrodkiTransportu": { "P_22N": { "_text": "1" } },
+          "P_23": { "_text": "2" },
+          "PMarzy": { "P_PMarzyN": { "_text": "1" } }
+        },
+        "RodzajFaktury": { "_text": "VAT" },
+        "FaWiersz": [
+          {
+            "NrWierszaFa": { "_text": "1" },
+            "P_7": { "_text": "Usługa konsultingowa IT" },
+            "P_8A": { "_text": "godz." },
+            "P_8B": { "_text": "10" },
+            "P_9A": { "_text": "80.00" },
+            "P_11": { "_text": "800.00" },
+            "P_12": { "_text": "23" }
+          },
+          {
+            "NrWierszaFa": { "_text": "2" },
+            "P_7": { "_text": "Konfiguracja serwera" },
+            "P_8A": { "_text": "szt." },
+            "P_8B": { "_text": "1" },
+            "P_9A": { "_text": "200.00" },
+            "P_11": { "_text": "200.00" },
+            "P_12": { "_text": "23" }
+          }
+        ],
+        "Platnosc": {
+          "Zaplacono": { "_text": "1" },
+          "DataZaplaty": { "_text": "2026-03-24" },
+          "FormaPlatnosci": { "_text": "6" }
+        }
+      }
+    }
+  }
+}

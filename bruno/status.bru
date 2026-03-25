@@ -1,0 +1,18 @@
+meta {
+  name: Gateway status
+  type: http
+  seq: 2
+}
+
+get {
+  url: {{baseUrl}}/ksef/status
+  body: none
+  auth: none
+}
+
+assert {
+  res.status: eq 200
+  res.body.success: eq true
+  res.body.data.mode: isDefined
+  res.body.data.environment: isDefined
+}

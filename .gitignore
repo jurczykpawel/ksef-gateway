@@ -29,9 +29,11 @@ coverage/
 *.swp
 *.swo
 
-## Environment
+## Environment & secrets
 .env
 !.env.example
+contexts.json
+!contexts.example.json
 
 ## Docker
 docker-compose.override.yml

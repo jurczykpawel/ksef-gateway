@@ -7,6 +7,8 @@
 ![.NET](https://img.shields.io/badge/.NET-9.0-512BD4)
 ![Open Source](https://img.shields.io/badge/Open%20Source-100%25-brightgreen)
 
+[![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com/deploy?repo=https://github.com/jurczykpawel/ksef-gateway)
+
 ---
 
 ## Why KSeF Gateway?
@@ -68,14 +70,38 @@ curl -o faktura.pdf http://localhost:8080/ksef/invoice/{ksefNumber}/pdf
 
 ---
 
+## Testing with Bruno
+
+A [Bruno](https://www.usebruno.com/) collection is included in the `bruno/` directory - all endpoints with assertions.
+
+**Setup:**
+1. Install Bruno (desktop app or CLI: `npm install -g @usebruno/cli`)
+2. Open collection in Bruno desktop: **Open Collection** → select `bruno/`
+3. Select environment `local`
+4. Set `sellerNip` to your NIP
+
+**Run with CLI:**
+```bash
+# Health/status (no token required)
+cd bruno && bru run health.bru status.bru contexts.bru --env local
+
+# Full collection (requires KSEF_TOKEN + KSEF_NIP in .env)
+bru run --env local
+```
+
+`send-xml.bru` and `send-invoice.bru` automatically save the returned `ksefNumber` as a variable - after sending, `get-invoice-xml` and `get-invoice-pdf` work immediately.
+
+---
+
 ## API Endpoints
 
 ### Workflow Endpoints (high-level)
 
 | Method | Endpoint | Input | Output |
 |--------|----------|-------|--------|
+| `POST` | `/ksef/invoice` | Friendly JSON `{seller, buyer, items}` | KSeF number |
 | `POST` | `/ksef/send` | FA(3) XML body | KSeF number |
-| `POST` | `/ksef/send/json` | JSON (xml-js format) | KSeF number |
+| `POST` | `/ksef/send/json` | JSON (xml-js format, 1:1 with XML) | KSeF number |
 | `GET` | `/ksef/invoice/{ksefNumber}` | - | Invoice XML |
 | `GET` | `/ksef/invoice/{ksefNumber}/pdf` | - | PDF with QR code |
 | `GET` | `/ksef/status` | - | Gateway + KSeF status |
@@ -331,6 +357,49 @@ Two containers, no database, no Redis. Auth state in memory (restart = re-auth i
 
 ---
 
+## Cloud Deployment
+
+### Render (one-click)
+
+[![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com/deploy?repo=https://github.com/jurczykpawel/ksef-gateway)
+
+Click the button, set three env vars (`GITHUB_PAT`, `KSEF_TOKEN`, `KSEF_NIP`), done. Both services (API + PDF) deploy automatically from `render.yaml`.
+
+### AWS Lambda
+
+Deploy as a serverless Lambda function with Function URL (no API Gateway - avoids 29s timeout).
+
+```bash
+cd deploy/aws
+sam build --build-arg GITHUB_PAT=<your-pat>
+sam deploy --guided
+```
+
+See [`deploy/aws/README.md`](deploy/aws/README.md) for details.
+
+### Azure Container Apps
+
+Deploy as managed containers - mirrors Docker Compose, zero code changes.
+
+```bash
+az deployment group create \
+  --resource-group ksef-gateway \
+  --template-file deploy/azure/main.bicep \
+  --parameters ksefToken=<token> ksefNip=<nip>
+```
+
+See [`deploy/azure/README.md`](deploy/azure/README.md) for details.
+
+| | Docker Compose | Render | AWS Lambda | Azure Container Apps |
+|---|---|---|---|---|
+| Setup | `docker compose up` | One-click button | SAM CLI | Azure CLI + Bicep |
+| Cold start | None | ~30s (free tier) | ~3-5s | ~5-10s (or 0 with minReplicas=1) |
+| Cost (low traffic) | Server cost | Free tier available | Near-zero | ~$10-15/month |
+| PDF service | Included | Included | Separate deployment | Included (internal container) |
+| Multi-NIP | `contexts.json` mount | Env vars | Env vars (single NIP) | Env vars or Azure Files |
+
+---
+
 ## Roadmap
 
 - [x] Auto-discovery of 60+ SDK endpoints via reflection
@@ -342,11 +411,14 @@ Two containers, no database, no Redis. Auth state in memory (restart = re-auth i
 - [x] Token generator for TEST environment
 - [x] Scalar API documentation
 - [x] Docker one-command setup
-- [ ] Client-side rate limiting (respect KSeF limits proactively)
-- [ ] JSON Schema auto-generated from XSD (validation + docs)
-- [ ] AWS Lambda deployment support
-- [ ] Multi-NIP / multi-tenant mode
-- [ ] Friendly JSON format (`{seller, buyer, items}`) with auto-mapping
+- [x] Client-side rate limiting (proactive, per official MF limits)
+- [x] `POST /ksef/invoice` - friendly JSON with auto VAT calculation
+- [x] 81 unit/integration tests (SdkReflector, RateLimiter, InvoiceXmlBuilder, XSD validation, KSeF E2E)
+- [x] GitHub Actions CI + TruffleHog secret scanning
+- [x] Multi-NIP / multi-tenant mode
+- [x] Bruno collection for manual and automated testing
+- [x] AWS Lambda deployment support
+- [x] Azure Container Apps deployment support
 
 ---
 

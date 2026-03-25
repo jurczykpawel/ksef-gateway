@@ -27,9 +27,13 @@ builder.Services.AddKSeFClient(options =>
 });
 builder.Services.AddCryptographyClient();
 
-// Auth
-builder.Services.AddSingleton<TokenManager>();
-builder.Services.AddHostedService(sp => sp.GetRequiredService<TokenManager>());
+// Auth: ContextProvider + TokenPool (replaces TokenManager, supports multi-NIP)
+builder.Services.AddSingleton<ContextProvider>();
+builder.Services.AddSingleton<TokenPool>();
+builder.Services.AddHostedService(sp => sp.GetRequiredService<TokenPool>());
+// Backward compat: register TokenManager as wrapper around TokenPool
+builder.Services.AddSingleton<TokenManager>(sp =>
+    new TokenManager(sp.GetRequiredService<TokenPool>(), sp.GetRequiredService<ContextProvider>()));
 
 // HTTP client for PDF service
 builder.Services.AddHttpClient();
@@ -75,5 +79,10 @@ foreach (var group in endpoints.GroupBy(e => e.GroupName))
         group.Key,
         string.Join(", ", group.Select(e => e.MethodName)));
 }
+
+var contextProvider = app.Services.GetRequiredService<ContextProvider>();
+app.Logger.LogInformation("Contexts: {Count} ({Mode} mode)",
+    contextProvider.GetAll().Count,
+    contextProvider.IsMultiNip ? "multi-NIP" : "single-NIP");
 
 app.Run();

@@ -1,0 +1,12 @@
+[
+  {
+    "nip": "1234567890",
+    "token": "your-ksef-token-for-first-company",
+    "label": "Company A"
+  },
+  {
+    "nip": "0987654321",
+    "token": "your-ksef-token-for-second-company",
+    "label": "Company B"
+  }
+]

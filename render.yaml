@@ -18,7 +18,6 @@ services:
           name: ksef-pdf
           type: web
           property: hostport
-          envVarKey: RENDER_SERVICE_URL
       - key: GITHUB_PAT
         sync: false
       - key: DOCKER_BUILDKIT

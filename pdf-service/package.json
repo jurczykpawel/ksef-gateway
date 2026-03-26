@@ -9,7 +9,7 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "express": "^4.21.0",
+    "express": "^5.2.1",
     "pdfmake": "^0.2.20",
     "xml-js": "^1.6.11"
   },

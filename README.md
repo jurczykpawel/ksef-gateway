@@ -264,6 +264,54 @@ PDFs are generated using the official [CIRFMF/ksef-pdf-generator](https://github
 
 ---
 
+## Integration with E-Commerce (Sellf, WooCommerce, etc.)
+
+KSeF Gateway is a standalone service - deploy it separately and call its API from your e-commerce platform. No plugins, no SDK, just HTTP.
+
+### Flow
+
+```
+Customer pays → Your platform fires webhook → POST /ksef/invoice → KSeF number returned
+```
+
+### Option 1: Direct integration (recommended)
+
+After a successful payment, send a `POST /ksef/invoice` with seller/buyer/items data:
+
+```bash
+curl -X POST https://your-ksef-gateway.onrender.com/ksef/invoice \
+  -H "Content-Type: application/json" \
+  -d '{
+    "invoiceNumber": "FV/2026/001",
+    "issueDate": "2026-03-26",
+    "saleDate": "2026-03-26",
+    "seller": { "nip": "YOUR_NIP", "name": "Your Company", "address": { "street": "...", "city": "..." } },
+    "buyer": { "nip": "BUYER_NIP", "name": "Customer", "address": { "street": "...", "city": "..." } },
+    "items": [{ "name": "Product name", "quantity": 1, "unitPrice": 100, "vatRate": 23 }],
+    "payment": { "paid": true, "date": "2026-03-26", "method": "transfer" }
+  }'
+```
+
+### Option 2: n8n as middleware (no-code)
+
+If you don't want to modify your platform's code, use [n8n](https://n8n.io/) as a bridge:
+
+1. **Webhook node** - receives payment notification from your platform
+2. **Transform node** - maps payment data to KSeF invoice format
+3. **HTTP Request node** - sends `POST /ksef/invoice` to your gateway
+
+Zero code changes in your e-commerce platform.
+
+### Deploy the gateway
+
+You need a running KSeF Gateway instance. Pick one:
+
+- **[Deploy to Render](https://render.com/deploy?repo=https://github.com/jurczykpawel/ksef-gateway)** (one click, free tier)
+- **StackPilot**: `./local/deploy.sh ksef-gateway --ssh=vps` ([github.com/jurczykpawel/stackpilot](https://github.com/jurczykpawel/stackpilot))
+- **Docker Compose**: `docker compose up` (self-hosted)
+
+---
+
 ## How Token Generator Works
 
 The token generator automates what normally requires a qualified e-signature. It works **only on the TEST environment** using a self-signed certificate.

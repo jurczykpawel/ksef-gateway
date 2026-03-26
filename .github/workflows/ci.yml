@@ -9,6 +9,7 @@ on:
 jobs:
   build-api:
     name: Build & Test API (.NET)
+    if: github.actor != 'dependabot[bot]'
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -41,6 +42,7 @@ jobs:
 
   build-docker:
     name: Build Docker images
+    if: github.actor != 'dependabot[bot]'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4

@@ -21,12 +21,11 @@ services:
           envVarKey: RENDER_SERVICE_URL
       - key: GITHUB_PAT
         sync: false
+      - key: DOCKER_BUILDKIT
+        value: "1"
     buildFilter:
       paths:
         - src/**
-    docker:
-      buildArgs:
-        GITHUB_PAT: ${GITHUB_PAT}
 
   - type: web
     name: ksef-pdf

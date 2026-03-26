@@ -21,18 +21,10 @@ jobs:
         with:
           dotnet-version: '9.0.x'
 
-      - name: Configure CIRFMF NuGet source
-        run: |
-          dotnet nuget add source "https://nuget.pkg.github.com/CIRFMF/index.json" \
-            --name github-cirfmf \
-            --username token \
-            --password ${{ secrets.CIRFMF_PAT }} \
-            --store-password-in-clear-text
-
       - name: Restore
         env:
           GITHUB_PAT: ${{ secrets.CIRFMF_PAT }}
-        run: dotnet restore KSeFGateway.Api/KSeFGateway.Api.csproj && dotnet restore KSeFGateway.Api.Tests/KSeFGateway.Api.Tests.csproj
+        run: dotnet restore KSeFGateway.Api.Tests/KSeFGateway.Api.Tests.csproj --configfile nuget.config
 
       - name: Build
         run: dotnet build KSeFGateway.Api.Tests/KSeFGateway.Api.Tests.csproj -c Release --no-restore

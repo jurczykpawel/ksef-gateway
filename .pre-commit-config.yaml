@@ -8,3 +8,33 @@ repos:
         language: golang
         pass_filenames: false
         stages: [pre-commit]
+
+  - repo: local
+    hooks:
+      - id: pdf-typecheck
+        name: PDF service typecheck
+        entry: bash -c 'cd pdf-service && npx tsc --noEmit'
+        language: system
+        pass_filenames: false
+        files: ^pdf-service/
+
+      - id: pdf-test
+        name: PDF service tests
+        entry: bash -c 'cd pdf-service && npm test'
+        language: system
+        pass_filenames: false
+        files: ^pdf-service/
+
+      - id: dotnet-build
+        name: .NET build check
+        entry: bash -c 'which dotnet > /dev/null 2>&1 && cd src && dotnet build KSeFGateway.Api/KSeFGateway.Api.csproj --no-restore -q || true'
+        language: system
+        pass_filenames: false
+        files: ^src/.*\.cs$
+
+      - id: dotnet-test
+        name: .NET unit tests
+        entry: bash -c 'which dotnet > /dev/null 2>&1 && cd src && dotnet test KSeFGateway.Api.Tests/KSeFGateway.Api.Tests.csproj --no-restore --no-build --filter "Category!=Integration" -q || true'
+        language: system
+        pass_filenames: false
+        files: ^src/.*\.cs$

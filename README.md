@@ -1,6 +1,25 @@
 # KSeF Gateway
 
-> Universal REST API gateway for Poland's National e-Invoice System (KSeF). Send invoices, get PDFs with QR codes - one HTTP call.
+> REST API for Poland's e-Invoice System (KSeF). Send a JSON, get a KSeF number. One HTTP call.
+
+<details>
+<summary>🇵🇱 Po polsku</summary>
+
+**KSeF Gateway** to bramka REST API do Krajowego Systemu e-Faktur. Wysyłasz prosty JSON z danymi faktury, dostajesz numer KSeF. Jedno wywołanie HTTP zamiast budowania XML, szyfrowania AES-256, zarządzania sesjami i tokenami.
+
+```bash
+curl -X POST https://twoj-gateway/ksef/invoice \
+  -d '{"seller":{"nip":"..."},"buyer":{"nip":"..."},"items":[{"name":"Usługa","unitPrice":100,"vatRate":23}]}'
+# → {"success":true,"data":{"ksefNumber":"1234567890-20260326-..."}}
+```
+
+**Szybki start:** `docker compose up` i gotowe. Nie potrzebujesz .NET lokalnie.
+
+**Cechy:** oficjalne SDK Ministerstwa Finansów (CIRFMF), PDF z QR, 60+ endpointów, multi-NIP, deploy jednym kliknięciem (Render/Lambda/Azure).
+
+**Instrukcja generowania tokenu produkcyjnego:** [Production Token](#production-token-step-by-step)
+
+</details>
 
 ![License](https://img.shields.io/badge/License-MIT-green)
 ![Status](https://img.shields.io/badge/Status-Beta-yellow)
@@ -11,14 +30,45 @@
 
 ---
 
+## The Problem
+
+Integrating with KSeF directly means:
+- Building FA(3) XML from scratch (complex schema, Polish field names like P_13_1, P_14_1)
+- AES-256 encryption of invoices with KSeF's RSA public key
+- Session management (open, send, poll status, close)
+- Token authentication with XAdES signatures and auto-refresh
+- Handling rate limits, retries, and error codes from KSeF API
+
+**KSeF Gateway handles all of this.** You send a simple JSON, get back a KSeF number.
+
+### Without KSeF Gateway
+
+```
+Your app → build XML → encrypt AES-256 → exchange RSA keys → open session
+→ send encrypted invoice → poll status → parse response → close session
+→ handle errors, retries, token refresh...
+```
+
+### With KSeF Gateway
+
+```bash
+curl -X POST https://your-gateway/ksef/invoice \
+  -H "Content-Type: application/json" \
+  -d '{"seller":{"nip":"..."},"buyer":{"nip":"..."},"items":[{"name":"Service","unitPrice":100,"vatRate":23}]}'
+
+# → {"success":true,"data":{"ksefNumber":"1234567890-20260326-..."}}
+```
+
+---
+
 ## Why KSeF Gateway?
 
-- **One HTTP call** to send an invoice to KSeF - gateway handles encryption, sessions, polling
-- **JSON or XML** - send invoices as JSON (auto-converted) or raw FA(3) XML
-- **PDF with QR** - get a verified PDF by KSeF number, one call
-- **60+ auto-discovered endpoints** from the official SDK via .NET reflection
+- **One HTTP call** - send JSON, get KSeF number. Gateway handles encryption, sessions, polling
+- **Simple JSON input** - `{seller, buyer, items}` with auto VAT calculation. No XML knowledge needed
+- **PDF with QR** - download verified invoice PDF by KSeF number, one call
 - **Official SDK inside** - wraps [CIRFMF/ksef-client-csharp](https://github.com/CIRFMF/ksef-client-csharp), maintained by the Polish Ministry of Finance
-- **Zero crypto complexity** - AES-256 encryption, RSA key exchange, token management handled transparently
+- **60+ auto-discovered endpoints** from the SDK via .NET reflection
+- **Deploy anywhere** - Docker, Render (one click), AWS Lambda, Azure
 - **No .NET required locally** - everything builds and runs inside Docker
 
 ---
@@ -27,7 +77,9 @@
 
 ### Prerequisites
 - Docker & Docker Compose
-- GitHub PAT with `read:packages` scope ([create here](https://github.com/settings/tokens/new?scopes=read:packages) - needed for CIRFMF SDK from GitHub Packages)
+- GitHub PAT with `read:packages` scope ([create here](https://github.com/settings/tokens/new?scopes=read:packages))
+
+> **Why is a GitHub PAT needed?** The official KSeF SDK ([CIRFMF/ksef-client-csharp](https://github.com/CIRFMF/ksef-client-csharp)) is published as NuGet packages on GitHub Packages, not on nuget.org. GitHub Packages requires authentication even for packages from public repositories - this is a [known GitHub limitation](https://github.com/orgs/community/discussions/26634). A PAT with `read:packages` scope is the only way to download them during build. It takes 30 seconds to generate one.
 
 ### 1. Clone and configure
 
@@ -59,14 +111,35 @@ API: `http://localhost:8080` | Docs: `http://localhost:8080/scalar/v1`
 ### 4. Send your first invoice
 
 ```bash
-# Send FA(3) XML invoice
-curl -X POST http://localhost:8080/ksef/send \
-  -H "Content-Type: application/xml" \
-  -d @invoice.xml
+curl -X POST http://localhost:8080/ksef/invoice \
+  -H "Content-Type: application/json" \
+  -d '{
+    "invoiceNumber": "FV/2026/001",
+    "issueDate": "2026-03-26",
+    "saleDate": "2026-03-26",
+    "seller": {
+      "nip": "YOUR_NIP",
+      "name": "Your Company sp. z o.o.",
+      "address": { "street": "ul. Testowa 1", "city": "00-001 Warszawa" }
+    },
+    "buyer": {
+      "nip": "5265877635",
+      "name": "Buyer sp. z o.o.",
+      "address": { "street": "ul. Kupiecka 5", "city": "30-001 Krakow" }
+    },
+    "items": [
+      { "name": "Consulting service", "quantity": 10, "unitPrice": 150, "vatRate": 23 }
+    ],
+    "payment": { "paid": true, "date": "2026-03-26", "method": "transfer" }
+  }'
 
-# Get PDF with QR code
+# Response: {"success":true,"data":{"ksefNumber":"1234567890-20260326-..."}}
+
+# Download PDF with QR code
 curl -o faktura.pdf http://localhost:8080/ksef/invoice/{ksefNumber}/pdf
 ```
+
+> **Also supports raw XML** (`POST /ksef/send`) and xml-js JSON format (`POST /ksef/send/json`) - see [Sending Invoices](#sending-invoices) below.
 
 ---
 
@@ -129,112 +202,64 @@ Full interactive docs at `/scalar/v1`.
 
 ## Sending Invoices
 
-### Option 1: Raw XML
+### Option 1: Friendly JSON (recommended)
+
+Simple JSON with human-readable fields. Gateway builds FA(3) XML, calculates VAT totals, handles all KSeF fields automatically.
+
+```bash
+curl -X POST http://localhost:8080/ksef/invoice \
+  -H "Content-Type: application/json" \
+  -d '{
+    "invoiceNumber": "FV/2026/001",
+    "issueDate": "2026-03-26",
+    "saleDate": "2026-03-26",
+    "seller": {
+      "nip": "1234567890",
+      "name": "Seller sp. z o.o.",
+      "address": { "street": "ul. Testowa 1", "city": "00-001 Warszawa" }
+    },
+    "buyer": {
+      "nip": "0987654321",
+      "name": "Buyer sp. z o.o.",
+      "address": { "street": "ul. Kupiecka 2", "city": "00-002 Warszawa" }
+    },
+    "items": [
+      { "name": "Consulting service", "quantity": 10, "unitPrice": 150, "vatRate": 23 },
+      { "name": "Server hosting", "quantity": 1, "unitPrice": 50, "vatRate": 23 }
+    ],
+    "payment": { "paid": true, "date": "2026-03-26", "method": "transfer" }
+  }'
+```
+
+### Option 2: Raw FA(3) XML
+
+For systems that already generate KSeF XML (accounting software, ERP):
 
 ```bash
 curl -X POST http://localhost:8080/ksef/send \
   -H "Content-Type: application/xml" \
-  -d '<?xml version="1.0" encoding="utf-8"?>
-<Faktura xmlns="http://crd.gov.pl/wzor/2025/06/25/13775/">
-  <Naglowek>
-    <KodFormularza kodSystemowy="FA (3)" wersjaSchemy="1-0E">FA</KodFormularza>
-    <WariantFormularza>3</WariantFormularza>
-    <DataWytworzeniaFa>2026-03-25T12:00:00Z</DataWytworzeniaFa>
-    <SystemInfo>my-system</SystemInfo>
-  </Naglowek>
-  <!-- ... full FA(3) XML ... -->
-</Faktura>'
+  -d @invoice.xml
 ```
 
-### Option 2: JSON (zero-maintenance format)
+### Option 3: JSON mirroring XML (xml-js format)
 
-JSON structure mirrors XML 1:1 using [xml-js compact format](https://www.npmjs.com/package/xml-js#compact-notation). No manual mapping - when FA(3) XSD changes, JSON structure changes automatically.
+1:1 JSON representation of FA(3) XML using [xml-js compact format](https://www.npmjs.com/package/xml-js#compact-notation). Zero-maintenance - when XSD changes, JSON structure changes automatically. See [`examples/invoice.json`](examples/invoice.json) for full example.
 
 ```bash
 curl -X POST http://localhost:8080/ksef/send/json \
   -H "Content-Type: application/json" \
-  -d '{
-  "Faktura": {
-    "Naglowek": {
-      "KodFormularza": {
-        "_attributes": {"kodSystemowy": "FA (3)", "wersjaSchemy": "1-0E"},
-        "_text": "FA"
-      },
-      "WariantFormularza": {"_text": "3"},
-      "DataWytworzeniaFa": {"_text": "2026-03-25T12:00:00Z"},
-      "SystemInfo": {"_text": "my-system"}
-    },
-    "Podmiot1": {
-      "DaneIdentyfikacyjne": {
-        "NIP": {"_text": "1234567890"},
-        "Nazwa": {"_text": "Seller sp. z o.o."}
-      },
-      "Adres": {
-        "KodKraju": {"_text": "PL"},
-        "AdresL1": {"_text": "ul. Testowa 1"},
-        "AdresL2": {"_text": "00-001 Warszawa"}
-      }
-    },
-    "Podmiot2": {
-      "DaneIdentyfikacyjne": {
-        "NIP": {"_text": "0987654321"},
-        "Nazwa": {"_text": "Buyer sp. z o.o."}
-      },
-      "Adres": {
-        "KodKraju": {"_text": "PL"},
-        "AdresL1": {"_text": "ul. Kupiecka 2"},
-        "AdresL2": {"_text": "00-002 Warszawa"}
-      },
-      "JST": {"_text": "2"},
-      "GV": {"_text": "2"}
-    },
-    "Fa": {
-      "KodWaluty": {"_text": "PLN"},
-      "P_1": {"_text": "2026-03-24"},
-      "P_2": {"_text": "FV/001/03/2026"},
-      "P_6": {"_text": "2026-03-24"},
-      "P_13_1": {"_text": "100.00"},
-      "P_14_1": {"_text": "23.00"},
-      "P_15": {"_text": "123.00"},
-      "Adnotacje": {
-        "P_16": {"_text": "2"}, "P_17": {"_text": "2"},
-        "P_18": {"_text": "2"}, "P_18A": {"_text": "2"},
-        "Zwolnienie": {"P_19N": {"_text": "1"}},
-        "NoweSrodkiTransportu": {"P_22N": {"_text": "1"}},
-        "P_23": {"_text": "2"},
-        "PMarzy": {"P_PMarzyN": {"_text": "1"}}
-      },
-      "RodzajFaktury": {"_text": "VAT"},
-      "FaWiersz": {
-        "NrWierszaFa": {"_text": "1"},
-        "P_7": {"_text": "Service description"},
-        "P_8A": {"_text": "szt."},
-        "P_8B": {"_text": "1"},
-        "P_9A": {"_text": "100.00"},
-        "P_11": {"_text": "100.00"},
-        "P_12": {"_text": "23"}
-      },
-      "Platnosc": {
-        "Zaplacono": {"_text": "1"},
-        "DataZaplaty": {"_text": "2026-03-24"},
-        "FormaPlatnosci": {"_text": "6"}
-      }
-    }
-  }
-}'
+  -d @examples/invoice.json
 ```
 
-### Response
+### Response (all options)
 
 ```json
 {
   "success": true,
   "data": {
-    "ksefNumber": "1234567890-20260325-5EC118800000-05",
+    "ksefNumber": "1234567890-20260326-5EC118800000-05",
     "status": "accepted",
-    "statusDescription": "Sukces",
-    "sessionReferenceNumber": "20260325-SO-...",
-    "invoiceReferenceNumber": "20260325-EE-..."
+    "statusDescription": "Sukces"
   }
 }
 ```
@@ -259,6 +284,58 @@ curl -X POST "http://localhost:8080/pdf/invoice?nrKSeF={ksefNumber}" \
 ```
 
 PDFs are generated using the official [CIRFMF/ksef-pdf-generator](https://github.com/CIRFMF/ksef-pdf-generator) library. QR codes contain the KSeF verification URL with SHA-256 hash - scannable and verified by KSeF.
+
+---
+
+## Integration with E-Commerce (Sellf, WooCommerce, etc.)
+
+KSeF Gateway is a standalone service - deploy it separately and call its API from your e-commerce platform. No plugins, no SDK, just HTTP.
+
+### Flow
+
+```
+Customer pays → Platform webhook → (optional: n8n transform) → POST /ksef/invoice → KSeF number
+```
+
+### Option 1: Direct integration
+
+Add a `POST /ksef/invoice` call in your payment success handler:
+
+```bash
+curl -X POST https://your-ksef-gateway.onrender.com/ksef/invoice \
+  -H "Content-Type: application/json" \
+  -d '{
+    "invoiceNumber": "FV/2026/001",
+    "issueDate": "2026-03-26",
+    "saleDate": "2026-03-26",
+    "seller": { "nip": "YOUR_NIP", "name": "Your Company", "address": { "street": "...", "city": "..." } },
+    "buyer": { "nip": "BUYER_NIP", "name": "Customer", "address": { "street": "...", "city": "..." } },
+    "items": [{ "name": "Product name", "quantity": 1, "unitPrice": 100, "vatRate": 23 }],
+    "payment": { "paid": true, "date": "2026-03-26", "method": "transfer" }
+  }'
+```
+
+### Option 2: n8n as middleware (no-code, recommended)
+
+Most platforms send webhooks in their own format, not KSeF format. Use [n8n](https://n8n.io/) to translate:
+
+1. **Webhook node** - receives payment webhook from your platform (Sellf, WooCommerce, Stripe, etc.)
+2. **Transform node** - maps platform's JSON to KSeF invoice format (seller, buyer, items)
+3. **HTTP Request node** - sends `POST /ksef/invoice` to your gateway
+
+Zero code changes in your e-commerce platform. Configure the webhook URL in your platform's settings and n8n handles the rest.
+
+Ready-to-import workflows in [`examples/n8n/`](examples/n8n/):
+- **Sellf → KSeF** (`sellf-ksef.json`) - digital products, NIP check, seller data from n8n variables
+- **WooCommerce → KSeF** (`woocommerce-ksef.json`) - WooCommerce orders, VAT rate auto-detection, consumer skipping
+
+### Deploy the gateway
+
+You need a running KSeF Gateway instance. Pick one:
+
+- **[Deploy to Render](https://render.com/deploy?repo=https://github.com/jurczykpawel/ksef-gateway)** (one click, free tier)
+- **StackPilot**: `./local/deploy.sh ksef-gateway --ssh=vps` ([github.com/jurczykpawel/stackpilot](https://github.com/jurczykpawel/stackpilot))
+- **Docker Compose**: `docker compose up` (self-hosted)
 
 ---
 
@@ -339,6 +416,42 @@ You only need to do this once. If you lose the token, revoke it in the portal an
 | `KSEF_API_PORT` | No | `8080` | Gateway API port |
 | `KSEF_QR_URL` | No | `https://qr-test.ksef.mf.gov.pl` | QR verification base URL |
 | `GITHUB_PAT` | Build | - | GitHub PAT with `read:packages` for CIRFMF SDK |
+| `KSEF_CONTEXTS_FILE` | No | `/app/contexts.json` | Path to multi-NIP config file |
+
+### Multi-NIP Mode
+
+To handle invoices for multiple companies, create a `contexts.json` file:
+
+```json
+[
+  {
+    "nip": "1234567890",
+    "token": "ksef-token-for-company-A",
+    "label": "Company A"
+  },
+  {
+    "nip": "0987654321",
+    "token": "ksef-token-for-company-B",
+    "label": "Company B"
+  }
+]
+```
+
+Mount it in Docker Compose (already configured in `docker-compose.yml`):
+
+```yaml
+volumes:
+  - ./contexts.json:/app/contexts.json:ro
+```
+
+The gateway auto-detects which NIP to use based on:
+1. `X-KSeF-NIP` header (explicit)
+2. Seller NIP from the invoice body
+3. Default context (first in list or from `KSEF_NIP` env var)
+
+Check authenticated contexts: `GET /ksef/contexts`
+
+> **Note:** `KSEF_TOKEN` + `KSEF_NIP` env vars still work for single-NIP mode. If both env vars and `contexts.json` are present, the env var context is added to the list.
 
 ---
 

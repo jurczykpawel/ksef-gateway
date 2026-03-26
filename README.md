@@ -21,7 +21,7 @@ curl -X POST https://twoj-gateway/ksef/invoice \
 
 </details>
 
-![License](https://img.shields.io/badge/License-MIT-green)
+![License](https://img.shields.io/badge/License-AGPL%20v3-blue)
 ![Status](https://img.shields.io/badge/Status-Beta-yellow)
 ![.NET](https://img.shields.io/badge/.NET-9.0-512BD4)
 ![Open Source](https://img.shields.io/badge/Open%20Source-100%25-brightgreen)
@@ -579,7 +579,7 @@ Contributions are welcome! See [CONTRIBUTING.md](CONTRIBUTING.md) for details.
 
 ## License
 
-MIT - see [LICENSE](LICENSE)
+AGPL-3.0 - see [LICENSE](LICENSE)
 
 ---
 

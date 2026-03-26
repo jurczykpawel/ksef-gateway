@@ -10,7 +10,7 @@
   },
   "dependencies": {
     "express": "^5.2.1",
-    "pdfmake": "^0.2.20",
+    "pdfmake": "^0.3.7",
     "xml-js": "^1.6.11"
   },
   "devDependencies": {
@@ -19,6 +19,6 @@
     "@types/pdfmake": "^0.2.11",
     "tsx": "^4.19.0",
     "typescript": "^6.0.2",
-    "vitest": "^2.1.0"
+    "vitest": "^4.1.1"
   }
 }

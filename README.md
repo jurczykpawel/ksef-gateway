@@ -302,6 +302,8 @@ Most platforms send webhooks in their own format, not KSeF format. Use [n8n](htt
 
 Zero code changes in your e-commerce platform. Configure the webhook URL in your platform's settings and n8n handles the rest.
 
+Ready-to-import workflow: [`examples/n8n/woocommerce-ksef.json`](examples/n8n/) - WooCommerce → KSeF with NIP detection, VAT rate mapping, and consumer order skipping.
+
 ### Deploy the gateway
 
 You need a running KSeF Gateway instance. Pick one:

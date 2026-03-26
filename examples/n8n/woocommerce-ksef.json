@@ -1,0 +1,110 @@
+{
+  "name": "WooCommerce → KSeF Gateway",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "woo-ksef",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "webhook",
+      "name": "WooCommerce Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [240, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Transform WooCommerce order to KSeF invoice format\nconst order = $input.first().json;\n\n// Extract NIP from billing fields or meta_data\nconst nipField = (order.meta_data || []).find(m => m.key === '_billing_nip' || m.key === 'billing_nip');\nconst buyerNip = nipField?.value || '';\n\nif (!buyerNip) {\n  // No NIP = consumer (osoba fizyczna), skip KSeF\n  return [{ json: { skip: true, reason: 'No buyer NIP - consumer purchase, KSeF not required' } }];\n}\n\n// Map WooCommerce line items to KSeF items\nconst items = (order.line_items || []).map(item => {\n  const netTotal = parseFloat(item.total) || 0;\n  const taxTotal = parseFloat(item.total_tax) || 0;\n  const quantity = item.quantity || 1;\n  const unitPrice = Math.round((netTotal / quantity) * 100) / 100;\n  \n  // Detect VAT rate from tax amount\n  let vatRate = 23; // default\n  if (netTotal > 0) {\n    const rate = Math.round((taxTotal / netTotal) * 100);\n    if ([23, 8, 5, 0].includes(rate)) vatRate = rate;\n  }\n  \n  return {\n    name: item.name,\n    quantity: quantity,\n    unitPrice: unitPrice,\n    vatRate: vatRate\n  };\n});\n\nconst today = new Date().toISOString().split('T')[0];\n\nconst invoice = {\n  invoiceNumber: `WOO/${order.number || order.id}`,\n  issueDate: today,\n  saleDate: order.date_created?.split('T')[0] || today,\n  issuePlace: order.billing?.city || 'Warszawa',\n  currency: order.currency || 'PLN',\n  type: 'VAT',\n  seller: {\n    nip: '{{ SELLER_NIP }}',\n    name: '{{ SELLER_NAME }}',\n    address: {\n      street: '{{ SELLER_STREET }}',\n      city: '{{ SELLER_CITY }}'\n    }\n  },\n  buyer: {\n    nip: buyerNip,\n    name: order.billing?.company || `${order.billing?.first_name} ${order.billing?.last_name}`,\n    address: {\n      street: order.billing?.address_1 || '',\n      city: `${order.billing?.postcode || ''} ${order.billing?.city || ''}`\n    }\n  },\n  items: items,\n  payment: {\n    paid: order.status === 'completed' || order.date_paid != null,\n    date: order.date_paid?.split('T')[0] || today,\n    method: order.payment_method === 'cod' ? 'cash' : 'transfer'\n  }\n};\n\nreturn [{ json: { skip: false, invoice } }];"
+      },
+      "id": "transform",
+      "name": "Transform to KSeF",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [460, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": { "caseSensitive": true, "leftValue": "" },
+          "conditions": [
+            {
+              "leftValue": "={{ $json.skip }}",
+              "rightValue": false,
+              "operator": { "type": "boolean", "operation": "equals" }
+            }
+          ],
+          "combinator": "and"
+        }
+      },
+      "id": "filter",
+      "name": "Has NIP?",
+      "type": "n8n-nodes-base.filter",
+      "typeVersion": 2,
+      "position": [680, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.KSEF_GATEWAY_URL }}/ksef/invoice",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json.invoice) }}",
+        "options": {
+          "timeout": 120000
+        }
+      },
+      "id": "send-invoice",
+      "name": "Send to KSeF",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [900, 300]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ success: $json.data?.ksefNumber ? true : false, ksefNumber: $json.data?.ksefNumber || null, error: $json.error || null }) }}"
+      },
+      "id": "respond-ok",
+      "name": "Respond OK",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [1120, 300]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ success: true, skipped: true, reason: $json.reason }) }}",
+        "options": { "responseCode": 200 }
+      },
+      "id": "respond-skip",
+      "name": "Respond Skipped",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [900, 500]
+    }
+  ],
+  "connections": {
+    "WooCommerce Webhook": {
+      "main": [[{ "node": "Transform to KSeF", "type": "main", "index": 0 }]]
+    },
+    "Transform to KSeF": {
+      "main": [[{ "node": "Has NIP?", "type": "main", "index": 0 }]]
+    },
+    "Has NIP?": {
+      "main": [
+        [{ "node": "Send to KSeF", "type": "main", "index": 0 }],
+        [{ "node": "Respond Skipped", "type": "main", "index": 0 }]
+      ]
+    },
+    "Send to KSeF": {
+      "main": [[{ "node": "Respond OK", "type": "main", "index": 0 }]]
+    }
+  },
+  "pinData": {},
+  "settings": { "executionOrder": "v1" },
+  "staticData": null,
+  "tags": [],
+  "triggerCount": 0
+}

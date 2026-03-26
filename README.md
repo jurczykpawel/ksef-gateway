@@ -271,12 +271,12 @@ KSeF Gateway is a standalone service - deploy it separately and call its API fro
 ### Flow
 
 ```
-Customer pays → Your backend calls POST /ksef/invoice → KSeF number returned
+Customer pays → Platform webhook → (optional: n8n transform) → POST /ksef/invoice → KSeF number
 ```
 
-### Option 1: Direct integration (recommended)
+### Option 1: Direct integration
 
-Add a `POST /ksef/invoice` call in your payment success handler (e.g. after Stripe confirms payment):
+Add a `POST /ksef/invoice` call in your payment success handler:
 
 ```bash
 curl -X POST https://your-ksef-gateway.onrender.com/ksef/invoice \
@@ -292,15 +292,15 @@ curl -X POST https://your-ksef-gateway.onrender.com/ksef/invoice \
   }'
 ```
 
-### Option 2: n8n as middleware (no-code)
+### Option 2: n8n as middleware (no-code, recommended)
 
-If you don't want to modify your platform's code, use [n8n](https://n8n.io/) as a bridge:
+Most platforms send webhooks in their own format, not KSeF format. Use [n8n](https://n8n.io/) to translate:
 
-1. **Stripe Trigger node** - listens for `checkout.session.completed` events
-2. **Transform node** - maps Stripe payment data to KSeF invoice format
+1. **Webhook node** - receives payment webhook from your platform (Sellf, WooCommerce, Stripe, etc.)
+2. **Transform node** - maps platform's JSON to KSeF invoice format (seller, buyer, items)
 3. **HTTP Request node** - sends `POST /ksef/invoice` to your gateway
 
-Zero code changes in your e-commerce platform. Stripe notifies n8n directly.
+Zero code changes in your e-commerce platform. Configure the webhook URL in your platform's settings and n8n handles the rest.
 
 ### Deploy the gateway
 

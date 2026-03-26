@@ -339,6 +339,42 @@ You only need to do this once. If you lose the token, revoke it in the portal an
 | `KSEF_API_PORT` | No | `8080` | Gateway API port |
 | `KSEF_QR_URL` | No | `https://qr-test.ksef.mf.gov.pl` | QR verification base URL |
 | `GITHUB_PAT` | Build | - | GitHub PAT with `read:packages` for CIRFMF SDK |
+| `KSEF_CONTEXTS_FILE` | No | `/app/contexts.json` | Path to multi-NIP config file |
+
+### Multi-NIP Mode
+
+To handle invoices for multiple companies, create a `contexts.json` file:
+
+```json
+[
+  {
+    "nip": "1234567890",
+    "token": "ksef-token-for-company-A",
+    "label": "Company A"
+  },
+  {
+    "nip": "0987654321",
+    "token": "ksef-token-for-company-B",
+    "label": "Company B"
+  }
+]
+```
+
+Mount it in Docker Compose (already configured in `docker-compose.yml`):
+
+```yaml
+volumes:
+  - ./contexts.json:/app/contexts.json:ro
+```
+
+The gateway auto-detects which NIP to use based on:
+1. `X-KSeF-NIP` header (explicit)
+2. Seller NIP from the invoice body
+3. Default context (first in list or from `KSEF_NIP` env var)
+
+Check authenticated contexts: `GET /ksef/contexts`
+
+> **Note:** `KSEF_TOKEN` + `KSEF_NIP` env vars still work for single-NIP mode. If both env vars and `contexts.json` are present, the env var context is added to the list.
 
 ---
 

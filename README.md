@@ -2,6 +2,25 @@
 
 > REST API for Poland's e-Invoice System (KSeF). Send a JSON, get a KSeF number. One HTTP call.
 
+<details>
+<summary>🇵🇱 Po polsku</summary>
+
+**KSeF Gateway** to bramka REST API do Krajowego Systemu e-Faktur. Wysyłasz prosty JSON z danymi faktury, dostajesz numer KSeF. Jedno wywołanie HTTP zamiast budowania XML, szyfrowania AES-256, zarządzania sesjami i tokenami.
+
+```bash
+curl -X POST https://twoj-gateway/ksef/invoice \
+  -d '{"seller":{"nip":"..."},"buyer":{"nip":"..."},"items":[{"name":"Usługa","unitPrice":100,"vatRate":23}]}'
+# → {"success":true,"data":{"ksefNumber":"1234567890-20260326-..."}}
+```
+
+**Szybki start:** `docker compose up` i gotowe. Nie potrzebujesz .NET lokalnie.
+
+**Cechy:** oficjalne SDK Ministerstwa Finansów (CIRFMF), PDF z QR, 60+ endpointów, multi-NIP, deploy jednym kliknięciem (Render/Lambda/Azure).
+
+**Instrukcja generowania tokenu produkcyjnego:** [Production Token](#production-token-step-by-step)
+
+</details>
+
 ![License](https://img.shields.io/badge/License-MIT-green)
 ![Status](https://img.shields.io/badge/Status-Beta-yellow)
 ![.NET](https://img.shields.io/badge/.NET-9.0-512BD4)

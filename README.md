@@ -27,7 +27,9 @@
 
 ### Prerequisites
 - Docker & Docker Compose
-- GitHub PAT with `read:packages` scope ([create here](https://github.com/settings/tokens/new?scopes=read:packages) - needed for CIRFMF SDK from GitHub Packages)
+- GitHub PAT with `read:packages` scope ([create here](https://github.com/settings/tokens/new?scopes=read:packages))
+
+> **Why is a GitHub PAT needed?** The official KSeF SDK ([CIRFMF/ksef-client-csharp](https://github.com/CIRFMF/ksef-client-csharp)) is published as NuGet packages on GitHub Packages, not on nuget.org. GitHub Packages requires authentication even for packages from public repositories - this is a [known GitHub limitation](https://github.com/orgs/community/discussions/26634). A PAT with `read:packages` scope is the only way to download them during build. It takes 30 seconds to generate one.
 
 ### 1. Clone and configure
 

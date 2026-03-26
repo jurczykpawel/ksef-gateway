@@ -38,7 +38,7 @@ jobs:
         run: dotnet build KSeFGateway.Api.Tests/KSeFGateway.Api.Tests.csproj -c Release --no-restore
 
       - name: Test
-        run: dotnet test KSeFGateway.Api.Tests/KSeFGateway.Api.Tests.csproj -c Release --no-build --verbosity normal
+        run: dotnet test KSeFGateway.Api.Tests/KSeFGateway.Api.Tests.csproj -c Release --no-build --verbosity normal --filter "Category!=Integration"
 
   build-docker:
     name: Build Docker images

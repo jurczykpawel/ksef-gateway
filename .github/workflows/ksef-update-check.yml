@@ -5,6 +5,10 @@ on:
     - cron: '0 9 * * 1'  # every Monday at 9:00 UTC
   workflow_dispatch:       # manual trigger
 
+permissions:
+  contents: write
+  issues: write
+
 jobs:
   check-updates:
     runs-on: ubuntu-latest
@@ -14,84 +18,86 @@ jobs:
       - name: Check CIRFMF SDK releases
         id: sdk
         run: |
-          # Get latest release from ksef-client-csharp
           LATEST=$(curl -sf https://api.github.com/repos/CIRFMF/ksef-client-csharp/releases/latest | jq -r '.tag_name // empty')
           echo "sdk_version=${LATEST}" >> "$GITHUB_OUTPUT"
-
-          # Get latest commit on main
           LATEST_SHA=$(curl -sf https://api.github.com/repos/CIRFMF/ksef-client-csharp/commits/main | jq -r '.sha[:7]')
           echo "sdk_sha=${LATEST_SHA}" >> "$GITHUB_OUTPUT"
 
       - name: Check ksef-docs for schema changes
         id: docs
         run: |
-          # Get latest commit date and message from ksef-docs
           RESPONSE=$(curl -sf "https://api.github.com/repos/CIRFMF/ksef-docs/commits?per_page=1")
-          LATEST_DATE=$(echo "$RESPONSE" | jq -r '.[0].commit.committer.date // empty')
-          LATEST_MSG=$(echo "$RESPONSE" | jq -r '.[0].commit.message // empty' | head -1)
-          LATEST_SHA=$(echo "$RESPONSE" | jq -r '.[0].sha[:7] // empty')
-          echo "docs_date=${LATEST_DATE}" >> "$GITHUB_OUTPUT"
-          echo "docs_msg=${LATEST_MSG}" >> "$GITHUB_OUTPUT"
-          echo "docs_sha=${LATEST_SHA}" >> "$GITHUB_OUTPUT"
-
-      - name: Check for XSD changes in ksef-docs
-        id: xsd
-        run: |
-          # Check recent commits touching XSD files
-          XSD_COMMITS=$(curl -sf "https://api.github.com/repos/CIRFMF/ksef-docs/commits?path=.xsd&per_page=5" | jq -r '.[].commit.message' | head -5)
-          if [ -n "$XSD_COMMITS" ]; then
-            echo "xsd_changes<<EOF" >> "$GITHUB_OUTPUT"
-            echo "$XSD_COMMITS" >> "$GITHUB_OUTPUT"
-            echo "EOF" >> "$GITHUB_OUTPUT"
-          fi
+          echo "docs_date=$(echo "$RESPONSE" | jq -r '.[0].commit.committer.date // empty')" >> "$GITHUB_OUTPUT"
+          echo "docs_sha=$(echo "$RESPONSE" | jq -r '.[0].sha[:7] // empty')" >> "$GITHUB_OUTPUT"
+          # Save message to env to avoid shell interpretation
+          MSG=$(echo "$RESPONSE" | jq -r '.[0].commit.message // empty' | head -1)
+          echo "docs_msg<<EOFMSG" >> "$GITHUB_OUTPUT"
+          echo "$MSG" >> "$GITHUB_OUTPUT"
+          echo "EOFMSG" >> "$GITHUB_OUTPUT"
 
       - name: Check our stored versions
         id: current
         run: |
-          # Read what we currently track
           if [ -f .github/ksef-versions.json ]; then
-            CURRENT_SDK=$(jq -r '.sdk_sha // empty' .github/ksef-versions.json)
-            CURRENT_DOCS=$(jq -r '.docs_sha // empty' .github/ksef-versions.json)
+            echo "current_sdk=$(jq -r '.sdk_sha // empty' .github/ksef-versions.json)" >> "$GITHUB_OUTPUT"
+            echo "current_docs=$(jq -r '.docs_sha // empty' .github/ksef-versions.json)" >> "$GITHUB_OUTPUT"
           else
-            CURRENT_SDK=""
-            CURRENT_DOCS=""
+            echo "current_sdk=" >> "$GITHUB_OUTPUT"
+            echo "current_docs=" >> "$GITHUB_OUTPUT"
           fi
-          echo "current_sdk=${CURRENT_SDK}" >> "$GITHUB_OUTPUT"
-          echo "current_docs=${CURRENT_DOCS}" >> "$GITHUB_OUTPUT"
 
       - name: Compare and create issue if needed
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          SDK_SHA: ${{ steps.sdk.outputs.sdk_sha }}
+          SDK_VERSION: ${{ steps.sdk.outputs.sdk_version }}
+          DOCS_SHA: ${{ steps.docs.outputs.docs_sha }}
+          DOCS_DATE: ${{ steps.docs.outputs.docs_date }}
+          DOCS_MSG: ${{ steps.docs.outputs.docs_msg }}
+          CURRENT_SDK: ${{ steps.current.outputs.current_sdk }}
+          CURRENT_DOCS: ${{ steps.current.outputs.current_docs }}
         run: |
-          SDK_SHA="${{ steps.sdk.outputs.sdk_sha }}"
-          DOCS_SHA="${{ steps.docs.outputs.docs_sha }}"
-          CURRENT_SDK="${{ steps.current.outputs.current_sdk }}"
-          CURRENT_DOCS="${{ steps.current.outputs.current_docs }}"
-
           CHANGES=""
 
           if [ -n "$SDK_SHA" ] && [ "$SDK_SHA" != "$CURRENT_SDK" ]; then
-            CHANGES="${CHANGES}\n### CIRFMF SDK (ksef-client-csharp)\n- Latest release: ${{ steps.sdk.outputs.sdk_version }}\n- Latest commit: ${SDK_SHA}\n- Our tracked: ${CURRENT_SDK:-none}\n- Repo: https://github.com/CIRFMF/ksef-client-csharp\n"
+            CHANGES="$CHANGES
+          ### CIRFMF SDK (ksef-client-csharp)
+          - Latest release: $SDK_VERSION
+          - Latest commit: $SDK_SHA
+          - Our tracked: ${CURRENT_SDK:-none}
+          - Repo: https://github.com/CIRFMF/ksef-client-csharp
+          "
           fi
 
           if [ -n "$DOCS_SHA" ] && [ "$DOCS_SHA" != "$CURRENT_DOCS" ]; then
-            CHANGES="${CHANGES}\n### KSeF Documentation (ksef-docs)\n- Latest commit: ${DOCS_SHA} (${{ steps.docs.outputs.docs_date }})\n- Message: ${{ steps.docs.outputs.docs_msg }}\n- Our tracked: ${CURRENT_DOCS:-none}\n- Repo: https://github.com/CIRFMF/ksef-docs\n"
+            CHANGES="$CHANGES
+          ### KSeF Documentation (ksef-docs)
+          - Latest commit: $DOCS_SHA ($DOCS_DATE)
+          - Message: $DOCS_MSG
+          - Our tracked: ${CURRENT_DOCS:-none}
+          - Repo: https://github.com/CIRFMF/ksef-docs
+          "
           fi
 
           if [ -n "$CHANGES" ]; then
-            # Check if similar issue already open
             EXISTING=$(gh issue list --label "ksef-update" --state open --json number --jq '.[0].number // empty')
             if [ -n "$EXISTING" ]; then
               echo "Issue #${EXISTING} already open, skipping"
               exit 0
             fi
 
-            BODY=$(printf "Upstream KSeF changes detected. Review and update if needed.\n${CHANGES}\n## Action items\n- [ ] Check if SDK update affects our endpoints\n- [ ] Check if XSD schema changed (FA(3) structure)\n- [ ] Update dependencies if needed\n- [ ] Run integration tests against KSeF TEST\n\n*Auto-generated by ksef-update-check workflow*")
-
             gh issue create \
               --title "KSeF upstream update detected" \
-              --body "$BODY" \
-              --label "ksef-update"
+              --label "ksef-update" \
+              --body "Upstream KSeF changes detected. Review and update if needed.
+          $CHANGES
+          ## Action items
+          - [ ] Check if SDK update affects our endpoints
+          - [ ] Check if XSD schema changed (FA(3) structure)
+          - [ ] Update dependencies if needed
+          - [ ] Run integration tests against KSeF TEST
+
+          *Auto-generated by ksef-update-check workflow*"
           else
             echo "No changes detected"
           fi

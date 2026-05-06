@@ -10,7 +10,7 @@
   },
   "dependencies": {
     "express": "^5.2.1",
-    "pdfmake": "^0.3.7",
+    "pdfmake": "^0.3.8",
     "xml-js": "^1.6.11"
   },
   "devDependencies": {

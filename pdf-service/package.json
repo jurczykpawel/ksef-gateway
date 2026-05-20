@@ -19,6 +19,6 @@
     "@types/pdfmake": "^0.2.13",
     "tsx": "^4.19.0",
     "typescript": "^6.0.3",
-    "vitest": "^4.1.6"
+    "vitest": "^4.1.7"
   }
 }

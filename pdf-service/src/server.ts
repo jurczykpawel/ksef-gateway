@@ -103,11 +103,10 @@ app.post("/pdf/invoice", async (req, res) => {
     const additionalData = { nrKSeF: nrKSeF ?? "", qrCode };
     const pdf = generateFn(invoice, additionalData);
 
-    pdf.getBuffer((buffer: Buffer) => {
-      res.contentType("application/pdf");
-      res.setHeader("Content-Disposition", "inline; filename=faktura.pdf");
-      res.send(Buffer.from(buffer));
-    });
+    const buffer = await pdf.getBuffer();
+    res.contentType("application/pdf");
+    res.setHeader("Content-Disposition", "inline; filename=faktura.pdf");
+    res.send(Buffer.from(buffer));
   } catch (err: any) {
     console.error("PDF generation error:", err);
     res.status(500).json({ error: `PDF generation failed: ${err.message}` });

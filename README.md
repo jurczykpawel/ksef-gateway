@@ -25,6 +25,7 @@ curl -X POST https://twoj-gateway/ksef/invoice \
 ![Status](https://img.shields.io/badge/Status-Beta-yellow)
 ![.NET](https://img.shields.io/badge/.NET-9.0-512BD4)
 ![Open Source](https://img.shields.io/badge/Open%20Source-100%25-brightgreen)
+[![CI](https://github.com/jurczykpawel/ksef-gateway/actions/workflows/ci.yml/badge.svg)](https://github.com/jurczykpawel/ksef-gateway/actions/workflows/ci.yml)
 
 [![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com/deploy?repo=https://github.com/jurczykpawel/ksef-gateway)
 
@@ -580,6 +581,8 @@ Contributions are welcome! See [CONTRIBUTING.md](CONTRIBUTING.md) for details.
 ## License
 
 AGPL-3.0 - see [LICENSE](LICENSE)
+
+If you modify KSeF Gateway and offer it as a service, AGPL-3.0 requires you to make the modified source available to your users.
 
 ---
 

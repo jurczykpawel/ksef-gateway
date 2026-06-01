@@ -13,28 +13,35 @@ repos:
     hooks:
       - id: pdf-typecheck
         name: PDF service typecheck
-        entry: bash -c 'cd pdf-service && npx tsc --noEmit --project tsconfig.json 2>&1 | grep -v "lib/" | grep -v "TS6059" || true'
+        entry: bash -c 'cd pdf-service && npx tsc --noEmit --project tsconfig.json 2>&1 | grep -v "lib/" | grep -v "TS6059"; exit ${PIPESTATUS[0]}'
         language: system
         pass_filenames: false
         files: ^pdf-service/src/
 
       - id: pdf-test
         name: PDF service tests
-        entry: bash -c 'cd pdf-service && npm test 2>&1 || true'
+        entry: bash -c 'cd pdf-service && npm test'
         language: system
         pass_filenames: false
         files: ^pdf-service/
 
       - id: dotnet-build
         name: .NET build check
-        entry: bash -c 'which dotnet > /dev/null 2>&1 && cd src && dotnet build KSeFGateway.Api/KSeFGateway.Api.csproj --no-restore -q || true'
+        entry: bash -c 'which dotnet > /dev/null 2>&1 || exit 0; cd src && dotnet build KSeFGateway.Api/KSeFGateway.Api.csproj --no-restore -q'
         language: system
         pass_filenames: false
         files: ^src/.*\.cs$
 
       - id: dotnet-test
         name: .NET unit tests
-        entry: bash -c 'which dotnet > /dev/null 2>&1 && cd src && dotnet test KSeFGateway.Api.Tests/KSeFGateway.Api.Tests.csproj --no-restore --no-build --filter "Category!=Integration" -q || true'
+        entry: bash -c 'which dotnet > /dev/null 2>&1 || exit 0; cd src && dotnet test KSeFGateway.Api.Tests/KSeFGateway.Api.Tests.csproj --no-restore --no-build --filter "Category!=Integration" -q'
         language: system
         pass_filenames: false
         files: ^src/.*\.cs$
+
+      - id: integration-tests
+        name: Integration tests (unit + E2E vs live gateway)
+        entry: bash -c 'scripts/test-full.sh'
+        language: system
+        pass_filenames: false
+        stages: [pre-push]

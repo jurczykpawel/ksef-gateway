@@ -1,0 +1,57 @@
+---
+const GITHUB_URL = "https://github.com/jurczykpawel/ksef-gateway";
+const RENDER_URL = "https://render.com/deploy?repo=https://github.com/jurczykpawel/ksef-gateway";
+---
+<section class="section-gap" aria-label="Wezwanie do działania">
+  <div class="container-kg">
+    <div class="relative card-floating p-10 md:p-16 text-center overflow-hidden" data-cta>
+      <div class="absolute inset-0 bg-gradient-to-br from-indigo-500/8 via-transparent to-blue-500/5 pointer-events-none" aria-hidden="true"></div>
+      <div class="absolute top-0 left-1/2 -translate-x-1/2 w-80 h-px bg-gradient-to-r from-transparent via-[var(--color-accent)]/40 to-transparent" aria-hidden="true"></div>
+      <div class="relative">
+        <div class="section-label justify-center mb-4">
+          <svg width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden="true"><path d="M6 1L7.5 4.5H11L8.25 6.75L9.5 10.5L6 8.25L2.5 10.5L3.75 6.75L1 4.5H4.5L6 1Z" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round"/></svg>
+          Zacznij dziś
+        </div>
+        <h2 class="text-3xl sm:text-4xl font-bold text-[var(--color-ink)] mb-4 leading-tight">
+          Jedno wywołanie HTTP.<br class="hidden sm:block"/>
+          Twój numer KSeF.
+        </h2>
+        <p class="text-[var(--color-muted)] mb-8 max-w-md mx-auto">
+          Open source, self-hosted, zero vendor lock-in. Docker Compose lub jednym kliknięciem na Render. Dokumentacja i kolekcja Bruno w zestawie.
+        </p>
+        <div class="flex flex-wrap items-center justify-center gap-3 mb-10">
+          <a href={RENDER_URL} target="_blank" rel="noopener noreferrer" class="btn-primary text-base px-6 h-11">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <polyline points="16 16 12 12 8 16"/><line x1="12" y1="12" x2="12" y2="21"/>
+              <path d="M20.39 18.39A5 5 0 0 0 18 9h-1.26A8 8 0 1 0 3 16.3"/>
+            </svg>
+            Wdróż na Render
+          </a>
+          <a href={GITHUB_URL} target="_blank" rel="noopener noreferrer" class="btn-ghost text-base px-6 h-11">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+              <path d="M12 .5A11.5 11.5 0 0 0 .5 12a11.5 11.5 0 0 0 7.86 10.92c.57.1.78-.25.78-.55v-2c-3.2.7-3.88-1.37-3.88-1.37-.52-1.33-1.28-1.69-1.28-1.69-1.05-.71.08-.7.08-.7 1.16.08 1.77 1.19 1.77 1.19 1.03 1.76 2.7 1.25 3.36.96.1-.75.4-1.26.73-1.55-2.56-.29-5.26-1.28-5.26-5.7 0-1.26.45-2.29 1.19-3.1-.12-.29-.52-1.46.11-3.05 0 0 .97-.31 3.18 1.18a11 11 0 0 1 5.78 0c2.2-1.49 3.17-1.18 3.17-1.18.63 1.59.23 2.76.11 3.05.74.81 1.19 1.84 1.19 3.1 0 4.43-2.7 5.4-5.28 5.69.41.36.78 1.06.78 2.14v3.17c0 .31.21.66.79.55A11.5 11.5 0 0 0 23.5 12 11.5 11.5 0 0 0 12 .5Z"/>
+            </svg>
+            Daj gwiazdkę na GitHub
+          </a>
+        </div>
+        <div class="flex flex-wrap items-center justify-center gap-x-6 gap-y-2 text-xs text-[var(--color-faint)]">
+          <span>Licencja AGPL-3.0</span>
+          <span>·</span>
+          <span>Oficjalny SDK CIRFMF</span>
+          <span>·</span>
+          <span>Bez vendor lock-in</span>
+          <span>·</span>
+          <span>Pełny kod źródłowy na GitHub</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+<script>
+  import { animate, inView } from "motion";
+  const el = document.querySelector("[data-cta]");
+  if (el) {
+    el.style.opacity = "0"; el.style.transform = "translateY(16px)";
+    inView(el, () => { animate(el, { opacity: 1, transform: "translateY(0px)" }, { duration: 0.6, easing: [0.22, 1, 0.36, 1] }); }, { margin: "0px 0px -40px 0px" });
+  }
+</script>

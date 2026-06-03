@@ -1,0 +1,105 @@
+---
+const GITHUB_URL = "https://github.com/jurczykpawel/ksef-gateway";
+---
+<section class="section-gap" aria-labelledby="integrations-heading">
+  <div class="container-kg">
+    <div class="section-label" data-int>
+      <svg width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden="true">
+        <circle cx="3" cy="6" r="2" stroke="currentColor" stroke-width="1.4"/><circle cx="9" cy="3" r="2" stroke="currentColor" stroke-width="1.4"/><circle cx="9" cy="9" r="2" stroke="currentColor" stroke-width="1.4"/>
+        <path d="M5 6h2M7.2 4.4L5 6M7.2 7.6L5 6" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/>
+      </svg>
+      Integracje
+    </div>
+    <h2 id="integrations-heading" class="text-3xl sm:text-4xl font-bold text-[var(--color-ink)] mb-3" data-int>Działa z każdą platformą</h2>
+    <p class="text-[var(--color-muted)] mb-12 max-w-xl" data-int>KSeF Gateway to samodzielna usługa HTTP. Bez pluginów, bez SDK, bez zmian w Twojej platformie — tylko wywołanie HTTP.</p>
+    <div class="grid md:grid-cols-2 gap-6">
+      <!-- n8n -->
+      <article class="card-floating p-6" data-int>
+        <div class="flex items-center gap-3 mb-4">
+          <div class="w-9 h-9 flex items-center justify-center rounded-lg bg-[var(--color-floating)] border border-[var(--color-line-strong)]">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+              <path d="M12 3v4M12 17v4M3 12h4M17 12h4" stroke="var(--color-accent)" stroke-width="2" stroke-linecap="round"/>
+              <circle cx="12" cy="12" r="3" fill="var(--color-accent)" fill-opacity="0.3" stroke="var(--color-accent)" stroke-width="1.5"/>
+            </svg>
+          </div>
+          <div>
+            <h3 class="text-sm font-semibold text-[var(--color-ink)]">n8n (middleware bez kodu)</h3>
+            <p class="text-xs text-[var(--color-faint)]">Zalecane — zero zmian w Twojej platformie</p>
+          </div>
+        </div>
+        <p class="text-sm text-[var(--color-muted)] mb-4 leading-relaxed">Użyj n8n do przetłumaczenia webhooka platformy na wywołanie faktury KSeF. Trzy węzły: Webhook → Transformacja → HTTP Request.</p>
+        <div class="flex items-center gap-3 text-xs text-[var(--color-faint)] mb-4">
+          <span class="card-floating px-2.5 py-1 rounded-full">Węzeł Webhook</span>
+          <svg width="10" height="10" viewBox="0 0 10 10" fill="currentColor" aria-hidden="true"><path d="M1 5h8M6 2l3 3-3 3"/></svg>
+          <span class="card-floating px-2.5 py-1 rounded-full">Transformacja</span>
+          <svg width="10" height="10" viewBox="0 0 10 10" fill="currentColor" aria-hidden="true"><path d="M1 5h8M6 2l3 3-3 3"/></svg>
+          <span class="card-floating px-2.5 py-1 rounded-full">POST /ksef/invoice</span>
+        </div>
+        <div class="space-y-2 mb-5">
+          {["Sellf → KSeF (workflow w zestawie)", "WooCommerce → KSeF (workflow w zestawie)", "Każda platforma obsługująca webhooks"].map(item => (
+            <div class="flex items-center gap-2 text-sm text-[var(--color-muted)]">
+              <svg width="13" height="13" viewBox="0 0 16 16" fill="var(--color-accent)" aria-hidden="true"><path d="M8 .5a7.5 7.5 0 1 0 0 15A7.5 7.5 0 0 0 8 .5Zm3.28 5.72-4 4a.75.75 0 0 1-1.06 0l-2-2a.75.75 0 0 1 1.06-1.06L6.75 8.69l3.47-3.47a.75.75 0 1 1 1.06 1.06Z"/></svg>
+              {item}
+            </div>
+          ))}
+        </div>
+        <a href={`${GITHUB_URL}/tree/main/examples/n8n`} target="_blank" rel="noopener noreferrer" class="inline-flex items-center gap-1.5 text-sm font-medium text-[var(--color-muted)] hover:text-[var(--color-ink)] transition-colors">
+          Zobacz workflow n8n
+          <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 8h10M9 4l4 4-4 4"/></svg>
+        </a>
+      </article>
+      <!-- Bezpośrednia integracja -->
+      <article class="card-floating p-6" data-int>
+        <div class="flex items-center gap-3 mb-4">
+          <div class="w-9 h-9 flex items-center justify-center rounded-lg bg-[var(--color-floating)] border border-[var(--color-line-strong)]">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+              <path d="M8 9l3 3-3 3M13 15h3" stroke="var(--color-blue)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+              <rect x="3" y="3" width="18" height="18" rx="4" stroke="var(--color-blue)" stroke-width="1.5"/>
+            </svg>
+          </div>
+          <div>
+            <h3 class="text-sm font-semibold text-[var(--color-ink)]">Bezpośrednia integracja HTTP</h3>
+            <p class="text-xs text-[var(--color-faint)]">Dowolny język, dowolny framework</p>
+          </div>
+        </div>
+        <p class="text-sm text-[var(--color-muted)] mb-4 leading-relaxed">Dodaj jedno wywołanie HTTP w obsłudze udanej płatności. Działa z PHP, Python, Node.js, Go — wszystkim co potrafi wykonać request HTTP.</p>
+        <div class="code-block mb-5">
+          <div class="terminal-bar"><span class="text-xs text-[var(--color-faint)]">platnosc_sukces.js</span></div>
+          <div class="p-4 text-xs font-mono text-[var(--color-muted)]">
+            <span class="text-[var(--color-faint)]">// Po udanej płatności</span><br/>
+            <span class="text-[#93c5fd]">await</span> fetch(<span class="text-[#fbbf24]">"https://twoja-brama/ksef/invoice"</span>, {'{'}<br/>
+            &nbsp;&nbsp;method: <span class="text-[#fbbf24]">"POST"</span>,<br/>
+            &nbsp;&nbsp;body: JSON.stringify({'{'} sprzedawca, nabywca, pozycje {'}'}),<br/>
+            {'}'});
+          </div>
+        </div>
+        <div class="space-y-2">
+          {["Hooki płatności e-commerce", "Integracja z systemami ERP", "Automatyzacja oprogramowania księgowego"].map(item => (
+            <div class="flex items-center gap-2 text-sm text-[var(--color-muted)]">
+              <svg width="13" height="13" viewBox="0 0 16 16" fill="var(--color-blue)" aria-hidden="true"><path d="M8 .5a7.5 7.5 0 1 0 0 15A7.5 7.5 0 0 0 8 .5Zm3.28 5.72-4 4a.75.75 0 0 1-1.06 0l-2-2a.75.75 0 0 1 1.06-1.06L6.75 8.69l3.47-3.47a.75.75 0 1 1 1.06 1.06Z"/></svg>
+              {item}
+            </div>
+          ))}
+        </div>
+      </article>
+    </div>
+    <div class="mt-6 card-floating p-5 flex items-start gap-4" data-int>
+      <div class="w-8 h-8 flex items-center justify-center rounded-lg bg-[var(--color-accent-soft)] shrink-0">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="var(--color-accent)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2M9 11a4 4 0 100-8 4 4 0 000 8zM23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"/>
+        </svg>
+      </div>
+      <div>
+        <p class="text-sm font-semibold text-[var(--color-ink)] mb-0.5">Obsługa wielu NIP-ów</p>
+        <p class="text-sm text-[var(--color-muted)]">Obsługuj faktury dla wielu firm z jednej instancji bramy. Zamontuj <code class="font-mono text-xs bg-[var(--color-elevated)] px-1 py-0.5 rounded">contexts.json</code> z tokenami per NIP. Auto-routing po NIP sprzedawcy lub nagłówku <code class="font-mono text-xs bg-[var(--color-elevated)] px-1 py-0.5 rounded">X-KSeF-NIP</code>.</p>
+      </div>
+    </div>
+  </div>
+</section>
+<script>
+  import { animate, inView } from "motion";
+  document.querySelectorAll("[data-int]").forEach((el, i) => {
+    el.style.opacity = "0"; el.style.transform = "translateY(14px)";
+    inView(el, () => { animate(el, { opacity: 1, transform: "translateY(0px)" }, { duration: 0.5, delay: i * 0.06, easing: [0.22, 1, 0.36, 1] }); }, { margin: "0px 0px -30px 0px" });
+  });
+</script>

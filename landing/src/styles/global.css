@@ -1,0 +1,188 @@
+@import "tailwindcss";
+@import "@fontsource-variable/inter";
+@import "@fontsource-variable/jetbrains-mono";
+
+@theme {
+  --color-base: #0a1220;
+  --color-elevated: #111d30;
+  --color-floating: #182440;
+  --color-glass: rgba(24, 36, 64, 0.6);
+
+  --color-line: rgba(99, 102, 241, 0.07);
+  --color-line-strong: rgba(99, 102, 241, 0.15);
+  --color-line-bright: rgba(99, 102, 241, 0.28);
+
+  --color-ink: #f0f0f0;
+  --color-muted: #a6b3c4;
+  --color-faint: #8b97ad;
+  --color-dim: #5c6982;
+
+  --color-accent: #6366f1;
+  --color-accent-soft: rgba(99, 102, 241, 0.10);
+  --color-accent-glow: rgba(99, 102, 241, 0.32);
+  --color-accent-bright: #818cf8;
+  --color-accent-muted: rgba(99, 102, 241, 0.14);
+
+  --color-blue: #60a5fa;
+  --color-blue-soft: rgba(96, 165, 250, 0.10);
+
+  --color-warn: #fbbf24;
+
+  --font-sans: "Inter Variable", "Inter", ui-sans-serif, system-ui, -apple-system, sans-serif;
+  --font-mono: "JetBrains Mono Variable", "JetBrains Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+
+  --nav-h: 60px;
+
+  --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+  --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+  --ease-standard: cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+@layer base {
+  html {
+    background-color: var(--color-base);
+    color: var(--color-muted);
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+    scroll-behavior: smooth;
+  }
+
+  body {
+    background:
+      radial-gradient(ellipse 70% 45% at 25% -5%, rgba(99, 102, 241, 0.08), transparent 55%),
+      radial-gradient(ellipse 55% 35% at 85% 12%, rgba(96, 165, 250, 0.05), transparent 55%),
+      var(--color-base);
+    background-attachment: fixed;
+    min-height: 100dvh;
+    padding-top: var(--nav-h);
+  }
+
+  h1, h2, h3, h4 {
+    color: var(--color-ink);
+    font-family: var(--font-sans);
+    font-weight: 700;
+    letter-spacing: -0.02em;
+  }
+
+  * {
+    box-sizing: border-box;
+  }
+}
+
+@layer utilities {
+  .container-kg {
+    width: 100%;
+    max-width: 1140px;
+    margin-inline: auto;
+    padding-inline: 1.25rem;
+  }
+
+  @media (min-width: 640px) {
+    .container-kg { padding-inline: 2rem; }
+  }
+
+  @media (min-width: 1024px) {
+    .container-kg { padding-inline: 2.5rem; }
+  }
+
+  .section-gap { padding-block: 5rem; }
+
+  @media (min-width: 768px) {
+    .section-gap { padding-block: 7rem; }
+  }
+
+  .section-label {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    font-size: 0.75rem;
+    font-weight: 600;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--color-accent);
+    margin-bottom: 1rem;
+  }
+
+  .card-floating {
+    background: var(--color-floating);
+    border: 1px solid var(--color-line-strong);
+    border-radius: 0.875rem;
+  }
+
+  .btn-primary {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    height: 2.625rem;
+    padding-inline: 1.25rem;
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: #fff;
+    background: var(--color-accent);
+    border-radius: 0.5rem;
+    text-decoration: none;
+    transition: transform 0.2s var(--ease-spring), box-shadow 0.2s var(--ease-out), background 0.15s;
+    cursor: pointer;
+    white-space: nowrap;
+  }
+
+  .btn-primary:hover {
+    background: var(--color-accent-bright);
+    transform: translateY(-1px);
+    box-shadow: 0 8px 24px -6px var(--color-accent-glow);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .btn-primary:hover { transform: none; }
+  }
+
+  .btn-ghost {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    height: 2.625rem;
+    padding-inline: 1.25rem;
+    font-size: 0.875rem;
+    font-weight: 500;
+    color: var(--color-muted);
+    background: transparent;
+    border: 1px solid var(--color-line-strong);
+    border-radius: 0.5rem;
+    text-decoration: none;
+    transition: color 0.15s, border-color 0.15s;
+    cursor: pointer;
+    white-space: nowrap;
+  }
+
+  .btn-ghost:hover {
+    color: var(--color-ink);
+    border-color: var(--color-line-bright);
+  }
+
+  .code-block {
+    font-family: var(--font-mono);
+    font-size: 0.8125rem;
+    line-height: 1.6;
+    background: var(--color-elevated);
+    border: 1px solid var(--color-line-strong);
+    border-radius: 0.75rem;
+    overflow: hidden;
+  }
+
+  .terminal-bar {
+    display: flex;
+    align-items: center;
+    gap: 0.375rem;
+    padding: 0.625rem 1rem;
+    border-bottom: 1px solid var(--color-line-strong);
+    background: color-mix(in oklab, var(--color-floating) 80%, var(--color-base));
+  }
+
+  .terminal-dot {
+    width: 0.5rem;
+    height: 0.5rem;
+    border-radius: 50%;
+  }
+}

@@ -1,0 +1,43 @@
+---
+const steps = [
+  { n: "01", title: "Wdróż bramę", desc: "Jedno polecenie — wszystko buduje się w Dockerze. Bez lokalnego .NET.", code: `docker compose up --build\n# API gotowe na http://localhost:8080`, or: 'Lub kliknij „Wdróż na Render" dla natychmiastowego startu w chmurze.' },
+  { n: "02", title: "Wygeneruj token KSeF", desc: "Jedno polecenie tworzy token testowy (certyfikat self-signed, losowy NIP). Na produkcji: użyj podpisu kwalifikowanego w portalu KSeF.", code: `docker compose --profile tools run \\\n  --rm token-generator\n# wyświetla KSEF_TOKEN + KSEF_NIP`, or: null },
+  { n: "03", title: "Wyślij pierwszą fakturę", desc: "POST JSON ze sprzedawcą, nabywcą i pozycjami. Odbierz numer KSeF. Gotowe.", code: `curl -X POST http://localhost:8080/ksef/invoice \\\n  -d '{"sprzedawca":{...},"nabywca":{...},"pozycje":[...]}'\n# → {"numerKSeF":"1234567890-20260326-..."}`, or: null },
+];
+---
+<section id="how-it-works" class="section-gap" aria-labelledby="how-heading">
+  <div class="container-kg">
+    <div class="section-label" data-hiw>
+      <svg width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden="true"><circle cx="6" cy="6" r="5" stroke="currentColor" stroke-width="1.5"/><path d="M4.5 6l1.5 1.5L7.5 4.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      Szybki start
+    </div>
+    <h2 id="how-heading" class="text-3xl sm:text-4xl font-bold text-[var(--color-ink)] mb-3" data-hiw>Gotowy w trzech krokach</h2>
+    <p class="text-[var(--color-muted)] mb-14 max-w-lg" data-hiw>Od zera do działającej integracji z KSeF w mniej niż pięć minut.</p>
+    <div class="flex flex-col gap-8">
+      {steps.map((step) => (
+        <div class="flex flex-col md:flex-row gap-6 md:gap-10 items-start" data-hiw>
+          <div class="shrink-0 flex items-center justify-center w-12 h-12 rounded-xl bg-[var(--color-accent-soft)] border border-[var(--color-accent)]/20">
+            <span class="text-sm font-bold font-mono text-[var(--color-accent)]">{step.n}</span>
+          </div>
+          <div class="flex-1 min-w-0">
+            <h3 class="text-lg font-semibold text-[var(--color-ink)] mb-1.5">{step.title}</h3>
+            <p class="text-sm text-[var(--color-muted)] mb-4 leading-relaxed">
+              {step.desc}
+              {step.or && <span class="text-[var(--color-faint)]"> {step.or}</span>}
+            </p>
+            <div class="code-block">
+              <div class="p-4 text-xs font-mono whitespace-pre text-[var(--color-muted)]">{step.code}</div>
+            </div>
+          </div>
+        </div>
+      ))}
+    </div>
+  </div>
+</section>
+<script>
+  import { animate, inView } from "motion";
+  document.querySelectorAll("[data-hiw]").forEach((el, i) => {
+    el.style.opacity = "0"; el.style.transform = "translateY(14px)";
+    inView(el, () => { animate(el, { opacity: 1, transform: "translateY(0px)" }, { duration: 0.5, delay: i * 0.07, easing: [0.22, 1, 0.36, 1] }); }, { margin: "0px 0px -40px 0px" });
+  });
+</script>

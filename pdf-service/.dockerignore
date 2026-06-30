@@ -6,3 +6,5 @@ lib/.git/
 lib/node_modules/
 lib/coverage/
 lib/dist/
+test/
+src/**/*.test.ts

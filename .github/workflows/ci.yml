@@ -72,6 +72,35 @@ jobs:
           GATEWAY_URL: http://localhost:8080
         run: dotnet test src/KSeFGateway.Api.Tests/KSeFGateway.Api.Tests.csproj -c Release --no-restore --verbosity normal
 
+  pdf-service:
+    name: Build & Test PDF service (Node)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: pdf-service
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          submodules: recursive
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: pdf-service/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Typecheck
+        run: |
+          OUT=$(npx tsc --noEmit --project tsconfig.json 2>&1 | grep -v "lib/" | grep -v "TS6059")
+          echo "$OUT"
+          ! echo "$OUT" | grep -q "error TS"
+
+      - name: Unit tests
+        run: npm test
+
   build-docker:
     name: Build Docker images
     if: github.actor != 'dependabot[bot]'

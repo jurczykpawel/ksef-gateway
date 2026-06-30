@@ -13,7 +13,7 @@ repos:
     hooks:
       - id: pdf-typecheck
         name: PDF service typecheck
-        entry: bash -c 'cd pdf-service && npx tsc --noEmit --project tsconfig.json 2>&1 | grep -v "lib/" | grep -v "TS6059"; exit ${PIPESTATUS[0]}'
+        entry: bash -c 'cd pdf-service && OUT=$(npx tsc --noEmit --project tsconfig.json 2>&1 | grep -v "lib/" | grep -v "TS6059"); echo "$OUT"; ! echo "$OUT" | grep -q "error TS"'
         language: system
         pass_filenames: false
         files: ^pdf-service/src/

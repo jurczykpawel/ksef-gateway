@@ -14,7 +14,7 @@
     "@astrojs/sitemap": "^3.7.0",
     "@fontsource-variable/inter": "^5.2.8",
     "@fontsource-variable/jetbrains-mono": "^5.2.8",
-    "@tailwindcss/vite": "^4.1.18",
+    "@tailwindcss/vite": "^4.3.2",
     "astro": "^5.16.0",
     "motion": "^12.23.30",
     "tailwindcss": "^4.1.18"

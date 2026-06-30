@@ -15,6 +15,12 @@ COPY KSeFGateway.Api/ KSeFGateway.Api/
 RUN dotnet publish KSeFGateway.Api/KSeFGateway.Api.csproj \
     -c Release -o /app/publish --no-restore
 
+# Test (run via: docker compose run --rm ksef-api-tests)
+FROM build AS test
+COPY KSeFGateway.Api.Tests/ KSeFGateway.Api.Tests/
+RUN dotnet restore KSeFGateway.Api.Tests/KSeFGateway.Api.Tests.csproj --configfile nuget.config
+ENTRYPOINT ["dotnet", "test", "KSeFGateway.Api.Tests/KSeFGateway.Api.Tests.csproj", "-c", "Release", "--filter", "Category!=Integration"]
+
 # Runtime
 FROM mcr.microsoft.com/dotnet/aspnet:9.0 AS runtime
 WORKDIR /app

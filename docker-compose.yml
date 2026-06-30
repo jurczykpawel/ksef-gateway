@@ -39,6 +39,17 @@ services:
       retries: 5
     restart: unless-stopped
 
+  # One-off: runs .NET unit tests inside Docker (no local SDK required)
+  # Usage: docker compose run --rm ksef-api-tests
+  ksef-api-tests:
+    build:
+      context: ./src
+      dockerfile: KSeFGateway.Api/Dockerfile
+      target: test
+      args:
+        GITHUB_PAT: ${GITHUB_PAT}
+    profiles: ["tools"]
+
   # One-off tool: generates KSeF token on TEST environment
   # Usage: docker compose run --rm token-generator
   token-generator:

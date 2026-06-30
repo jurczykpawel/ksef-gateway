@@ -42,11 +42,12 @@ docker compose --profile tools build token-generator    # tools
 
 ## Tests
 ```bash
-# .NET tests inside Docker
-docker compose run --rm ksef-api dotnet test
+# .NET unit tests inside Docker (no local SDK required)
+docker compose run --rm ksef-api-tests
 # PDF service (local)
 cd pdf-service && npm test
 ```
+Note: `ksef-api`'s runtime image has no SDK and a fixed `ENTRYPOINT`, so it can't run `dotnet test` directly — `ksef-api-tests` is a separate compose service built from the `test` stage in `KSeFGateway.Api/Dockerfile` (profile `tools`, mirrors CI's `build-api` job, excludes `Category=Integration`).
 
 ## Architecture
 - `SdkReflector` discovers all methods on `IKSeFClient` (13 sub-interfaces) via .NET reflection at startup

@@ -23,7 +23,11 @@ API at `http://localhost:8080`, docs at `http://localhost:8080/scalar/v1`.
 ### Running tests
 
 ```bash
-docker-compose run --rm ksef-api dotnet test
+# .NET unit tests (no local SDK required)
+docker compose run --rm ksef-api-tests
+
+# PDF service
+cd pdf-service && npm test
 ```
 
 ## Making Changes

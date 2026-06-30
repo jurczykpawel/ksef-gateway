@@ -17,7 +17,7 @@
     "@tailwindcss/vite": "^4.1.18",
     "astro": "^5.16.0",
     "motion": "^12.23.30",
-    "tailwindcss": "^4.1.18"
+    "tailwindcss": "^4.3.2"
   },
   "devDependencies": {
     "@astrojs/check": "^0.9.9",

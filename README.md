@@ -505,8 +505,6 @@ You only need to do this once. If you lose the token, revoke it in the portal an
 
 > **Who can generate a token?** Only a person authorized to represent the company (owner, board member listed in KRS, or someone with a KSeF authorization granted by them).
 
-> **Token expiration:** All KSeF tokens expire **December 31, 2026**. From January 1, 2027, only KSeF certificates (a separate, PKI-based auth method issued by the same portal) will be accepted - the token flow above stops working then. Legal basis: [Rozporządzenie Ministra Finansów i Gospodarki z 12 grudnia 2025 r. w sprawie korzystania z Krajowego Systemu e-Faktur](https://ksef.podatki.gov.pl/informacje-ogolne-ksef-20/certyfikaty-ksef/) (Dz.U. 2025, poz. 1815) - confirmed on the official [ksef.podatki.gov.pl certificates page](https://ksef.podatki.gov.pl/informacje-ogolne-ksef-20/certyfikaty-ksef/), which itself uses "docelowo" (the currently planned date) - KSeF's rollout has slipped before, so treat this as the current legal target rather than an immutable fact, and double-check closer to the date.
-
 ---
 
 ## Configuration

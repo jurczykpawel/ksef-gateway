@@ -154,6 +154,33 @@ public class GatewayIntegrationTests
     }
 
     [Fact]
+    public async Task ListIssuedInvoices_AfterSend_FindsItAsSeller()
+    {
+        // Any invoice we send has our own authenticated NIP as the seller - no self-invoice
+        // trick needed here (unlike the buyer-role test above).
+        var today = DateTimeOffset.UtcNow.ToString("yyyy-MM-dd");
+        var invoiceNumber = UniqueNumber("FV/INT/ISSUED");
+        var invoice = SampleInvoice(invoiceNumber) with { IssueDate = today, SaleDate = today };
+        var sendResp = await Http.PostAsJsonAsync($"{BaseUrl}/ksef/invoice", invoice);
+        sendResp.EnsureSuccessStatusCode();
+
+        var from = DateTimeOffset.UtcNow.AddDays(-1).ToString("O");
+        var to = DateTimeOffset.UtcNow.AddDays(1).ToString("O");
+        var resp = await Http.GetAsync(
+            $"{BaseUrl}/ksef/invoices/issued?from={Uri.EscapeDataString(from)}&to={Uri.EscapeDataString(to)}");
+
+        Assert.Equal(HttpStatusCode.OK, resp.StatusCode);
+        var body = await resp.Content.ReadFromJsonAsync<JsonElement>();
+        Assert.True(body.GetProperty("success").GetBoolean());
+
+        var invoiceNumbers = body.GetProperty("data").GetProperty("invoices")
+            .EnumerateArray()
+            .Select(i => i.GetProperty("invoiceNumber").GetString())
+            .ToList();
+        Assert.Contains(invoiceNumber, invoiceNumbers);
+    }
+
+    [Fact]
     public async Task ListNewReceivedInvoices_SinceNow_ReturnsEmptyWithCheckpoint()
     {
         // "since" this close to real time is always later than KSeF's own

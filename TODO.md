@@ -13,6 +13,7 @@
 
 - [x] GET /ksef/invoices/received - browse invoices you received (buyer role), no KSeF number needed upfront
 - [x] GET /ksef/invoices/received/new - stateless polling cursor (PermanentStorage HWM) for sync/notification workflows
+- [x] GET /ksef/invoices/issued - browse invoices you issued (seller role), same shape as /received, no polling variant
 - [x] Shared EndpointErrorHandling.Guard() - KsefRateLimitException/KsefCircuitBreakerOpenException/KsefApiException now surface as proper 429/503/502 (with Retry-After) instead of a flat 500, across every handler
 
 ## Certificate-based auth - DONE

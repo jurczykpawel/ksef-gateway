@@ -81,6 +81,54 @@ public static class InvoiceDownloadEndpoints
         .WithName("list_received_invoices")
         .WithOpenApi();
 
+        // GET /ksef/invoices/issued - browse invoices where the caller is the seller
+        app.MapGet("/ksef/invoices/issued", async (
+            HttpContext httpContext,
+            [FromServices] IKSeFClient ksefClient,
+            [FromServices] TokenPool pool,
+            [FromServices] ContextProvider ctxProvider,
+            [FromServices] ILogger<Program> logger,
+            DateTimeOffset? from,
+            DateTimeOffset? to,
+            int page = 0,
+            int pageSize = DefaultPageSize) =>
+        {
+            var nip = ContextResolver.ResolveNip(httpContext, ctxProvider);
+            if (nip is null)
+                return Results.Json(ApiResponse.Fail("No KSeF context. Set X-KSeF-NIP header or configure default."), statusCode: 400);
+
+            var accessToken = await pool.GetAccessTokenAsync(nip, httpContext.RequestAborted);
+            if (accessToken is null)
+                return Results.Json(ApiResponse.Fail($"Not authenticated with KSeF for NIP {nip}"), statusCode: 503);
+
+            return await EndpointErrorHandling.Guard(async () =>
+            {
+                var filters = new InvoiceQueryFilters
+                {
+                    SubjectType = InvoiceSubjectType.Subject1,
+                    DateRange = new DateRange
+                    {
+                        DateType = DateType.Issue,
+                        From = from ?? DateTimeOffset.UtcNow.AddDays(-DefaultLookbackDays),
+                        To = to ?? DateTimeOffset.UtcNow,
+                    },
+                };
+
+                var result = await ksefClient.QueryInvoiceMetadataAsync(
+                    filters, accessToken, pageOffset: page, pageSize: pageSize,
+                    cancellationToken: httpContext.RequestAborted);
+
+                return Results.Json(ApiResponse.Ok(new
+                {
+                    invoices = result.Invoices.Select(IssuedInvoiceMapper.ToSummary),
+                    hasMore = result.HasMore,
+                }));
+            }, logger, $"List issued invoices failed for NIP {nip}");
+        })
+        .WithTags("Workflows")
+        .WithName("list_issued_invoices")
+        .WithOpenApi();
+
         // GET /ksef/invoices/received/new - poll for invoices received since a checkpoint
         // (returned as nextSince; pass it back as ?since= on the next call for continuous sync)
         app.MapGet("/ksef/invoices/received/new", async (

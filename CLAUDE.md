@@ -23,7 +23,7 @@ docker compose up --build
 - `src/KSeFGateway.Api/Auth/TokenPool.cs` - multi-NIP KSeF auth (token or certificate/XAdES) + background refresh
 - `src/KSeFGateway.Api/Auth/KsefContext.cs` - per-NIP context: token XOR certificate+key(+password)
 - `src/KSeFGateway.Api/Endpoints/WorkflowEndpoints.cs` - high-level: /ksef/send, /ksef/send/json, /ksef/invoice/{nr}/pdf
-- `src/KSeFGateway.Api/Endpoints/InvoiceDownloadEndpoints.cs` - /ksef/invoices/received, /ksef/invoices/received/new
+- `src/KSeFGateway.Api/Endpoints/InvoiceDownloadEndpoints.cs` - /ksef/invoices/received, /ksef/invoices/received/new, /ksef/invoices/issued
 - `src/KSeFGateway.Api/Endpoints/HealthEndpoints.cs` - /health, /ksef/status
 - `src/KSeFGateway.Api/Middleware/ApiKeyMiddleware.cs` - fail-closed X-Api-Key check on every request except /health (gateway has no other caller-facing auth)
 - `src/KSeFGateway.Api/Middleware/ErrorHandlingMiddleware.cs` - KsefApiException/KsefRateLimitException/KsefCircuitBreakerOpenException → HTTP responses
@@ -60,7 +60,7 @@ Note: `ksef-api`'s runtime image has no SDK and a fixed `ENTRYPOINT`, so it can'
 - `EndpointMapper` registers each method as `POST /ksef/{group}/{method}` with dynamic JSON→SDK parameter mapping
 - `TokenPool` (BackgroundService) authenticates per NIP via `IAuthCoordinator.AuthKsefTokenAsync()` (token) or `.AuthAsync()` with an XAdES `xmlSigner` built from a loaded `X509Certificate2` (certificate) and auto-refreshes at 80% TTL
 - `WorkflowEndpoints` provide high-level flows: XML/JSON → encrypt → session → send → KSeF number
-- `InvoiceDownloadEndpoints` wraps `QueryInvoiceMetadataAsync` (SubjectType=Subject2/buyer) for discovering received invoices without knowing their KSeF number; `/received/new` uses `DateType=PermanentStorage` + HWM for a stateless polling cursor
+- `InvoiceDownloadEndpoints` wraps `QueryInvoiceMetadataAsync` (SubjectType=Subject2/buyer) for discovering received invoices without knowing their KSeF number; `/received/new` uses `DateType=PermanentStorage` + HWM for a stateless polling cursor; `/issued` is the seller-role mirror (SubjectType=Subject1, no polling variant - you already know when you sent something)
 - Every endpoint handler runs through `EndpointErrorHandling.Guard()`, which rethrows `KsefApiException`/`KsefRateLimitException`/`KsefCircuitBreakerOpenException` (unwrapping `TargetInvocationException` from reflection-invoked calls first) so `ErrorHandlingMiddleware` can turn them into 502/429+Retry-After/503+Retry-After - everything else becomes a generic 500
 - `pdf-service` uses xml-js for bidirectional JSON/XML conversion and CIRFMF lib for PDF rendering
 - QR codes use SHA-256 hash of KSeF-canonical XML + P_1 date + seller NIP

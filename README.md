@@ -100,7 +100,7 @@ docker compose --profile tools run --rm token-generator
 
 Copy the output (`KSEF_TOKEN`, `KSEF_NIP`, `KSEF_ENV`) into your `.env` file.
 
-> **What does this do?** See [How Token Generator Works](#how-token-generator-works) below.
+> **What does this do?** See [How Token Generator Works](#how-token-generator-works) below. Prefer testing the [certificate-based auth path](#certificate-based-auth-alternative-to-tokens) instead? `docker compose --profile tools run --rm cert-generator` does the same for certificates - see [How Cert Generator Works](#how-cert-generator-works).
 
 ### 3. Run the gateway
 
@@ -451,6 +451,22 @@ Output: `KSEF_TOKEN`, `KSEF_NIP`, `KSEF_ENV` - paste into `.env`.
 
 The token lives until revoked. The gateway uses it daily: encrypts it with KSeF's public key, gets a JWT, auto-refreshes before expiry.
 
+### How Cert Generator Works
+
+`docker compose --profile tools run --rm cert-generator` does the certificate equivalent - also **TEST only**, using a disposable self-signed certificate:
+
+```
+Step 1: Generate random NIP with valid checksum
+Step 2: Create self-signed X.509 certificate (accepted on TEST only)
+Step 3: POST /auth/challenge → get one-time challenge from KSeF
+Step 4: Build AuthTokenRequest XML, sign with XAdES
+Step 5: POST /auth/xades-signature → submit signed auth request
+Step 6: Poll GET /auth/{ref} until status = 200 (auth verified)
+Step 7: Export certificate + private key as PEM to ./output
+```
+
+Output: `test-cert.crt`, `test-cert.key`, `test-cert.nip` in `./output` - the same files a production certificate download from the portal gives you, just self-signed instead of MF-issued. Unlike the token generator, it stops after verifying the auth succeeds - it's proving the gateway's certificate-loading code works, not minting a long-lived credential.
+
 ### KSeF is already mandatory
 
 - **February 1, 2026** - large taxpayers (>200M PLN 2024 revenue) must issue invoices via KSeF. **Everyone**, regardless of size, must be able to **receive** purchase invoices via KSeF from this date.
@@ -509,7 +525,15 @@ You only need to do this once. If you lose the token, revoke it in the portal an
 
 Instead of a token, the gateway can authenticate with a **KSeF certificate** - a certificate + private key pair issued by the KSeF portal. Every (re-)login gets signed with the certificate (XAdES) instead of presenting a static secret. This is the officially supported, ongoing authentication path - not a token workaround.
 
-**Getting a certificate:**
+**Try it on TEST first:**
+
+```bash
+docker compose --profile tools run --rm cert-generator
+```
+
+One command generates a disposable self-signed certificate, verifies it actually authenticates against the live KSeF TEST API, and writes `test-cert.crt` + `test-cert.key` to `./output`, plus the random NIP it registered with. Point `KSEF_CERT_PATH`/`KSEF_KEY_PATH`/`KSEF_NIP` at those files with `KSEF_ENV=TEST` to try the whole flow before touching a real certificate. Self-signed certificates only work on TEST - production needs a real one from the portal, below.
+
+**Getting a production certificate:**
 
 1. Log in to [ap.ksef.mf.gov.pl](https://ap.ksef.mf.gov.pl/) the same way as for a token (Profil Zaufany, podpis kwalifikowany, etc.)
 2. Go to **Certyfikaty** → **Wnioskuj o certyfikat**

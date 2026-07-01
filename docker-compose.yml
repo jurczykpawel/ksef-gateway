@@ -65,6 +65,17 @@ services:
         GITHUB_PAT: ${GITHUB_PAT}
     profiles: ["tools"]
 
+  # One-off tool: generates + verifies a self-signed KSeF certificate on TEST environment
+  # Usage: docker compose run --rm cert-generator
+  cert-generator:
+    build:
+      context: ./tools/CertGenerator
+      args:
+        GITHUB_PAT: ${GITHUB_PAT}
+    volumes:
+      - ./output:/app/output
+    profiles: ["tools"]
+
   # One-off tool: authenticates, sends an invoice, downloads it back
   # Usage: docker compose run --rm invoice-demo
   invoice-demo:

@@ -30,6 +30,7 @@ docker compose up --build
 - `pdf-service/src/server.ts` - PDF generation, JSON→XML conversion, QR codes
 - `pdf-service/lib/` - git submodule: CIRFMF/ksef-pdf-generator
 - `tools/TokenGenerator/` - one-command KSeF TEST token generator
+- `tools/CertGenerator/` - one-command KSeF TEST certificate generator (self-signed, verifies auth, exports PEM)
 - `tools/InvoiceDemo/` - E2E invoice send demo
 
 ## SDK

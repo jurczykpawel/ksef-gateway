@@ -21,6 +21,8 @@
 - [x] TokenPool authenticates via IAuthCoordinator.AuthAsync() + XAdES signing (SignatureService.Sign) when a context uses a certificate
 - [x] Supports both plain and password-encrypted private key PEMs (X509Certificate2.CreateFromPemFile / CreateFromEncryptedPemFile)
 - [x] Verified end-to-end against live TEST KSeF API with a self-signed cert (both key variants) - auth + a read-only endpoint
+- [x] tools/CertGenerator - one-command TEST cert generator (self-signed, verifies auth, exports PEM), mirrors TokenGenerator
+- [x] CI job "Certificate auth integration test" - generates a cert, starts a gateway with it, asserts /ksef/status authenticated=true
 
 ## Future
 

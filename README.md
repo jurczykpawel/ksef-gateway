@@ -418,6 +418,7 @@ You only need to do this once. If you lose the token, revoke it in the portal an
 | `KSEF_QR_URL` | No | `https://qr-test.ksef.mf.gov.pl` | QR verification base URL |
 | `GITHUB_PAT` | Build | - | GitHub PAT with `read:packages` for CIRFMF SDK |
 | `KSEF_CONTEXTS_FILE` | No | `/app/contexts.json` | Path to multi-NIP config file |
+| `GATEWAY_LICENSE` | No | - | Multi-NIP license key - only needed for more than 1 NIP, see [Multi-NIP Licensing](#multi-nip-licensing) |
 
 ### Multi-NIP Mode
 
@@ -453,6 +454,21 @@ The gateway auto-detects which NIP to use based on:
 Check authenticated contexts: `GET /ksef/contexts`
 
 > **Note:** `KSEF_TOKEN` + `KSEF_NIP` env vars still work for single-NIP mode. If both env vars and `contexts.json` are present, the env var context is added to the list.
+
+### Multi-NIP Licensing
+
+A single NIP is free, always - no license needed, no time limit. Running **more than one NIP** (accounting offices, holding groups, agencies serving several clients) requires a [multi-NIP license](https://sellf.techskills.academy/p/ksef-gateway-multi-nip) - one-time payment, unlocks unlimited NIPs on that instance forever.
+
+Set the license key as `GATEWAY_LICENSE`. Verification is fully offline (ECDSA signature check against a cached public key) - your license token never leaves your server, and a temporary network blip doesn't lock you out (see below).
+
+If `contexts.json` configures more NIPs than your license allows, the gateway doesn't refuse to start - it activates the first `N` (your default NIP is always kept, even if it wasn't first in the file) and logs a clear warning naming which ones were skipped. Check `GET /ksef/status` for `license: {licensed, maxNips, activeNips, expiresAt}`.
+
+| Situation | Behavior |
+|---|---|
+| No `GATEWAY_LICENSE` set | Free tier - first configured NIP only |
+| Valid license | Unlimited NIPs |
+| License expired/revoked/malformed | Falls back to free tier (1 NIP) - never crashes the gateway |
+| Sellf's license server temporarily unreachable | Serves the last verified result for up to 7 days (cached), then falls back to free tier - an outage doesn't retroactively lock you out, but doesn't extend forever either |
 
 ---
 

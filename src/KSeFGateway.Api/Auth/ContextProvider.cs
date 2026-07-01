@@ -1,17 +1,19 @@
 using System.Text.Json;
+using KSeFGateway.Api.Licensing;
 
 namespace KSeFGateway.Api.Auth;
 
 /// <summary>
 /// Loads KSeF contexts from environment variables (single NIP)
-/// or from contexts.json file (multi-NIP).
+/// or from contexts.json file (multi-NIP). Multi-NIP requires a valid GATEWAY_LICENSE -
+/// see LicenseService. Free tier gets the first configured NIP only.
 /// </summary>
 public class ContextProvider
 {
-    private readonly IReadOnlyList<KsefContext> _contexts;
+    private IReadOnlyList<KsefContext> _contexts;
     private readonly string? _defaultNip;
 
-    public ContextProvider(IConfiguration config, ILogger<ContextProvider> logger)
+    public ContextProvider(IConfiguration config, ILogger<ContextProvider> logger, LicenseService licenseService)
     {
         var contextsPath = config["KSEF_CONTEXTS_FILE"] ?? "/app/contexts.json";
         var envToken = config["KSEF_TOKEN"];
@@ -48,6 +50,23 @@ public class ContextProvider
             _contexts = [];
             _defaultNip = null;
             logger.LogWarning("No KSeF contexts configured. Set KSEF_TOKEN+KSEF_NIP or mount contexts.json");
+        }
+
+        var maxNips = licenseService.MaxNips;
+        if (_contexts.Count > maxNips)
+        {
+            logger.LogWarning(
+                "{Configured} NIPs configured but only {Max} allowed under your license - only {Max} will be active. " +
+                "Get a license at https://sellf.techskills.academy/p/{Slug} to unlock the rest.",
+                _contexts.Count, maxNips, maxNips, LicenseService.ProductSlug);
+
+            // Keep the default NIP even if it wasn't first in the file/list - never silently
+            // drop the context callers are actually relying on when truncating to the limit.
+            var defaultContext = _defaultNip is not null ? _contexts.FirstOrDefault(c => c.Nip == _defaultNip) : null;
+            var ordered = defaultContext is not null
+                ? new[] { defaultContext }.Concat(_contexts.Where(c => c.Nip != _defaultNip))
+                : _contexts;
+            _contexts = ordered.Take(maxNips).ToList();
         }
     }
 

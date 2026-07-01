@@ -21,6 +21,8 @@ docker compose up --build
 - `src/KSeFGateway.Api/Discovery/SdkReflector.cs` - reflection engine (discovers 60+ SDK methods)
 - `src/KSeFGateway.Api/Discovery/EndpointMapper.cs` - auto-registers POST /ksef/{group}/{method}
 - `src/KSeFGateway.Api/Auth/TokenManager.cs` - KSeF token auth + background refresh
+- `src/KSeFGateway.Api/Auth/ContextProvider.cs` - loads NIP contexts, caps them at LicenseService.MaxNips
+- `src/KSeFGateway.Api/Licensing/` - GATEWAY_LICENSE verification (LicenseService, LicenseVerifier, JwksClient, RevocationClient) - gates multi-NIP
 - `src/KSeFGateway.Api/Endpoints/WorkflowEndpoints.cs` - high-level: /ksef/send, /ksef/send/json, /ksef/invoice/{nr}/pdf
 - `src/KSeFGateway.Api/Endpoints/HealthEndpoints.cs` - /health, /ksef/status
 - `src/KSeFGateway.Api/Middleware/ErrorHandlingMiddleware.cs` - KsefApiException → HTTP responses
@@ -50,6 +52,7 @@ cd pdf-service && npm test
 Note: `ksef-api`'s runtime image has no SDK and a fixed `ENTRYPOINT`, so it can't run `dotnet test` directly — `ksef-api-tests` is a separate compose service built from the `test` stage in `KSeFGateway.Api/Dockerfile` (profile `tools`, mirrors CI's `build-api` job, excludes `Category=Integration`).
 
 ## Architecture
+- `LicenseService` (BackgroundService, mirrors TokenPool) verifies `GATEWAY_LICENSE` offline (ECDSA P-256/SHA-256) against Sellf's JWKS (product slug `ksef-gateway-multi-nip`, seller 83789f79-bdd7-4918-af1f-e56325fa5070) + a k-anonymity revocation check; `Program.cs` awaits one explicit `RefreshAsync()` right after `builder.Build()` so `ContextProvider`'s constructor already has a resolved `MaxNips` (1 = free, unlimited = licensed) before it truncates configured NIPs - JWKS unreachable fails closed (free tier), the revocation check fails open (never revoke a valid token just because the CRL is down)
 - `SdkReflector` discovers all methods on `IKSeFClient` (13 sub-interfaces) via .NET reflection at startup
 - `EndpointMapper` registers each method as `POST /ksef/{group}/{method}` with dynamic JSON→SDK parameter mapping
 - `TokenManager` (BackgroundService) authenticates via `IAuthCoordinator.AuthKsefTokenAsync()` and auto-refreshes at 80% TTL

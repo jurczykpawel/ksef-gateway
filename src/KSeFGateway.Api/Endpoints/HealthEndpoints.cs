@@ -1,4 +1,5 @@
 using KSeFGateway.Api.Auth;
+using KSeFGateway.Api.Licensing;
 using KSeFGateway.Api.Models;
 using Microsoft.AspNetCore.Mvc;
 
@@ -29,6 +30,7 @@ public static class HealthEndpoints
         app.MapGet("/ksef/status", (
             [FromServices] TokenPool pool,
             [FromServices] ContextProvider ctxProvider,
+            [FromServices] LicenseService licenseService,
             [FromServices] IConfiguration config) =>
         {
             var allStates = pool.GetAllStates();
@@ -49,7 +51,16 @@ public static class HealthEndpoints
             {
                 mode = ctxProvider.IsMultiNip ? "multi-nip" : "single-nip",
                 environment = config["KSEF_ENV"] ?? "TEST",
-                contexts
+                contexts,
+                license = new
+                {
+                    licensed = licenseService.IsLicensed,
+                    maxNips = licenseService.IsLicensed ? (int?)null : licenseService.MaxNips,
+                    activeNips = ctxProvider.GetAll().Count,
+                    expiresAt = licenseService.Claims?.Exp is long exp
+                        ? DateTimeOffset.FromUnixTimeSeconds(exp)
+                        : (DateTimeOffset?)null,
+                }
             }));
         })
         .WithTags("System")

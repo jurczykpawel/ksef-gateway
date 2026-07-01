@@ -99,6 +99,39 @@ openssl rand -hex 32
 
 ---
 
+## Try the Live Demo
+
+No setup required. A public demo instance runs on Render's free tier, authenticated to a disposable KSeF **TEST** company (not a real business) via certificate. Self-invoicing is enabled, so you can send an invoice and immediately look yourself up as the buyer:
+
+```bash
+DEMO_URL="https://ksef-api-rfm0.onrender.com"
+DEMO_KEY="0679d36400bfdedcaf1f7d1f5774d0d94ffae5a9f6bc7596cbf24de94d42a8ee"
+DEMO_NIP="3202004132"
+
+curl -X POST "$DEMO_URL/ksef/invoice" \
+  -H "Content-Type: application/json" \
+  -H "X-Api-Key: $DEMO_KEY" \
+  -d '{
+    "invoiceNumber": "DEMO/'"$(date +%s)"'",
+    "issueDate": "'"$(date +%F)"'",
+    "saleDate": "'"$(date +%F)"'",
+    "seller": { "nip": "'"$DEMO_NIP"'", "name": "Demo sp. z o.o.", "address": { "street": "ul. Demo 1", "city": "00-001 Warszawa" } },
+    "buyer": { "nip": "'"$DEMO_NIP"'", "name": "Demo sp. z o.o.", "address": { "street": "ul. Demo 1", "city": "00-001 Warszawa" } },
+    "items": [ { "name": "Demo usługa", "quantity": 1, "unitPrice": 100, "vatRate": 23 } ]
+  }'
+# → {"success":true,"data":{"ksefNumber":"..."}}
+
+curl "$DEMO_URL/ksef/invoices/received?from=2026-01-01&to=2026-12-31" \
+  -H "X-Api-Key: $DEMO_KEY"
+# → {"success":true,"data":{"invoices":[{"ksefNumber":"...","invoiceNumber":"DEMO/...",...}],"hasMore":false}}
+```
+
+Or import the [Bruno collection](#testing-with-bruno) and switch to the `demo` environment - every request works immediately, no credentials to find.
+
+> **This demo is public and shared** - don't send anything sensitive. It's a disposable TEST-environment NIP, not connected to any real business, and the API key may be rotated without notice if abused.
+
+---
+
 ## Quick Start
 
 ### Prerequisites
@@ -193,8 +226,8 @@ A [Bruno](https://www.usebruno.com/) collection is included in the `bruno/` dire
 **Setup:**
 1. Install Bruno (desktop app or CLI: `npm install -g @usebruno/cli`)
 2. Open collection in Bruno desktop: **Open Collection** → select `bruno/`
-3. Select environment `local`
-4. Set `apiKey` to your `GATEWAY_API_KEY` and `sellerNip` to your NIP - the collection-level header (`collection.bru`) sends `apiKey` as `X-Api-Key` on every request automatically
+3. Select environment `local`, `render` (your own Render deploy), or `demo` (the [live demo](#try-the-live-demo) - no credentials to set, already filled in)
+4. For `local`/`render`: set `apiKey` to your `GATEWAY_API_KEY` and `sellerNip` to your NIP - the collection-level header (`collection.bru`) sends `apiKey` as `X-Api-Key` on every request automatically
 
 **Run with CLI:**
 ```bash

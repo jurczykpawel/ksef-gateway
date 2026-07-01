@@ -2,7 +2,7 @@
 # Full test suite: unit + integration against a live gateway.
 # Used as pre-push hook (via pre-commit) and for manual runs.
 #
-# Requires: Docker, .env with GITHUB_PAT + KSEF_TOKEN + KSEF_NIP (TEST env).
+# Requires: Docker, .env with GITHUB_PAT + KSEF_TOKEN + KSEF_NIP + GATEWAY_API_KEY (TEST env).
 # Usage: ./scripts/test-full.sh
 # Skip:  SKIP_INTEGRATION=1 git push
 
@@ -39,9 +39,15 @@ fi
 
 GITHUB_PAT=$(grep '^GITHUB_PAT=' "$ENV_FILE" | cut -d= -f2-)
 KSEF_NIP=$(grep '^KSEF_NIP=' "$ENV_FILE" | cut -d= -f2-)
+GATEWAY_API_KEY=$(grep '^GATEWAY_API_KEY=' "$ENV_FILE" | cut -d= -f2-)
 
 if [ -z "$GITHUB_PAT" ] || [ -z "$KSEF_NIP" ]; then
   warn "GITHUB_PAT or KSEF_NIP missing in .env — skipping integration tests"
+  exit 0
+fi
+
+if [ -z "$GATEWAY_API_KEY" ]; then
+  warn "GATEWAY_API_KEY missing in .env — skipping integration tests (run: openssl rand -hex 32)"
   exit 0
 fi
 
@@ -97,6 +103,7 @@ docker run --rm \
   --add-host=host.docker.internal:host-gateway \
   -e GITHUB_PAT="$GITHUB_PAT" \
   -e KSEF_NIP="$KSEF_NIP" \
+  -e GATEWAY_API_KEY="$GATEWAY_API_KEY" \
   -e GATEWAY_URL="http://host.docker.internal:8080" \
   -v "$REPO_ROOT/src:/src" \
   mcr.microsoft.com/dotnet/sdk:9.0 \

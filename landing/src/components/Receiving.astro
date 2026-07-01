@@ -1,0 +1,112 @@
+---
+const withoutSteps = [
+  "Ręczne logowanie się do KSeF codziennie, żeby sprawdzić, czy coś przyszło",
+  "Zero powiadomień e-mail czy webhook przy nowej fakturze od kontrahenta",
+  "Żeby cokolwiek pobrać, trzeba już znać numer KSeF",
+  "Ręczne przeszukiwanie interfejsu MF po dacie i kontrahencie",
+];
+---
+<section class="section-gap" aria-labelledby="receiving-heading">
+  <div class="container-kg">
+    <div class="section-label" data-recv>
+      <svg width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden="true">
+        <path d="M2 4l4 3.5L10 4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+        <rect x="1.5" y="2.5" width="9" height="7" rx="1.2" stroke="currentColor" stroke-width="1.5"/>
+      </svg>
+      Odbieranie faktur
+    </div>
+    <h2 id="receiving-heading" class="text-3xl sm:text-4xl font-bold text-[var(--color-ink)] mb-4 max-w-2xl" data-recv>
+      KSeF nie powie Ci, że dostałeś fakturę
+    </h2>
+    <p class="text-[var(--color-muted)] mb-12 max-w-xl" data-recv>
+      Kontrahenci wystawiają faktury w KSeF i nie zawsze wysyłają je mailem. Bez powiadomień w samym systemie musisz sam sprawdzać, czy coś wpadło &mdash; albo znać numer KSeF z góry. Gateway odwraca ten problem: przeszukuje faktury po dacie i roli nabywcy, bez znajomości numeru.
+    </p>
+
+    <div class="grid md:grid-cols-2 gap-6" data-recv>
+      <!-- Bez Gateway -->
+      <div class="card-floating p-6">
+        <div class="flex items-center gap-2 mb-5">
+          <span class="inline-flex items-center justify-center w-7 h-7 rounded-full bg-red-500/10 border border-red-500/20">
+            <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="#ef4444" stroke-width="2" stroke-linecap="round" aria-hidden="true">
+              <path d="M3 3l10 10M13 3L3 13"/>
+            </svg>
+          </span>
+          <span class="text-sm font-semibold text-[var(--color-ink)]">Bez KSeF Gateway</span>
+        </div>
+        <ul class="space-y-3">
+          {withoutSteps.map((step) => (
+            <li class="flex items-start gap-3 text-sm text-[var(--color-muted)]">
+              <svg class="mt-0.5 shrink-0" width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="#ef4444" stroke-width="1.8" stroke-linecap="round" aria-hidden="true">
+                <circle cx="8" cy="8" r="6.5"/>
+                <path d="M5.5 5.5l5 5M10.5 5.5l-5 5"/>
+              </svg>
+              {step}
+            </li>
+          ))}
+        </ul>
+        <div class="mt-5 pt-4 border-t border-[var(--color-line-strong)] font-mono text-xs text-[var(--color-faint)]">
+          Loguj się → szukaj ręcznie → miej nadzieję, że niczego nie przegapiłeś...
+        </div>
+      </div>
+
+      <!-- Z Gateway -->
+      <div class="card-floating p-6 relative overflow-hidden" style="border-color: var(--color-accent-muted)">
+        <div class="absolute inset-0 bg-gradient-to-br from-indigo-500/5 to-transparent pointer-events-none" aria-hidden="true"></div>
+        <div class="flex items-center gap-2 mb-5">
+          <span class="inline-flex items-center justify-center w-7 h-7 rounded-full bg-[var(--color-accent-soft)] border border-[var(--color-accent)]/20">
+            <svg width="12" height="12" viewBox="0 0 16 16" fill="var(--color-accent)" aria-hidden="true">
+              <path d="M8 .5a7.5 7.5 0 1 0 0 15A7.5 7.5 0 0 0 8 .5Zm3.28 5.72-4 4a.75.75 0 0 1-1.06 0l-2-2a.75.75 0 0 1 1.06-1.06L6.75 8.69l3.47-3.47a.75.75 0 1 1 1.06 1.06Z"/>
+            </svg>
+          </span>
+          <span class="text-sm font-semibold text-[var(--color-ink)]">Z KSeF Gateway</span>
+        </div>
+
+        <div class="code-block mb-4">
+          <div class="p-4 text-xs font-mono">
+            <div class="text-[var(--color-faint)] mb-2"># Sprawdź, co nowego przyszło od ostatniego razu</div>
+            <div>
+              <span class="text-[var(--color-blue)]">curl</span>
+              <span class="text-[var(--color-muted)]"> "/ksef/invoices/received/new?since=..."</span>
+            </div>
+          </div>
+          <div class="border-t border-[var(--color-line-strong)] p-4 text-xs font-mono">
+            <div class="text-[var(--color-faint)] mb-2"># Odpowiedź</div>
+            <div>
+              <span class="text-[#93c5fd]">"faktury"</span>: [&#123; <span class="text-[#93c5fd]">"sprzedawca"</span>: <span class="text-[#fbbf24]">"Dostawca sp. z o.o."</span> &#125;]
+            </div>
+            <div>
+              <span class="text-[#93c5fd]">"kolejnyCheckpoint"</span>: <span class="text-[#fbbf24]">"2026-07-01T07:00:00Z"</span>
+            </div>
+          </div>
+        </div>
+
+        <ul class="space-y-2.5">
+          {[
+            "Szukaj faktur po dacie i roli nabywcy — bez znajomości numeru KSeF",
+            "Pobierz PDF tym samym endpointem, co dla faktur wysłanych",
+            "Checkpoint do pollingu — dostajesz tylko to, co naprawdę nowe",
+            "Podłącz pod cron / n8n i miej powiadomienia mailem lub na Slacka",
+          ].map((step) => (
+            <li class="flex items-center gap-3 text-sm text-[var(--color-muted)]">
+              <svg class="shrink-0" width="14" height="14" viewBox="0 0 16 16" fill="var(--color-accent)" aria-hidden="true">
+                <path d="M8 .5a7.5 7.5 0 1 0 0 15A7.5 7.5 0 0 0 8 .5Zm3.28 5.72-4 4a.75.75 0 0 1-1.06 0l-2-2a.75.75 0 0 1 1.06-1.06L6.75 8.69l3.47-3.47a.75.75 0 1 1 1.06 1.06Z"/>
+              </svg>
+              {step}
+            </li>
+          ))}
+        </ul>
+      </div>
+    </div>
+  </div>
+</section>
+
+<script>
+  import { animate, inView } from "motion";
+  document.querySelectorAll("[data-recv]").forEach((el, i) => {
+    el.style.opacity = "0";
+    el.style.transform = "translateY(16px)";
+    inView(el, () => {
+      animate(el, { opacity: 1, transform: "translateY(0px)" }, { duration: 0.5, delay: i * 0.06, easing: [0.22, 1, 0.36, 1] });
+    }, { margin: "0px 0px -40px 0px" });
+  });
+</script>

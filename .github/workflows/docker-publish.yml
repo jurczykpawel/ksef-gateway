@@ -40,6 +40,8 @@ jobs:
           images: ${{ env.REGISTRY }}/jurczykpawel/ksef-gateway-api
           tags: |
             type=ref,event=branch
+            type=semver,pattern=v{{version}}
+            type=semver,pattern=v{{major}}.{{minor}}
             type=raw,value=latest,enable=${{ github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v') }}
 
       - name: Build and push API image
@@ -85,6 +87,8 @@ jobs:
           images: ${{ env.REGISTRY }}/jurczykpawel/ksef-gateway-pdf
           tags: |
             type=ref,event=branch
+            type=semver,pattern=v{{version}}
+            type=semver,pattern=v{{major}}.{{minor}}
             type=raw,value=latest,enable=${{ github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v') }}
 
       - name: Build and push PDF service image

@@ -179,6 +179,22 @@ bru run --env local
 
 `send-xml.bru` and `send-invoice.bru` automatically save the returned `ksefNumber` as a variable - after sending, `get-invoice-xml` and `get-invoice-pdf` work immediately.
 
+**What's in the collection:**
+
+| Request | Endpoint |
+|---|---|
+| `health.bru` | `GET /health` |
+| `status.bru` | `GET /ksef/status` |
+| `contexts.bru` | `GET /ksef/contexts` |
+| `send-invoice.bru` | `POST /ksef/invoice` (friendly JSON) |
+| `send-xml.bru` | `POST /ksef/send` (raw FA(3) XML) |
+| `send-xml-explicit-nip.bru` | `POST /ksef/send` with `X-KSeF-NIP` header (multi-NIP) |
+| `send-json.bru` | `POST /ksef/send/json` (xml-js format) |
+| `get-invoice-xml.bru` | `GET /ksef/invoice/{ksefNumber}` |
+| `get-invoice-pdf.bru` | `GET /ksef/invoice/{ksefNumber}/pdf` |
+| `list-received-invoices.bru` | `GET /ksef/invoices/received` |
+| `list-new-received-invoices.bru` | `GET /ksef/invoices/received/new` |
+
 ---
 
 ## API Endpoints
@@ -420,6 +436,7 @@ Zero code changes in your e-commerce platform. Configure the webhook URL in your
 Ready-to-import workflows in [`examples/n8n/`](examples/n8n/):
 - **Sellf → KSeF** (`sellf-ksef.json`) - digital products, NIP check, seller data from n8n variables
 - **WooCommerce → KSeF** (`woocommerce-ksef.json`) - WooCommerce orders, VAT rate auto-detection, consumer skipping
+- **Receive & Download Invoices** (`receive-invoices.json`) - polls for invoices issued *to* you every 20 minutes, downloads PDFs, checkpointed so nothing gets skipped or re-scanned - see [Receiving Invoices](#receiving-invoices)
 
 ### Deploy the gateway
 

@@ -83,6 +83,7 @@ public class KsefRateLimitsTests
     [InlineData("/ksef/invoice-download/query-invoice-metadata", "invoices/query")]
     [InlineData("/ksef/invoices/received", "invoices/query")]
     [InlineData("/ksef/invoices/received/new", "invoices/query")]
+    [InlineData("/ksef/invoices/issued", "invoices/query")]
     [InlineData("/ksef/invoice-download/export-invoices", "invoices/exports")]
     [InlineData("/ksef/online-session/open-online-session", "sessions/online/open")]
     [InlineData("/ksef/online-session/send-online-session-invoice", "sessions/online/send")]

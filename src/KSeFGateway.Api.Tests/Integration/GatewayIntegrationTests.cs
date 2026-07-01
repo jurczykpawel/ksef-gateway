@@ -313,11 +313,13 @@ public class GatewayIntegrationTests
 
     /// <summary>
     /// Polls a /ksef/invoices/{received,issued} URL until targetInvoiceNumber shows up. This
-    /// endpoint shares KSeF's own tight invoices/query budget: a short 429 (the gateway's own
-    /// proactive per-second/per-minute throttle) means "back off exactly as long as told, then
-    /// keep polling". A long 429 means KSeF's real per-hour account quota is exhausted - that
-    /// won't clear before the test times out anyway, so fail fast with a clear diagnostic instead
-    /// of silently blocking a CI run for up to an hour.
+    /// endpoint shares KSeF's own tight invoices/query budget (20/hour, real server-side quota) -
+    /// every poll attempt spends from that same scarce pool, so this favors fewer attempts spaced
+    /// further apart over more, tighter ones: the same ~20s of wall-clock coverage for eventual
+    /// consistency, at half the request cost. A short 429 (the gateway's own proactive throttle)
+    /// means "back off exactly as long as told, then keep polling". A long 429 means the real
+    /// per-hour account quota is exhausted - that won't clear before the test times out anyway, so
+    /// fail fast with a clear diagnostic instead of silently blocking a CI run for up to an hour.
     /// </summary>
     private static readonly TimeSpan MaxWorthwhileRetryAfter = TimeSpan.FromSeconds(15);
 
@@ -352,7 +354,7 @@ public class GatewayIntegrationTests
             if (invoiceNumbers.Contains(targetInvoiceNumber) || attempt == maxAttempts)
                 return invoiceNumbers;
 
-            await Task.Delay(TimeSpan.FromSeconds(2));
+            await Task.Delay(TimeSpan.FromSeconds(4));
         }
         return invoiceNumbers;
     }

@@ -57,6 +57,7 @@ public static class HealthEndpoints
                     licensed = licenseService.IsLicensed,
                     maxNips = licenseService.IsLicensed ? (int?)null : licenseService.MaxNips,
                     activeNips = ctxProvider.GetAll().Count,
+                    email = licenseService.Claims?.Email,
                     expiresAt = licenseService.Claims?.Exp is long exp
                         ? DateTimeOffset.FromUnixTimeSeconds(exp)
                         : (DateTimeOffset?)null,

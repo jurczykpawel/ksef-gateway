@@ -107,9 +107,14 @@ public class GatewayIntegrationTests
     {
         // Self-invoice (seller == buyer == our only authenticated test NIP) is the only way
         // to reliably exercise the buyer-role query with a single-NIP CI credential.
+        // IssueDate must be today - the query below searches by today's date, but
+        // SampleInvoice() defaults to a fixed historical date for XML/XSD tests.
+        var today = DateTimeOffset.UtcNow.ToString("yyyy-MM-dd");
         var invoiceNumber = UniqueNumber("FV/INT/RECEIVED");
         var invoice = SampleInvoice(invoiceNumber) with
         {
+            IssueDate = today,
+            SaleDate = today,
             Buyer = new BuyerData
             {
                 Nip = SellerNip,
@@ -137,9 +142,12 @@ public class GatewayIntegrationTests
     }
 
     [Fact]
-    public async Task ListNewReceivedInvoices_SinceFarFuture_ReturnsEmptyWithCheckpoint()
+    public async Task ListNewReceivedInvoices_SinceNow_ReturnsEmptyWithCheckpoint()
     {
-        var since = DateTimeOffset.UtcNow.AddYears(1).ToString("O");
+        // "since" this close to real time is always later than KSeF's own
+        // PermanentStorageHwmDate (data isn't durably complete there yet) - exercises the
+        // gateway's graceful handling of KSeF's 21183 rejection (nothing new yet, not an error).
+        var since = DateTimeOffset.UtcNow.ToString("O");
         var resp = await Http.GetAsync($"{BaseUrl}/ksef/invoices/received/new?since={Uri.EscapeDataString(since)}");
 
         Assert.Equal(HttpStatusCode.OK, resp.StatusCode);

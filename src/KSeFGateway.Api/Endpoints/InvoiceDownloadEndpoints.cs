@@ -1,3 +1,4 @@
+using KSeF.Client.Core.Exceptions;
 using KSeF.Client.Core.Interfaces.Clients;
 using KSeF.Client.Core.Models.Invoices;
 using KSeFGateway.Api.Auth;
@@ -20,6 +21,15 @@ public static class InvoiceDownloadEndpoints
     // here). A short delay between pages keeps a multi-page poll comfortably under the per-second cap.
     private const int MaxPollPages = 5;
     private static readonly TimeSpan InterPageDelay = TimeSpan.FromMilliseconds(200);
+
+    // KSeF rejects a PermanentStorage query whose "from" is more recent than its own
+    // PermanentStorageHwmDate (data isn't durably complete there yet) - see limity-api.md /
+    // przyrostowe-pobieranie-faktur.md. A caller polling with `since` close to "now" hits this
+    // on every call; treat it as "nothing new yet" instead of a 502.
+    private const int DateRangeBeyondHwmErrorCode = 21183;
+
+    private static bool IsDateRangeBeyondHwm(KsefApiException ex) =>
+        ex.ErrorResponse?.Exception?.ExceptionDetailList?.Any(d => d.ExceptionCode == DateRangeBeyondHwmErrorCode) == true;
 
     public static void MapInvoiceDownloadEndpoints(this WebApplication app)
     {
@@ -112,9 +122,25 @@ public static class InvoiceDownloadEndpoints
                         },
                     };
 
-                    var page = await ksefClient.QueryInvoiceMetadataAsync(
-                        filters, accessToken, pageOffset: pageOffset, pageSize: PollPageSize,
-                        cancellationToken: httpContext.RequestAborted);
+                    PagedInvoiceResponse page;
+                    try
+                    {
+                        page = await ksefClient.QueryInvoiceMetadataAsync(
+                            filters, accessToken, pageOffset: pageOffset, pageSize: PollPageSize,
+                            cancellationToken: httpContext.RequestAborted);
+                    }
+                    catch (KsefApiException ex) when (pageOffset == 0 && IsDateRangeBeyondHwm(ex))
+                    {
+                        // Nothing durably new since `from` yet - not an error from the caller's
+                        // perspective. Keep the checkpoint where it was; a later poll will move it
+                        // forward once KSeF's HWM catches up.
+                        return Results.Json(ApiResponse.Ok(new
+                        {
+                            invoices = Array.Empty<ReceivedInvoiceSummary>(),
+                            hasMore = false,
+                            nextSince = from,
+                        }));
+                    }
 
                     pages.Add(page);
 

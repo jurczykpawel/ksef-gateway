@@ -1,11 +1,11 @@
 # KSeF Gateway
 
-> REST API for Poland's e-Invoice System (KSeF). Send a JSON, get a KSeF number. One HTTP call.
+> REST API for Poland's e-Invoice System (KSeF). Send a JSON, get a KSeF number. Receive invoices without knowing their number. One HTTP call, both directions.
 
 <details>
 <summary>🇵🇱 Po polsku</summary>
 
-**KSeF Gateway** to bramka REST API do Krajowego Systemu e-Faktur. Wysyłasz prosty JSON z danymi faktury, dostajesz numer KSeF. Jedno wywołanie HTTP zamiast budowania XML, szyfrowania AES-256, zarządzania sesjami i tokenami.
+**KSeF Gateway** to bramka REST API do Krajowego Systemu e-Faktur. Wysyłasz prosty JSON z danymi faktury, dostajesz numer KSeF. Odbierasz faktury wystawione na Ciebie bez znajomości ich numeru - jednym zapytaniem po dacie. Jedno wywołanie HTTP zamiast budowania XML, szyfrowania AES-256, zarządzania sesjami i tokenami.
 
 ```bash
 curl -X POST https://twoj-gateway/ksef/invoice \
@@ -15,7 +15,7 @@ curl -X POST https://twoj-gateway/ksef/invoice \
 
 **Szybki start:** `docker compose up` i gotowe. Nie potrzebujesz .NET lokalnie.
 
-**Cechy:** oficjalne SDK Ministerstwa Finansów (CIRFMF), PDF z QR, 60+ endpointów, multi-NIP, deploy jednym kliknięciem (Render/Lambda/Azure).
+**Cechy:** wysyłanie i odbieranie faktur, oficjalne SDK Ministerstwa Finansów (CIRFMF), PDF z QR, 60+ endpointów, multi-NIP, deploy jednym kliknięciem (Render/Lambda/Azure). Gotowe na obowiązkowy KSeF (produkcja, nie tylko test).
 
 **Instrukcja generowania tokenu produkcyjnego:** [Production Token](#production-token-step-by-step)
 
@@ -66,6 +66,7 @@ curl -X POST https://your-gateway/ksef/invoice \
 
 - **One HTTP call** - send JSON, get KSeF number. Gateway handles encryption, sessions, polling
 - **Simple JSON input** - `{seller, buyer, items}` with auto VAT calculation. No XML knowledge needed
+- **Receive without knowing the number** - KSeF has no email/webhook notifications; [browse or poll for invoices issued to you](#receiving-invoices) by date instead
 - **PDF with QR** - download verified invoice PDF by KSeF number, one call
 - **Official SDK inside** - wraps [CIRFMF/ksef-client-csharp](https://github.com/CIRFMF/ksef-client-csharp), maintained by the Polish Ministry of Finance
 - **60+ auto-discovered endpoints** from the SDK via .NET reflection
@@ -450,27 +451,37 @@ Output: `KSEF_TOKEN`, `KSEF_NIP`, `KSEF_ENV` - paste into `.env`.
 
 The token lives until revoked. The gateway uses it daily: encrypts it with KSeF's public key, gets a JWT, auto-refreshes before expiry.
 
+### KSeF is already mandatory
+
+- **February 1, 2026** - large taxpayers (>200M PLN 2024 revenue) must issue invoices via KSeF. **Everyone**, regardless of size, must be able to **receive** purchase invoices via KSeF from this date.
+- **April 1, 2026** - the rest of the B2B market (JDG, SME, sp. z o.o., etc.) must issue via KSeF too.
+- **2027** - micro-businesses (≤10k PLN gross invoiced per month) join, closing the last exemption.
+
+If you're reading this after those dates, production setup below isn't optional anymore for most businesses - it's the thing standing between you and a compliant invoice.
+
 ### Test vs Production
 
 | Step | TEST | PRODUCTION |
 |------|------|------------|
-| Certificate | Self-signed (automatic) | Qualified e-signature (SimplySign, Certum, etc.) |
+| Identity proof | Self-signed certificate (automatic) | Profil Zaufany (free), qualified e-signature, or qualified electronic seal |
 | NIP | Random, any value | Real, registered with tax office |
 | Token generation | Same flow | Same flow |
-| Who does it | Script (one command) | Business owner (one time) |
+| Who does it | Script (one command) | Business owner or authorized representative (one time) |
 
 ### Production Token (step by step)
 
-For production you need a **qualified e-signature** (podpis kwalifikowany) - the same one used for JPK, e-PIT, etc. Common providers: SimplySign (Asseco), Certum, Szafir (KIR), e-dowod.
+Getting a production token takes about 10 minutes and, for most businesses, **costs nothing**. **Profil Zaufany is free** (you likely already have it via your bank's login or mObywatel) and is enough to generate a token - you do **not** need to buy a qualified e-signature.
 
-> **Companies (sp. z o.o., SA, fundacje):** Before first login, submit the **ZAW-FA** form to your tax office. Sole proprietors (JDG) do not need this.
+> **Sole proprietors (JDG):** Log in directly, no prior registration needed.
+> **Companies (sp. z o.o., SA, fundacje):** Before first login, submit the **ZAW-FA** form to your tax office - a one-time formality - unless the company already has a qualified electronic seal bound to its NIP, which replaces it.
 
 **Via Aplikacja Podatnika KSeF 2.0:**
 
 1. Go to [ap.ksef.mf.gov.pl](https://ap.ksef.mf.gov.pl/)
 2. Click **Zaloguj** and authenticate with one of:
+   - **Profil Zaufany** (ePUAP / mObywatel / your bank's login) - free, no prior setup, the easiest path for JDG
    - Podpis kwalifikowany (SimplySign, Certum, Szafir)
-   - Profil Zaufany (ePUAP / mObywatel / e-banking)
+   - Pieczęć kwalifikowana (companies only - also replaces the ZAW-FA requirement above)
    - e-Dowod (electronic ID card with NFC)
 3. Enter your company **NIP** and click **Uwierzytelnij**
 4. Review and sign the authentication request
@@ -479,8 +490,8 @@ For production you need a **qualified e-signature** (podpis kwalifikowany) - the
 7. Enter a descriptive **name** for the token (e.g. "ksef-gateway API")
 8. Select permissions:
    - **Wystawianie faktur** (InvoiceWrite) - sending invoices
-   - **Odczyt faktur** (InvoiceRead) - downloading invoices (**required** for [Receiving Invoices](#receiving-invoices) too - `/ksef/invoices/received` and `/ksef/invoice/{ksefNumber}` both need it, not just `/ksef/send`)
-9. Confirm with your e-signature
+   - **Odczyt faktur** / **Przeglądanie faktur** (InvoiceRead) - downloading invoices (**required** for [Receiving Invoices](#receiving-invoices) too - `/ksef/invoices/received` and `/ksef/invoice/{ksefNumber}` both need it, not just `/ksef/send`)
+9. Confirm with your authentication method
 10. **Copy the token immediately** - it is displayed only once
 11. Set in your `.env`:
     ```
@@ -488,12 +499,13 @@ For production you need a **qualified e-signature** (podpis kwalifikowany) - the
     KSEF_NIP=<your company NIP>
     KSEF_ENV=PRODUCTION
     ```
+12. Restart the gateway. No code changes, no rebuild - just the env vars above.
 
 You only need to do this once. If you lose the token, revoke it in the portal and generate a new one.
 
-> **Who can generate a token?** Only a person authorized to represent the company (owner, board member, or someone with a KSeF authorization granted by them).
+> **Who can generate a token?** Only a person authorized to represent the company (owner, board member listed in KRS, or someone with a KSeF authorization granted by them).
 
-> **Token expiration:** All KSeF tokens expire **December 31, 2026**. From January 1, 2027, only KSeF certificates will be accepted. Tokens are a transitional authentication method.
+> **Token expiration:** All KSeF tokens expire **December 31, 2026**. From January 1, 2027, only KSeF certificates (a separate, PKI-based auth method issued by the same portal) will be accepted - the token flow above stops working then. This is a Ministry of Finance-mandated transition, not something this gateway controls.
 
 ---
 

@@ -8,7 +8,9 @@ namespace KSeFGateway.Api.Tests.Integration;
 
 /// <summary>
 /// Integration tests against a running KSeF Gateway (localhost:8080).
-/// Requires gateway running with a valid KSEF_TOKEN + KSEF_NIP.
+/// Requires gateway running with a valid KSEF_TOKEN + KSEF_NIP, and GATEWAY_API_KEY set to the
+/// same value the gateway itself was started with (falls back to no header if unset, which
+/// only works against a gateway that also has no GATEWAY_API_KEY configured).
 ///
 /// Run: dotnet test --filter Category=Integration
 /// Not run in CI (no token available).
@@ -19,7 +21,17 @@ public class GatewayIntegrationTests
     private static readonly string BaseUrl =
         Environment.GetEnvironmentVariable("GATEWAY_URL") ?? "http://localhost:8080";
 
-    private static readonly HttpClient Http = new() { Timeout = TimeSpan.FromMinutes(3) };
+    private static string? ApiKey => Environment.GetEnvironmentVariable("GATEWAY_API_KEY");
+
+    private static readonly HttpClient Http = CreateHttpClient(includeApiKey: true);
+
+    private static HttpClient CreateHttpClient(bool includeApiKey)
+    {
+        var client = new HttpClient { Timeout = TimeSpan.FromMinutes(3) };
+        if (includeApiKey && !string.IsNullOrEmpty(ApiKey))
+            client.DefaultRequestHeaders.Add("X-Api-Key", ApiKey);
+        return client;
+    }
 
     private static string SellerNip =>
         Environment.GetEnvironmentVariable("KSEF_NIP") ?? "9124229327";
@@ -155,6 +167,36 @@ public class GatewayIntegrationTests
         Assert.True(body.GetProperty("success").GetBoolean());
         Assert.Empty(body.GetProperty("data").GetProperty("invoices").EnumerateArray());
         Assert.True(body.GetProperty("data").TryGetProperty("nextSince", out _));
+    }
+
+    // ── API key protection ───────────────────────────────────────────────────
+
+    [Fact]
+    public async Task Status_WithoutApiKey_Returns401()
+    {
+        using var client = CreateHttpClient(includeApiKey: false);
+        var resp = await client.GetAsync($"{BaseUrl}/ksef/status");
+
+        Assert.Equal(HttpStatusCode.Unauthorized, resp.StatusCode);
+    }
+
+    [Fact]
+    public async Task Status_WithWrongApiKey_Returns401()
+    {
+        using var client = CreateHttpClient(includeApiKey: false);
+        client.DefaultRequestHeaders.Add("X-Api-Key", "definitely-wrong");
+        var resp = await client.GetAsync($"{BaseUrl}/ksef/status");
+
+        Assert.Equal(HttpStatusCode.Unauthorized, resp.StatusCode);
+    }
+
+    [Fact]
+    public async Task Health_WithoutApiKey_StillReturns200()
+    {
+        using var client = CreateHttpClient(includeApiKey: false);
+        var resp = await client.GetAsync($"{BaseUrl}/health");
+
+        Assert.Equal(HttpStatusCode.OK, resp.StatusCode);
     }
 
     // ── Error paths ───────────────────────────────────────────────────────────

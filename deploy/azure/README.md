@@ -19,6 +19,7 @@ az deployment group create \
   --resource-group ksef-gateway \
   --template-file main.bicep \
   --parameters \
+    gatewayApiKey=$(openssl rand -hex 32) \
     ksefToken=<your-token> \
     ksefNip=<your-nip> \
     ksefEnv=TEST \
@@ -26,7 +27,7 @@ az deployment group create \
     pdfImage=ghcr.io/jurczykpawel/ksef-gateway-pdf:latest
 ```
 
-The output includes the public API URL.
+The output includes the public API URL. **Keep the `gatewayApiKey` value** - the gateway has no other caller-facing auth (see README "Security"), so every request needs it back as the `X-Api-Key` header.
 
 ### Certificate-based auth instead of a token
 
@@ -37,6 +38,7 @@ az deployment group create \
   --resource-group ksef-gateway \
   --template-file main.bicep \
   --parameters \
+    gatewayApiKey=$(openssl rand -hex 32) \
     ksefCertContent="$(cat company.crt)" \
     ksefKeyContent="$(cat company.key)" \
     ksefKeyPassword=<only-if-encrypted> \

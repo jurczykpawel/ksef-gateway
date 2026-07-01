@@ -7,6 +7,10 @@ services:
     plan: free
     healthCheckPath: /health
     envVars:
+      # Required - the gateway has no other caller-facing auth, see README "Security".
+      # Generate with: openssl rand -hex 32
+      - key: GATEWAY_API_KEY
+        sync: false
       # Leave KSEF_TOKEN blank and use KSEF_CERT_PATH/KSEF_KEY_PATH instead if you'd
       # rather authenticate with a certificate: upload the .crt/.key as Secret Files
       # (dashboard: Environment -> Secret Files), they land at /etc/secrets/<filename>.

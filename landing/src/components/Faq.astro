@@ -9,6 +9,10 @@ const items = [
     a: "Wyłącznie na Twoim serwerze, w zmiennej środowiskowej. Gateway nie ma bazy danych ani zewnętrznego serwisu pośredniczącego — token nigdzie nie wypływa poza oficjalne API KSeF, do którego się nim uwierzytelnia.",
   },
   {
+    q: "Czy ktokolwiek, kto znajdzie mój URL, może wysłać fakturę w moim imieniu?",
+    a: "Nie — każde zapytanie (poza /health) wymaga nagłówka X-Api-Key z Twoim własnym kluczem gatewaya. Bez niego dostajesz 401, a jeśli klucz w ogóle nie jest ustawiony, gateway odrzuca wszystko (fail-closed), zamiast po cichu zostać otwarty.",
+  },
+  {
     q: "Ile to kosztuje?",
     a: "Sam gateway jest open source (AGPL-3.0) i darmowy. Płacisz jedynie za hosting — własny serwer, darmowy tier Render albo pay-as-you-go Lambda/Azure. Samo KSeF jest bezpłatne.",
   },

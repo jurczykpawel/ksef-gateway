@@ -55,7 +55,9 @@ if (!isLambda)
 
 var app = builder.Build();
 
-// Middleware
+// Middleware - API key check runs first: fail fast on unauthenticated traffic
+// before spending any rate-limit budget or reaching an endpoint.
+app.UseMiddleware<ApiKeyMiddleware>();
 app.UseMiddleware<RateLimitMiddleware>();
 app.UseMiddleware<ErrorHandlingMiddleware>();
 

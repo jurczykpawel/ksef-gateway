@@ -8,6 +8,7 @@ services:
     ports:
       - "${KSEF_API_PORT:-8080}:8080"
     environment:
+      - GATEWAY_API_KEY=${GATEWAY_API_KEY}
       - KSEF_TOKEN=${KSEF_TOKEN}
       - KSEF_NIP=${KSEF_NIP}
       - KSEF_ENV=${KSEF_ENV:-TEST}

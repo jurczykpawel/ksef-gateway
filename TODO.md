@@ -26,6 +26,12 @@
 - [x] certificateContent+privateKeyContent (PEM as content, not a path) for platforms without file mounts - verified end-to-end on TEST (plain + encrypted key)
 - [x] render.yaml / deploy/azure/main.bicep / deploy/aws/template.yaml all expose the certificate option, not just KSEF_TOKEN (path+Secret Files for Render, content-as-secret for Azure/AWS)
 
+## Gateway API key auth - DONE
+
+- [x] ApiKeyMiddleware - fail-closed X-Api-Key check on every request except /health (gateway previously had zero caller-facing auth - anyone reaching a deployed instance could send/read real invoices)
+- [x] GATEWAY_API_KEY wired into docker-compose.yml, .env.example, Bruno (collection.bru shared header), CI (both integration jobs), and all three deploy templates (render.yaml, azure/main.bicep, aws/template.yaml)
+- [x] Unit tests + live integration tests (401 without key, 401 wrong key, 200 correct key, /health exempt)
+
 ## Future
 
 - [ ] JSON Schema auto-generated from XSD (validation + Scalar docs)

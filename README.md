@@ -75,6 +75,30 @@ curl -X POST https://your-gateway/ksef/invoice \
 
 ---
 
+## Security
+
+The gateway authenticates *itself* to KSeF (token or certificate - see below), but on its own has **no way to authenticate whoever is calling it**. Deploy it on a reachable URL without protecting it, and anyone who finds that URL can send or read real invoices for whichever NIP it's configured with.
+
+**`GATEWAY_API_KEY` closes that gap.** Every request except `GET /health` (used by health checks/monitoring) must include it as an `X-Api-Key` header, or the gateway rejects it - including `/scalar/v1` and the OpenAPI JSON, so the API surface itself isn't exposed either:
+
+| Situation | Response |
+|---|---|
+| `GATEWAY_API_KEY` not set on the gateway | `503` - fails **closed**: refuses everything rather than silently staying open |
+| Missing or wrong `X-Api-Key` header | `401` |
+| Correct `X-Api-Key` header | Request proceeds normally |
+
+Generate a strong key once, keep it secret - same handling as `KSEF_TOKEN`:
+
+```bash
+openssl rand -hex 32
+```
+
+> This is separate from `KSEF_TOKEN`/certificate auth, which protects the gateway's own connection *to* KSeF. You need both: one so the gateway can talk to KSeF, one so only you can talk to the gateway.
+
+**Defense in depth for production:** the API key is the one thing standing between a public URL and the entire internet, so for a real deployment also restrict network access where the platform allows it - an IP allowlist (Render, Azure), a VPN/private network, or a reverse proxy in front of the gateway. Don't rely on the key as the only layer.
+
+---
+
 ## Quick Start
 
 ### Prerequisites
@@ -89,8 +113,10 @@ curl -X POST https://your-gateway/ksef/invoice \
 git clone --recurse-submodules https://github.com/jurczykpawel/ksef-gateway.git
 cd ksef-gateway
 cp .env.example .env
-# Edit .env: set GITHUB_PAT
+# Edit .env: set GITHUB_PAT and GATEWAY_API_KEY (e.g. `openssl rand -hex 32`)
 ```
+
+> **Why does `.env` need a `GATEWAY_API_KEY`?** The gateway has no other caller-facing auth - see [Security](#security) below. Every request except `GET /health` needs it back as the `X-Api-Key` header, or the gateway rejects it.
 
 ### 2. Generate a KSeF test token
 
@@ -115,6 +141,7 @@ API: `http://localhost:8080` | Docs: `http://localhost:8080/scalar/v1`
 ```bash
 curl -X POST http://localhost:8080/ksef/invoice \
   -H "Content-Type: application/json" \
+  -H "X-Api-Key: $GATEWAY_API_KEY" \
   -d '{
     "invoiceNumber": "FV/2026/001",
     "issueDate": "2026-03-26",
@@ -138,7 +165,7 @@ curl -X POST http://localhost:8080/ksef/invoice \
 # Response: {"success":true,"data":{"ksefNumber":"1234567890-20260326-..."}}
 
 # Download PDF with QR code
-curl -o faktura.pdf http://localhost:8080/ksef/invoice/{ksefNumber}/pdf
+curl -H "X-Api-Key: $GATEWAY_API_KEY" -o faktura.pdf http://localhost:8080/ksef/invoice/{ksefNumber}/pdf
 ```
 
 > **Also supports raw XML** (`POST /ksef/send`) and xml-js JSON format (`POST /ksef/send/json`) - see [Sending Invoices](#sending-invoices) below.
@@ -149,6 +176,7 @@ On TEST/DEMO you can try this immediately without a second company: set `buyer.n
 
 ```bash
 curl "http://localhost:8080/ksef/invoices/received?from=2026-03-01&to=2026-04-01" \
+  -H "X-Api-Key: $GATEWAY_API_KEY" \
   -H "X-KSeF-NIP: YOUR_NIP"
 
 # Response: {"success":true,"data":{"invoices":[{"ksefNumber":"...","invoiceNumber":"FV/2026/001",...}],"hasMore":false}}
@@ -166,14 +194,14 @@ A [Bruno](https://www.usebruno.com/) collection is included in the `bruno/` dire
 1. Install Bruno (desktop app or CLI: `npm install -g @usebruno/cli`)
 2. Open collection in Bruno desktop: **Open Collection** → select `bruno/`
 3. Select environment `local`
-4. Set `sellerNip` to your NIP
+4. Set `apiKey` to your `GATEWAY_API_KEY` and `sellerNip` to your NIP - the collection-level header (`collection.bru`) sends `apiKey` as `X-Api-Key` on every request automatically
 
 **Run with CLI:**
 ```bash
-# Health/status (no token required)
-cd bruno && bru run health.bru status.bru contexts.bru --env local
+# Health check (the only endpoint that doesn't need an API key)
+cd bruno && bru run health.bru --env local
 
-# Full collection (requires KSEF_TOKEN + KSEF_NIP in .env)
+# Full collection (requires GATEWAY_API_KEY, KSEF_TOKEN + KSEF_NIP in .env)
 bru run --env local
 ```
 
@@ -198,6 +226,8 @@ bru run --env local
 ---
 
 ## API Endpoints
+
+> **Every endpoint below except `GET /health` requires an `X-Api-Key` header** (see [Security](#security)). Examples further down omit it for brevity - assume it's there.
 
 ### Workflow Endpoints (high-level)
 
@@ -304,9 +334,10 @@ Every endpoint returns the same shape on failure: `{"success": false, "data": nu
 | Status | Meaning | What to do |
 |--------|---------|------------|
 | `400` | Bad input (missing NIP, invalid XML, malformed body) | Fix the request, don't retry as-is |
+| `401` | Missing or wrong `X-Api-Key` header - see [Security](#security) | Send the correct gateway API key |
 | `429` | You're about to hit (or hit) a KSeF rate limit | Wait the `Retry-After` header (seconds), then retry |
 | `502` | KSeF's own API rejected or failed the request | Check `error` for the KSeF error code/message; not always safe to retry blindly |
-| `503` | Either KSeF's SDK circuit breaker is open (has `Retry-After` header - wait then retry), or the gateway isn't authenticated for that NIP yet (`TokenPool` still starting up - no `Retry-After`, retry shortly) | See `error` message to tell which one |
+| `503` | One of: `GATEWAY_API_KEY` isn't configured on the gateway at all, KSeF's SDK circuit breaker is open (has `Retry-After` header - wait then retry), or the gateway isn't authenticated for that NIP yet (`TokenPool` still starting up - no `Retry-After`, retry shortly) | See `error` message to tell which one |
 | `500` | Unexpected error in the gateway itself | Check gateway logs; please open an issue |
 
 `429` and circuit-breaker `503` responses include a `Retry-After` header (seconds) - respect it instead of retrying immediately, especially for the [rate-limited receiving endpoints](#receiving-invoices).
@@ -596,6 +627,7 @@ A context needs exactly one of: `token`, `certificatePath` + `privateKeyPath`, o
 
 | Variable | Required | Default | Description |
 |----------|----------|---------|-------------|
+| `GATEWAY_API_KEY` | Yes | - | Shared secret callers must send as `X-Api-Key` - see [Security](#security). Gateway fails closed (503) if unset |
 | `KSEF_TOKEN` | Yes* | - | KSeF authentication token |
 | `KSEF_CERT_PATH` | Yes* | - | Path to KSeF certificate (PEM) - alternative to `KSEF_TOKEN`, see [Certificate-Based Auth](#certificate-based-auth-alternative-to-tokens) |
 | `KSEF_KEY_PATH` | Yes* | - | Path to the certificate's private key (PEM) - required alongside `KSEF_CERT_PATH` |

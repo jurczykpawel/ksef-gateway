@@ -3,6 +3,10 @@ Transform: AWS::Serverless-2016-10-31
 Description: KSeF Gateway - AWS Lambda deployment
 
 Parameters:
+  GatewayApiKey:
+    Type: String
+    NoEcho: true
+    Description: Required - the gateway has no other caller-facing auth, see README "Security". Generate with `openssl rand -hex 32`
   KSeFToken:
     Type: String
     NoEcho: true
@@ -50,6 +54,7 @@ Resources:
         - x86_64
       Environment:
         Variables:
+          GATEWAY_API_KEY: !Ref GatewayApiKey
           KSEF_TOKEN: !Ref KSeFToken
           KSEF_CERT_CONTENT: !Ref KSeFCertContent
           KSEF_KEY_CONTENT: !Ref KSeFKeyContent

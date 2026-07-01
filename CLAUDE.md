@@ -9,12 +9,12 @@ Universal REST API gateway wrapping the official CIRFMF KSeF C# SDK.
 
 ## Quick start
 ```bash
-cp .env.example .env  # set GITHUB_PAT
+cp .env.example .env  # set GITHUB_PAT and GATEWAY_API_KEY (openssl rand -hex 32)
 docker compose --profile tools run --rm token-generator  # generates KSEF_TOKEN + KSEF_NIP
 # paste output into .env
 docker compose up --build
-# API: http://localhost:8080
-# Docs: http://localhost:8080/scalar/v1
+# API: http://localhost:8080 (every request except /health needs header X-Api-Key: <GATEWAY_API_KEY>)
+# Docs: http://localhost:8080/scalar/v1 (needs the header too)
 ```
 
 ## Key files
@@ -25,6 +25,7 @@ docker compose up --build
 - `src/KSeFGateway.Api/Endpoints/WorkflowEndpoints.cs` - high-level: /ksef/send, /ksef/send/json, /ksef/invoice/{nr}/pdf
 - `src/KSeFGateway.Api/Endpoints/InvoiceDownloadEndpoints.cs` - /ksef/invoices/received, /ksef/invoices/received/new
 - `src/KSeFGateway.Api/Endpoints/HealthEndpoints.cs` - /health, /ksef/status
+- `src/KSeFGateway.Api/Middleware/ApiKeyMiddleware.cs` - fail-closed X-Api-Key check on every request except /health (gateway has no other caller-facing auth)
 - `src/KSeFGateway.Api/Middleware/ErrorHandlingMiddleware.cs` - KsefApiException/KsefRateLimitException/KsefCircuitBreakerOpenException → HTTP responses
 - `src/KSeFGateway.Api/Middleware/EndpointErrorHandling.cs` - shared `Guard()` helper so every endpoint handler rethrows KSeF errors to the middleware instead of flattening them into 500
 - `pdf-service/src/server.ts` - PDF generation, JSON→XML conversion, QR codes
@@ -54,6 +55,7 @@ cd pdf-service && npm test
 Note: `ksef-api`'s runtime image has no SDK and a fixed `ENTRYPOINT`, so it can't run `dotnet test` directly — `ksef-api-tests` is a separate compose service built from the `test` stage in `KSeFGateway.Api/Dockerfile` (profile `tools`, mirrors CI's `build-api` job, excludes `Category=Integration`).
 
 ## Architecture
+- `ApiKeyMiddleware` runs first in the pipeline: rejects with 503 if `GATEWAY_API_KEY` isn't configured, 401 if the `X-Api-Key` header is missing/wrong, passes through `/health` unconditionally - the gateway authenticates itself to KSeF but has no other mechanism to authenticate its own callers
 - `SdkReflector` discovers all methods on `IKSeFClient` (13 sub-interfaces) via .NET reflection at startup
 - `EndpointMapper` registers each method as `POST /ksef/{group}/{method}` with dynamic JSON→SDK parameter mapping
 - `TokenPool` (BackgroundService) authenticates per NIP via `IAuthCoordinator.AuthKsefTokenAsync()` (token) or `.AuthAsync()` with an XAdES `xmlSigner` built from a loaded `X509Certificate2` (certificate) and auto-refreshes at 80% TTL

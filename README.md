@@ -569,7 +569,9 @@ volumes:
   - ./certs:/app/certs:ro
 ```
 
-A context needs either `token`, or `certificatePath` + `privateKeyPath` - not both. Everything else (endpoints, rate limits, multi-NIP) works identically regardless of which one a context uses.
+A context needs exactly one of: `token`, `certificatePath` + `privateKeyPath`, or `certificateContent` + `privateKeyContent`. Everything else (endpoints, rate limits, multi-NIP) works identically no matter which one a context uses.
+
+**No file mounts available (Lambda, Container Apps)?** Use `certificateContent`/`privateKeyContent` (or `KSEF_CERT_CONTENT`/`KSEF_KEY_CONTENT`) instead - the raw PEM text rather than a path. Prefer the path-based form wherever mounting a file is practical (Docker Compose bind mount, Render Secret Files) - a file stays out of plain env var dumps (`docker inspect`, process env listings) in a way a content-based secret can't. See [Cloud Deployment](#cloud-deployment) for how each platform wires this.
 
 ---
 
@@ -580,7 +582,9 @@ A context needs either `token`, or `certificatePath` + `privateKeyPath` - not bo
 | `KSEF_TOKEN` | Yes* | - | KSeF authentication token |
 | `KSEF_CERT_PATH` | Yes* | - | Path to KSeF certificate (PEM) - alternative to `KSEF_TOKEN`, see [Certificate-Based Auth](#certificate-based-auth-alternative-to-tokens) |
 | `KSEF_KEY_PATH` | Yes* | - | Path to the certificate's private key (PEM) - required alongside `KSEF_CERT_PATH` |
-| `KSEF_KEY_PASSWORD` | No | - | Password for the private key, if it's encrypted |
+| `KSEF_CERT_CONTENT` | Yes* | - | KSeF certificate as raw PEM content - alternative to `KSEF_CERT_PATH` for platforms without file mounts |
+| `KSEF_KEY_CONTENT` | Yes* | - | Private key as raw PEM content - required alongside `KSEF_CERT_CONTENT` |
+| `KSEF_KEY_PASSWORD` | No | - | Password for the private key, if it's encrypted (works with either path or content form) |
 | `KSEF_NIP` | Yes | - | NIP for authentication context |
 | `KSEF_ENV` | No | `TEST` | Environment: `TEST`, `DEMO`, `PRODUCTION` |
 | `KSEF_API_PORT` | No | `8080` | Gateway API port |
@@ -588,7 +592,7 @@ A context needs either `token`, or `certificatePath` + `privateKeyPath` - not bo
 | `GITHUB_PAT` | Build | - | GitHub PAT with `read:packages` for CIRFMF SDK |
 | `KSEF_CONTEXTS_FILE` | No | `/app/contexts.json` | Path to multi-NIP config file |
 
-\* Provide either `KSEF_TOKEN`, or `KSEF_CERT_PATH` + `KSEF_KEY_PATH` - not both.
+\* Provide exactly one: `KSEF_TOKEN`, `KSEF_CERT_PATH` + `KSEF_KEY_PATH`, or `KSEF_CERT_CONTENT` + `KSEF_KEY_CONTENT`.
 
 ### Multi-NIP Mode
 
@@ -689,7 +693,7 @@ Two containers, no database, no Redis. Auth state in memory (restart = re-auth i
 
 [![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com/deploy?repo=https://github.com/jurczykpawel/ksef-gateway)
 
-Click the button, set three env vars (`GITHUB_PAT`, `KSEF_TOKEN`, `KSEF_NIP`), done. Both services (API + PDF) deploy automatically from `render.yaml`.
+Click the button, set three env vars (`GITHUB_PAT`, `KSEF_TOKEN`, `KSEF_NIP`), done. Both services (API + PDF) deploy automatically from `render.yaml`. Prefer a certificate? Leave `KSEF_TOKEN` blank, upload the cert/key as [Secret Files](https://render.com/docs/configure-environment-variables) in the dashboard, and set `KSEF_CERT_PATH`/`KSEF_KEY_PATH` to `/etc/secrets/<filename>` instead.
 
 ### AWS Lambda
 
@@ -723,6 +727,7 @@ See [`deploy/azure/README.md`](deploy/azure/README.md) for details.
 | Cost (low traffic) | Server cost | Free tier available | Near-zero | ~$10-15/month |
 | PDF service | Included | Included | Separate deployment | Included (internal container) |
 | Multi-NIP | `contexts.json` mount | Env vars | Env vars (single NIP) | Env vars or Azure Files |
+| Certificate auth | File mount (`certificatePath`) | Secret Files (`certificatePath`) | Content (`certificateContent`, no file mounts) | Content (`certificateContent`, no file mounts) |
 
 ---
 

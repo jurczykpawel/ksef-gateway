@@ -6,7 +6,23 @@ Parameters:
   KSeFToken:
     Type: String
     NoEcho: true
-    Description: KSeF authentication token
+    Default: ''
+    Description: KSeF authentication token (leave empty if using a certificate instead)
+  KSeFCertContent:
+    Type: String
+    NoEcho: true
+    Default: ''
+    Description: KSeF certificate, PEM content - alternative to KSeFToken (Lambda has no file mounts)
+  KSeFKeyContent:
+    Type: String
+    NoEcho: true
+    Default: ''
+    Description: KSeF certificate's private key, PEM content - required alongside KSeFCertContent
+  KSeFKeyPassword:
+    Type: String
+    NoEcho: true
+    Default: ''
+    Description: Password for the private key, if it's encrypted
   KSeFNip:
     Type: String
     Description: NIP for KSeF authentication context
@@ -35,6 +51,9 @@ Resources:
       Environment:
         Variables:
           KSEF_TOKEN: !Ref KSeFToken
+          KSEF_CERT_CONTENT: !Ref KSeFCertContent
+          KSEF_KEY_CONTENT: !Ref KSeFKeyContent
+          KSEF_KEY_PASSWORD: !Ref KSeFKeyPassword
           KSEF_NIP: !Ref KSeFNip
           KSEF_ENV: !Ref KSeFEnv
           PDF_SERVICE_URL: !Ref PdfServiceUrl

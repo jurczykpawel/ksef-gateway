@@ -19,7 +19,9 @@ public class ContextProvider
         var envCertPath = config["KSEF_CERT_PATH"];
         var envKeyPath = config["KSEF_KEY_PATH"];
         var envKeyPassword = config["KSEF_KEY_PASSWORD"];
-        var envContext = BuildEnvContext(envNip, envToken, envCertPath, envKeyPath, envKeyPassword);
+        var envCertContent = config["KSEF_CERT_CONTENT"];
+        var envKeyContent = config["KSEF_KEY_CONTENT"];
+        var envContext = BuildEnvContext(envNip, envToken, envCertPath, envKeyPath, envKeyPassword, envCertContent, envKeyContent);
 
         if (File.Exists(contextsPath))
         {
@@ -52,11 +54,13 @@ public class ContextProvider
         {
             _contexts = [];
             _defaultNip = null;
-            logger.LogWarning("No KSeF contexts configured. Set KSEF_TOKEN+KSEF_NIP, KSEF_CERT_PATH+KSEF_KEY_PATH+KSEF_NIP, or mount contexts.json");
+            logger.LogWarning("No KSeF contexts configured. Set KSEF_TOKEN+KSEF_NIP, KSEF_CERT_PATH+KSEF_KEY_PATH+KSEF_NIP, KSEF_CERT_CONTENT+KSEF_KEY_CONTENT+KSEF_NIP, or mount contexts.json");
         }
     }
 
-    private static KsefContext? BuildEnvContext(string? nip, string? token, string? certPath, string? keyPath, string? keyPassword)
+    private static KsefContext? BuildEnvContext(
+        string? nip, string? token, string? certPath, string? keyPath, string? keyPassword,
+        string? certContent, string? keyContent)
     {
         if (string.IsNullOrEmpty(nip))
             return null;
@@ -68,6 +72,15 @@ public class ContextProvider
                 Nip = nip,
                 CertificatePath = certPath,
                 PrivateKeyPath = keyPath,
+                PrivateKeyPassword = keyPassword,
+                Label = "env"
+            };
+        if (!string.IsNullOrEmpty(certContent) && !string.IsNullOrEmpty(keyContent))
+            return new KsefContext
+            {
+                Nip = nip,
+                CertificateContent = certContent,
+                PrivateKeyContent = keyContent,
                 PrivateKeyPassword = keyPassword,
                 Label = "env"
             };

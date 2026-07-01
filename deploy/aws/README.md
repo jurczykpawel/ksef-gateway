@@ -27,6 +27,21 @@ sam deploy --parameter-overrides \
 
 The output includes the Function URL - use it as your API base URL.
 
+### Certificate-based auth instead of a token
+
+Lambda has no persistent file storage, so certificate auth here takes the cert/key as **PEM content**, not a file path. Both parameters use `NoEcho: true` (hidden from the CloudFormation console/CLI output), same as `KSeFToken`:
+
+```bash
+sam deploy --parameter-overrides \
+  KSeFCertContent="$(cat company.crt)" \
+  KSeFKeyContent="$(cat company.key)" \
+  KSeFKeyPassword=<only-if-encrypted> \
+  KSeFNip=<your-nip> \
+  KSeFEnv=PRODUCTION
+```
+
+Leave `KSeFToken` unset in that case (both work, but pick one - see README "Certificate-Based Auth"). `$(cat ...)` preserves the real newlines the PEM format needs - don't flatten it to a single line.
+
 ## Architecture
 
 ```

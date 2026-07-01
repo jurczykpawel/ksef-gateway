@@ -69,6 +69,45 @@ public class ContextProviderTests
     }
 
     [Fact]
+    public void EnvVars_CertContentAndKeyContentOnly_LoadsContentBasedContext()
+    {
+        var config = BuildConfig(new()
+        {
+            ["KSEF_CONTEXTS_FILE"] = NonExistentContextsPath(),
+            ["KSEF_NIP"] = "1234567890",
+            ["KSEF_CERT_CONTENT"] = "-----BEGIN CERTIFICATE-----\nMII...\n-----END CERTIFICATE-----",
+            ["KSEF_KEY_CONTENT"] = "-----BEGIN PRIVATE KEY-----\nMII...\n-----END PRIVATE KEY-----",
+        });
+
+        var provider = new ContextProvider(config, NullLogger<ContextProvider>.Instance);
+
+        var context = Assert.Single(provider.GetAll());
+        Assert.True(context.UsesCertificate);
+        Assert.False(context.HasCertificatePath);
+        Assert.True(context.HasCertificateContent);
+    }
+
+    [Fact]
+    public void EnvVars_CertPathTakesPriorityOverCertContent_WhenBothPresent()
+    {
+        var config = BuildConfig(new()
+        {
+            ["KSEF_CONTEXTS_FILE"] = NonExistentContextsPath(),
+            ["KSEF_NIP"] = "1234567890",
+            ["KSEF_CERT_PATH"] = "/app/certs/company.crt",
+            ["KSEF_KEY_PATH"] = "/app/certs/company.key",
+            ["KSEF_CERT_CONTENT"] = "-----BEGIN CERTIFICATE-----",
+            ["KSEF_KEY_CONTENT"] = "-----BEGIN PRIVATE KEY-----",
+        });
+
+        var provider = new ContextProvider(config, NullLogger<ContextProvider>.Instance);
+
+        var context = Assert.Single(provider.GetAll());
+        Assert.True(context.HasCertificatePath);
+        Assert.False(context.HasCertificateContent);
+    }
+
+    [Fact]
     public void EnvVars_TokenTakesPriorityOverCert_WhenBothPresent()
     {
         var config = BuildConfig(new()

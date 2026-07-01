@@ -23,6 +23,8 @@
 - [x] Verified end-to-end against live TEST KSeF API with a self-signed cert (both key variants) - auth + a read-only endpoint
 - [x] tools/CertGenerator - one-command TEST cert generator (self-signed, verifies auth, exports PEM), mirrors TokenGenerator
 - [x] CI job "Certificate auth integration test" - generates a cert, starts a gateway with it, asserts /ksef/status authenticated=true
+- [x] certificateContent+privateKeyContent (PEM as content, not a path) for platforms without file mounts - verified end-to-end on TEST (plain + encrypted key)
+- [x] render.yaml / deploy/azure/main.bicep / deploy/aws/template.yaml all expose the certificate option, not just KSEF_TOKEN (path+Secret Files for Render, content-as-secret for Azure/AWS)
 
 ## Future
 

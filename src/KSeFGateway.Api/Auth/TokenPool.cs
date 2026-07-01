@@ -206,9 +206,7 @@ public class TokenPool : BackgroundService
     private static async Task<AuthenticationOperationStatusResponse> AuthenticateWithCertificateAsync(
         IAuthCoordinator authCoordinator, string nip, KsefContext context, CancellationToken ct)
     {
-        using var certificate = string.IsNullOrEmpty(context.PrivateKeyPassword)
-            ? X509Certificate2.CreateFromPemFile(context.CertificatePath!, context.PrivateKeyPath)
-            : X509Certificate2.CreateFromEncryptedPemFile(context.CertificatePath!, context.PrivateKeyPassword, context.PrivateKeyPath);
+        using var certificate = LoadCertificate(context);
 
         return await authCoordinator.AuthAsync(
             contextIdentifierType: AuthenticationTokenContextIdentifierType.Nip,
@@ -216,5 +214,28 @@ public class TokenPool : BackgroundService
             identifierType: AuthenticationTokenSubjectIdentifierTypeEnum.CertificateSubject,
             xmlSigner: xml => Task.FromResult(SignatureService.Sign(xml, certificate)),
             cancellationToken: ct);
+    }
+
+    /// <summary>
+    /// Loads the context's certificate from disk (PEM files) or from inline PEM content -
+    /// content is for platforms without convenient file mounts (Lambda, Container Apps);
+    /// prefer file-based (with the platform's own secret-file feature, e.g. Render Secret
+    /// Files) wherever mounting a file is practical, since it keeps the key out of plain
+    /// env var dumps.
+    /// </summary>
+    private static X509Certificate2 LoadCertificate(KsefContext context)
+    {
+        var hasPassword = !string.IsNullOrEmpty(context.PrivateKeyPassword);
+
+        if (context.HasCertificatePath)
+        {
+            return hasPassword
+                ? X509Certificate2.CreateFromEncryptedPemFile(context.CertificatePath!, context.PrivateKeyPassword, context.PrivateKeyPath)
+                : X509Certificate2.CreateFromPemFile(context.CertificatePath!, context.PrivateKeyPath);
+        }
+
+        return hasPassword
+            ? X509Certificate2.CreateFromEncryptedPem(context.CertificateContent!, context.PrivateKeyContent!, context.PrivateKeyPassword!)
+            : X509Certificate2.CreateFromPem(context.CertificateContent!, context.PrivateKeyContent!);
     }
 }

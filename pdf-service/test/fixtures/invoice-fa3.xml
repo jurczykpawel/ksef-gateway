@@ -1,0 +1,87 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Faktura xmlns="http://crd.gov.pl/wzor/2025/06/25/13775/">
+    <Naglowek>
+        <KodFormularza kodSystemowy="FA (3)" wersjaSchemy="1-0E">FA</KodFormularza>
+        <WariantFormularza>3</WariantFormularza>
+        <DataWytworzeniaFa>2026-03-25T12:00:00Z</DataWytworzeniaFa>
+        <SystemInfo>ksef-gateway-tests</SystemInfo>
+    </Naglowek>
+    <Podmiot1>
+        <DaneIdentyfikacyjne>
+            <NIP>1234567890</NIP>
+            <Nazwa>Przykładowa Firma sp. z o.o.</Nazwa>
+        </DaneIdentyfikacyjne>
+        <Adres>
+            <KodKraju>PL</KodKraju>
+            <AdresL1>ul. Sprzedawcy 10</AdresL1>
+            <AdresL2>00-001 Warszawa</AdresL2>
+        </Adres>
+        <DaneKontaktowe>
+            <Email>firma@example.com</Email>
+            <Telefon>123456789</Telefon>
+        </DaneKontaktowe>
+    </Podmiot1>
+    <Podmiot2>
+        <DaneIdentyfikacyjne>
+            <NIP>5265877635</NIP>
+            <Nazwa>Klient Testowy sp. z o.o.</Nazwa>
+        </DaneIdentyfikacyjne>
+        <Adres>
+            <KodKraju>PL</KodKraju>
+            <AdresL1>ul. Kupiecka 5</AdresL1>
+            <AdresL2>30-001 Kraków</AdresL2>
+        </Adres>
+        <JST>2</JST>
+        <GV>2</GV>
+    </Podmiot2>
+    <Fa>
+        <KodWaluty>PLN</KodWaluty>
+        <P_1>2026-03-24</P_1>
+        <P_1M>Warszawa</P_1M>
+        <P_2>FV/TEST/001/03/2026</P_2>
+        <P_6>2026-03-24</P_6>
+        <P_13_1>1000.00</P_13_1>
+        <P_14_1>230.00</P_14_1>
+        <P_15>1230.00</P_15>
+        <Adnotacje>
+            <P_16>2</P_16>
+            <P_17>2</P_17>
+            <P_18>2</P_18>
+            <P_18A>2</P_18A>
+            <Zwolnienie>
+                <P_19N>1</P_19N>
+            </Zwolnienie>
+            <NoweSrodkiTransportu>
+                <P_22N>1</P_22N>
+            </NoweSrodkiTransportu>
+            <P_23>2</P_23>
+            <PMarzy>
+                <P_PMarzyN>1</P_PMarzyN>
+            </PMarzy>
+        </Adnotacje>
+        <RodzajFaktury>VAT</RodzajFaktury>
+        <FaWiersz>
+            <NrWierszaFa>1</NrWierszaFa>
+            <P_7>Usługa konsultingowa IT</P_7>
+            <P_8A>godz.</P_8A>
+            <P_8B>10</P_8B>
+            <P_9A>80.00</P_9A>
+            <P_11>800.00</P_11>
+            <P_12>23</P_12>
+        </FaWiersz>
+        <FaWiersz>
+            <NrWierszaFa>2</NrWierszaFa>
+            <P_7>Konfiguracja serwera</P_7>
+            <P_8A>szt.</P_8A>
+            <P_8B>1</P_8B>
+            <P_9A>200.00</P_9A>
+            <P_11>200.00</P_11>
+            <P_12>23</P_12>
+        </FaWiersz>
+        <Platnosc>
+            <Zaplacono>1</Zaplacono>
+            <DataZaplaty>2026-03-24</DataZaplaty>
+            <FormaPlatnosci>6</FormaPlatnosci>
+        </Platnosc>
+    </Fa>
+</Faktura>

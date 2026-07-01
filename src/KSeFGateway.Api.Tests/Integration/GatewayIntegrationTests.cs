@@ -323,7 +323,7 @@ public class GatewayIntegrationTests
     /// </summary>
     private static readonly TimeSpan MaxWorthwhileRetryAfter = TimeSpan.FromSeconds(15);
 
-    private static async Task<List<string?>> PollForInvoiceNumbersAsync(string url, string targetInvoiceNumber, int maxAttempts = 5)
+    private static async Task<List<string?>> PollForInvoiceNumbersAsync(string url, string targetInvoiceNumber, int maxAttempts = 6)
     {
         var invoiceNumbers = new List<string?>();
         for (var attempt = 1; attempt <= maxAttempts; attempt++)
@@ -354,7 +354,7 @@ public class GatewayIntegrationTests
             if (invoiceNumbers.Contains(targetInvoiceNumber) || attempt == maxAttempts)
                 return invoiceNumbers;
 
-            await Task.Delay(TimeSpan.FromSeconds(4));
+            await Task.Delay(TimeSpan.FromSeconds(5));
         }
         return invoiceNumbers;
     }

@@ -1,12 +1,12 @@
 using System.Text;
 using System.Text.Json;
 using KSeF.Client.Api.Builders.Online;
-using KSeF.Client.Core.Exceptions;
 using KSeF.Client.Core.Interfaces.Clients;
 using KSeF.Client.Core.Interfaces.Services;
 using KSeF.Client.Core.Models.Sessions.OnlineSession;
 using KSeFGateway.Api.Auth;
 using KSeFGateway.Api.Invoice;
+using KSeFGateway.Api.Middleware;
 using KSeFGateway.Api.Models;
 using Microsoft.AspNetCore.Mvc;
 
@@ -85,7 +85,7 @@ public static class WorkflowEndpoints
             if (accessToken is null)
                 return Results.Json(ApiResponse.Fail("Not authenticated"), statusCode: 503);
 
-            try
+            return await EndpointErrorHandling.Guard(async () =>
             {
                 var xml = await ksefClient.GetInvoiceAsync(ksefNumber, accessToken);
                 var pdfServiceUrl = config["PDF_SERVICE_URL"] ?? "http://ksef-pdf:3000";
@@ -103,15 +103,7 @@ public static class WorkflowEndpoints
 
                 var pdfBytes = await pdfResponse.Content.ReadAsByteArrayAsync();
                 return Results.File(pdfBytes, "application/pdf", $"faktura-{ksefNumber}.pdf");
-            }
-            catch (KsefApiException)
-            {
-                throw; // let ErrorHandlingMiddleware return 502
-            }
-            catch (Exception ex)
-            {
-                return Results.Json(ApiResponse.Fail(ex.Message), statusCode: 500);
-            }
+            });
         })
         .WithTags("Workflows")
         .WithName("get_invoice_pdf")
@@ -139,7 +131,7 @@ public static class WorkflowEndpoints
             if (accessToken is null)
                 return Results.Json(ApiResponse.Fail($"Not authenticated with KSeF for NIP {nip}"), statusCode: 503);
 
-            try
+            return await EndpointErrorHandling.Guard(async () =>
             {
                 var pdfServiceUrl = config["PDF_SERVICE_URL"] ?? "http://ksef-pdf:3000";
                 var client = httpClientFactory.CreateClient();
@@ -166,11 +158,7 @@ public static class WorkflowEndpoints
                 httpContext.Response.StatusCode = (int)sendResponse.StatusCode;
                 await httpContext.Response.WriteAsync(sendResult, httpContext.RequestAborted);
                 return Results.Empty;
-            }
-            catch (Exception ex)
-            {
-                return Results.Json(ApiResponse.Fail(ex.Message), statusCode: 500);
-            }
+            });
         })
         .WithTags("Workflows")
         .WithName("send_invoice_json")
@@ -204,21 +192,14 @@ public static class WorkflowEndpoints
             if (accessToken is null)
                 return Results.Json(ApiResponse.Fail($"Not authenticated with KSeF for NIP {nip}"), statusCode: 503);
 
-            try
+            return await EndpointErrorHandling.Guard(async () =>
             {
                 var invoiceXml = InvoiceXmlBuilder.Build(invoiceReq);
                 var invoiceBytes = Encoding.UTF8.GetBytes(invoiceXml);
                 logger.LogInformation("Built FA(3) XML ({Size} bytes) for NIP {Nip}", invoiceBytes.Length, nip);
 
                 return await SendInvoiceXml(invoiceXml, accessToken, ksefClient, cryptoService, logger, httpContext.RequestAborted);
-            }
-            catch (Exception ex)
-            {
-                var msg = ex.InnerException is not null
-                    ? $"{ex.Message} -> {ex.InnerException.Message}" : ex.Message;
-                logger.LogError(ex, "Invoice send failed for NIP {Nip}", nip);
-                return Results.Json(ApiResponse.Fail(msg), statusCode: 500);
-            }
+            }, logger, $"Invoice send failed for NIP {nip}");
         })
         .WithTags("Workflows")
         .WithName("send_invoice_friendly")
@@ -259,7 +240,7 @@ public static class WorkflowEndpoints
         ILogger logger,
         CancellationToken ct)
     {
-        try
+        return await EndpointErrorHandling.Guard(async () =>
         {
             var invoiceBytes = Encoding.UTF8.GetBytes(invoiceXml);
             var encryptionData = cryptoService.GetEncryptionData();
@@ -329,13 +310,6 @@ public static class WorkflowEndpoints
                 sessionReferenceNumber = session.ReferenceNumber,
                 invoiceReferenceNumber = sendResult.ReferenceNumber
             }));
-        }
-        catch (Exception ex)
-        {
-            var msg = ex.InnerException is not null
-                ? $"{ex.Message} -> {ex.InnerException.Message}" : ex.Message;
-            logger.LogError(ex, "Invoice send failed");
-            return Results.Json(ApiResponse.Fail(msg), statusCode: 500);
-        }
+        }, logger, "Invoice send failed");
     }
 }

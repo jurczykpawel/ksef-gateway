@@ -1,0 +1,15 @@
+meta {
+  name: Poll new received invoices
+  type: http
+  seq: 11
+}
+
+get {
+  url: {{baseUrl}}/ksef/invoices/received/new
+  body: none
+  auth: none
+}
+
+assert {
+  res.status: eq 200
+}

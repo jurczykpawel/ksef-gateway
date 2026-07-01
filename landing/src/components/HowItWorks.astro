@@ -1,7 +1,7 @@
 ---
 const steps = [
   { n: "01", title: "Wdróż bramę", desc: "Jedno polecenie — wszystko buduje się w Dockerze. Bez lokalnego .NET.", code: `docker compose up --build\n# API gotowe na http://localhost:8080`, or: 'Lub kliknij „Wdróż na Render" dla natychmiastowego startu w chmurze.' },
-  { n: "02", title: "Wygeneruj token KSeF", desc: "Jedno polecenie tworzy token testowy (certyfikat self-signed, losowy NIP). Na produkcji: użyj podpisu kwalifikowanego w portalu KSeF.", code: `docker compose --profile tools run \\\n  --rm token-generator\n# wyświetla KSEF_TOKEN + KSEF_NIP`, or: null },
+  { n: "02", title: "Wygeneruj token KSeF", desc: "Jedno polecenie tworzy token testowy (certyfikat self-signed, losowy NIP). Na produkcji: zaloguj się Profilem Zaufanym (JDG, za darmo) lub złóż ZAW-FA (spółki) — bez podpisu kwalifikowanego.", code: `docker compose --profile tools run \\\n  --rm token-generator\n# wyświetla KSEF_TOKEN + KSEF_NIP`, or: null },
   { n: "03", title: "Wyślij pierwszą fakturę", desc: "POST JSON ze sprzedawcą, nabywcą i pozycjami. Odbierz numer KSeF. Gotowe.", code: `curl -X POST http://localhost:8080/ksef/invoice \\\n  -d '{"sprzedawca":{...},"nabywca":{...},"pozycje":[...]}'\n# → {"numerKSeF":"1234567890-20260326-..."}`, or: null },
 ];
 ---

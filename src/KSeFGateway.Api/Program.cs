@@ -5,6 +5,7 @@ using Scalar.AspNetCore;
 using KSeFGateway.Api.Auth;
 using KSeFGateway.Api.Discovery;
 using KSeFGateway.Api.Endpoints;
+using KSeFGateway.Api.Licensing;
 using KSeFGateway.Api.Middleware;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -33,6 +34,19 @@ builder.Services.AddKSeFClient(options =>
 });
 builder.Services.AddCryptographyClient();
 
+// Licensing: multi-NIP requires a valid GATEWAY_LICENSE (see LicenseService) - must be
+// registered and refreshed before ContextProvider is resolved, since it decides MaxNips.
+builder.Services.AddSingleton(sp => new JwksClient(
+    new HttpClient(),
+    builder.Configuration["GATEWAY_LICENSE_JWKS_URL"] ?? LicenseService.DefaultJwksUrl,
+    sp.GetRequiredService<ILogger<JwksClient>>()));
+builder.Services.AddSingleton(sp => new RevocationClient(
+    new HttpClient(),
+    builder.Configuration["GATEWAY_LICENSE_REVOCATION_URL"] ?? LicenseService.DefaultRevocationUrl,
+    sp.GetRequiredService<ILogger<RevocationClient>>()));
+builder.Services.AddSingleton<LicenseService>();
+builder.Services.AddHostedService(sp => sp.GetRequiredService<LicenseService>());
+
 // Auth: ContextProvider + TokenPool (multi-NIP)
 builder.Services.AddSingleton<ContextProvider>();
 builder.Services.AddSingleton<TokenPool>();
@@ -55,7 +69,13 @@ if (!isLambda)
 
 var app = builder.Build();
 
-// Middleware
+// Verify the multi-NIP license before anything resolves ContextProvider (which reads
+// LicenseService.MaxNips synchronously in its constructor) - must happen first, blocking.
+await app.Services.GetRequiredService<LicenseService>().RefreshAsync();
+
+// Middleware - API key check runs first: fail fast on unauthenticated traffic
+// before spending any rate-limit budget or reaching an endpoint.
+app.UseMiddleware<ApiKeyMiddleware>();
 app.UseMiddleware<RateLimitMiddleware>();
 app.UseMiddleware<ErrorHandlingMiddleware>();
 
@@ -72,6 +92,7 @@ var endpoints = SdkReflector.DiscoverEndpoints();
 app.MapDiscoveredEndpoints(endpoints);
 app.MapHealthEndpoints(endpoints.Count);
 app.MapWorkflowEndpoints();
+app.MapInvoiceDownloadEndpoints();
 
 app.Logger.LogInformation(
     "Discovered {Count} SDK endpoints across {Groups} groups",

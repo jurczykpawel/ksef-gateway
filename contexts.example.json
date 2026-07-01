@@ -6,7 +6,9 @@
   },
   {
     "nip": "0987654321",
-    "token": "your-ksef-token-for-second-company",
-    "label": "Company B"
+    "certificatePath": "/app/certs/company-b.crt",
+    "privateKeyPath": "/app/certs/company-b.key",
+    "privateKeyPassword": "only-if-the-key-is-encrypted",
+    "label": "Company B (certificate)"
   }
 ]

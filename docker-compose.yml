@@ -8,13 +8,20 @@ services:
     ports:
       - "${KSEF_API_PORT:-8080}:8080"
     environment:
+      - GATEWAY_API_KEY=${GATEWAY_API_KEY}
       - KSEF_TOKEN=${KSEF_TOKEN}
       - KSEF_NIP=${KSEF_NIP}
       - KSEF_ENV=${KSEF_ENV:-TEST}
       - PDF_SERVICE_URL=http://ksef-pdf:3000
       - KSEF_CONTEXTS_FILE=/app/contexts.json
+      # Certificate-based auth (alternative to KSEF_TOKEN) - see README "Certificate-Based Auth"
+      - KSEF_CERT_PATH=${KSEF_CERT_PATH:-}
+      - KSEF_KEY_PATH=${KSEF_KEY_PATH:-}
+      - KSEF_KEY_PASSWORD=${KSEF_KEY_PASSWORD:-}
     volumes:
       - ./contexts.json:/app/contexts.json:ro
+      # Mount your cert/key files here if using certificate-based auth (single-NIP or via contexts.json)
+      # - ./certs:/app/certs:ro
     healthcheck:
       test: ["CMD", "curl", "-sf", "http://localhost:8080/health"]
       interval: 10s
@@ -57,6 +64,19 @@ services:
       context: ./tools/TokenGenerator
       args:
         GITHUB_PAT: ${GITHUB_PAT}
+    volumes:
+      - ./output:/app/output
+    profiles: ["tools"]
+
+  # One-off tool: generates + verifies a self-signed KSeF certificate on TEST environment
+  # Usage: docker compose run --rm cert-generator
+  cert-generator:
+    build:
+      context: ./tools/CertGenerator
+      args:
+        GITHUB_PAT: ${GITHUB_PAT}
+    volumes:
+      - ./output:/app/output
     profiles: ["tools"]
 
   # One-off tool: authenticates, sends an invoice, downloads it back

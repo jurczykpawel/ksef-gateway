@@ -20,12 +20,29 @@ sam deploy --guided
 
 # Deploy (subsequent)
 sam deploy --parameter-overrides \
+  GatewayApiKey=$(openssl rand -hex 32) \
   KSeFToken=<your-token> \
   KSeFNip=<your-nip> \
   KSeFEnv=TEST
 ```
 
-The output includes the Function URL - use it as your API base URL.
+The output includes the Function URL - use it as your API base URL. **Keep the `GatewayApiKey` value** - `FunctionUrlConfig.AuthType` is `NONE` (no AWS IAM auth on the URL itself), so this application-level key is the only thing protecting the endpoint. See README "Security".
+
+### Certificate-based auth instead of a token
+
+Lambda has no persistent file storage, so certificate auth here takes the cert/key as **PEM content**, not a file path. All of these use `NoEcho: true` (hidden from the CloudFormation console/CLI output), same as `KSeFToken`:
+
+```bash
+sam deploy --parameter-overrides \
+  GatewayApiKey=$(openssl rand -hex 32) \
+  KSeFCertContent="$(cat company.crt)" \
+  KSeFKeyContent="$(cat company.key)" \
+  KSeFKeyPassword=<only-if-encrypted> \
+  KSeFNip=<your-nip> \
+  KSeFEnv=PRODUCTION
+```
+
+Leave `KSeFToken` unset in that case (both work, but pick one - see README "Certificate-Based Auth"). `$(cat ...)` preserves the real newlines the PEM format needs - don't flatten it to a single line.
 
 ## Architecture
 

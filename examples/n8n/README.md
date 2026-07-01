@@ -1,6 +1,37 @@
 # n8n Integration Workflows
 
-Example n8n workflows for connecting e-commerce platforms to KSeF Gateway.
+Example n8n workflows for connecting e-commerce platforms to KSeF Gateway - both sending invoices out and pulling received ones in.
+
+## Receive & Download Invoices
+
+**File:** `receive-invoices.json`
+
+For finding out what's been issued *to* you - KSeF has no email/webhook notifications, so this polls instead. See [Receiving Invoices](../../README.md#receiving-invoices) in the main README for the underlying endpoints.
+
+### What it does
+
+1. Runs on a schedule (every 20 minutes by default)
+2. Reads the last checkpoint from the workflow's own static data (starts from "now" on first run)
+3. Calls `GET /ksef/invoices/received/new?since=<checkpoint>`
+4. Saves the new `nextSince` checkpoint - only on a successful poll (a failed/rate-limited one leaves the checkpoint untouched, so nothing gets silently skipped), regardless of whether any invoices actually came back
+5. For each new invoice, downloads its PDF (`GET /ksef/invoice/{ksefNumber}/pdf`) and saves it to disk
+6. Leaves a `Notify (TODO)` node where you wire up Slack, email, or Discord
+
+### Setup
+
+1. **Import workflow** - n8n → Workflows → Import from File → select `receive-invoices.json`
+2. **Edit the "Configuration (EDIT ME)" node**:
+   - `ksefGatewayUrl` - your KSeF Gateway base URL
+   - `ksefNip` - the NIP whose inbox to poll (sent as `X-KSeF-NIP`)
+   - `ksefInvoicesDir` - where to save downloaded PDFs on the n8n host
+3. **Wire up notifications** - replace the `Notify (TODO)` node with a Slack/Email/Discord node of your choice
+4. **Activate the workflow** in n8n
+
+### Customization
+
+- **Poll interval** - default 20 minutes, matches KSeF's own rate-limit guidance (don't go below ~15 min - `query/metadata` is capped at 20 requests/hour)
+- **Checkpoint storage** - uses n8n's workflow static data; move it to a database node if you run multiple n8n instances without shared storage
+- **Multi-NIP** - duplicate the workflow per NIP, or extend the Configuration node into a loop over several NIPs
 
 ## WooCommerce → KSeF
 

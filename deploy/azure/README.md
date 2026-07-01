@@ -19,6 +19,7 @@ az deployment group create \
   --resource-group ksef-gateway \
   --template-file main.bicep \
   --parameters \
+    gatewayApiKey=$(openssl rand -hex 32) \
     ksefToken=<your-token> \
     ksefNip=<your-nip> \
     ksefEnv=TEST \
@@ -26,7 +27,28 @@ az deployment group create \
     pdfImage=ghcr.io/jurczykpawel/ksef-gateway-pdf:latest
 ```
 
-The output includes the public API URL.
+The output includes the public API URL. **Keep the `gatewayApiKey` value** - the gateway has no other caller-facing auth (see README "Security"), so every request needs it back as the `X-Api-Key` header.
+
+### Certificate-based auth instead of a token
+
+Container Apps has no convenient way to mount an arbitrary file, so certificate auth here takes the cert/key as **PEM content**, not a file path - both land in Container Apps' own `secrets` store (same mechanism as `ksefToken`), not a plain env var:
+
+```bash
+az deployment group create \
+  --resource-group ksef-gateway \
+  --template-file main.bicep \
+  --parameters \
+    gatewayApiKey=$(openssl rand -hex 32) \
+    ksefCertContent="$(cat company.crt)" \
+    ksefKeyContent="$(cat company.key)" \
+    ksefKeyPassword=<only-if-encrypted> \
+    ksefNip=<your-nip> \
+    ksefEnv=PRODUCTION \
+    apiImage=ghcr.io/jurczykpawel/ksef-gateway-api:latest \
+    pdfImage=ghcr.io/jurczykpawel/ksef-gateway-pdf:latest
+```
+
+Leave `ksefToken` unset in that case (both work, but pick one - see README "Certificate-Based Auth").
 
 ## Architecture
 

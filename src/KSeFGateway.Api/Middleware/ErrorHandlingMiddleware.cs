@@ -36,6 +36,15 @@ public class ErrorHandlingMiddleware
             context.Response.StatusCode = 502; // Bad Gateway - upstream error
             await WriteResponse(context, ApiResponse.Fail($"KSeF API error: {ex.Message}"));
         }
+        catch (KsefCircuitBreakerOpenException ex)
+        {
+            _logger.LogWarning("KSeF circuit breaker open: {Message}", ex.Message);
+            context.Response.StatusCode = 503;
+            if (ex.RetryAfter.HasValue)
+                context.Response.Headers.RetryAfter = ((int)Math.Ceiling(ex.RetryAfter.Value.TotalSeconds)).ToString();
+
+            await WriteResponse(context, ApiResponse.Fail(ex.Message));
+        }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Unhandled exception");

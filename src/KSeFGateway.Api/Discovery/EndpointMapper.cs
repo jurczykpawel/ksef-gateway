@@ -2,6 +2,7 @@ using System.Reflection;
 using System.Text.Json;
 using KSeF.Client.Core.Interfaces.Clients;
 using KSeFGateway.Api.Auth;
+using KSeFGateway.Api.Middleware;
 using KSeFGateway.Api.Models;
 using System.IO;
 
@@ -30,59 +31,44 @@ public static class EndpointMapper
 
     private static Delegate CreateHandler(EndpointMetadata endpoint)
     {
-        return async (HttpContext context) =>
+        return async (HttpContext context) => await EndpointErrorHandling.Guard(async () =>
         {
-            try
+            var pool = context.RequestServices.GetRequiredService<TokenPool>();
+            var ctxProvider = context.RequestServices.GetRequiredService<ContextProvider>();
+            var ksefClient = context.RequestServices.GetRequiredService<IKSeFClient>();
+
+            // For raw SDK endpoints: use X-KSeF-NIP header or default context
+            var nip = ContextResolver.ResolveNip(context, ctxProvider);
+            if (nip is null)
+                return Results.Json(ApiResponse.Fail("No KSeF context. Set X-KSeF-NIP header or configure default."), statusCode: 400);
+
+            var accessToken = await pool.GetAccessTokenAsync(nip, context.RequestAborted);
+            if (accessToken is null)
+                return Results.Json(ApiResponse.Fail($"Not authenticated with KSeF for NIP {nip}"), statusCode: 503);
+
+            var args = await BuildArguments(
+                endpoint, context, accessToken);
+
+            var result = endpoint.SdkMethod.Invoke(ksefClient, args);
+
+            // Await if Task
+            if (result is Task task)
             {
-                var pool = context.RequestServices.GetRequiredService<TokenPool>();
-                var ctxProvider = context.RequestServices.GetRequiredService<ContextProvider>();
-                var ksefClient = context.RequestServices.GetRequiredService<IKSeFClient>();
+                await task;
 
-                // For raw SDK endpoints: use X-KSeF-NIP header or default context
-                var nip = ContextResolver.ResolveNip(context, ctxProvider);
-                if (nip is null)
-                    return Results.Json(ApiResponse.Fail("No KSeF context. Set X-KSeF-NIP header or configure default."), statusCode: 400);
-
-                var accessToken = await pool.GetAccessTokenAsync(nip, context.RequestAborted);
-                if (accessToken is null)
-                    return Results.Json(ApiResponse.Fail($"Not authenticated with KSeF for NIP {nip}"), statusCode: 503);
-
-                var args = await BuildArguments(
-                    endpoint, context, accessToken);
-
-                var result = endpoint.SdkMethod.Invoke(ksefClient, args);
-
-                // Await if Task
-                if (result is Task task)
+                if (endpoint.ReturnType is not null)
                 {
-                    await task;
-
-                    if (endpoint.ReturnType is not null)
-                    {
-                        // Get the Result property from Task<T>
-                        var resultProp = task.GetType().GetProperty("Result");
-                        var data = resultProp?.GetValue(task);
-                        return Results.Json(ApiResponse.Ok(data!));
-                    }
-
-                    return Results.Json(new ApiResponse(true, null));
+                    // Get the Result property from Task<T>
+                    var resultProp = task.GetType().GetProperty("Result");
+                    var data = resultProp?.GetValue(task);
+                    return Results.Json(ApiResponse.Ok(data!));
                 }
 
-                return Results.Json(ApiResponse.Ok(result!));
+                return Results.Json(new ApiResponse(true, null));
             }
-            catch (TargetInvocationException ex) when (ex.InnerException is not null)
-            {
-                return Results.Json(
-                    ApiResponse.Fail(ex.InnerException.Message),
-                    statusCode: 500);
-            }
-            catch (Exception ex)
-            {
-                return Results.Json(
-                    ApiResponse.Fail(ex.Message),
-                    statusCode: 500);
-            }
-        };
+
+            return Results.Json(ApiResponse.Ok(result!));
+        }, context.RequestServices.GetRequiredService<ILogger<Program>>(), $"{endpoint.GroupName}/{endpoint.MethodName} failed");
     }
 
     private static async Task<object?[]> BuildArguments(

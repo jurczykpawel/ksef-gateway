@@ -27,7 +27,7 @@ const GITHUB_URL = "https://github.com/jurczykpawel/ksef-gateway";
             <p class="text-xs text-[var(--color-faint)]">Zalecane — zero zmian w Twojej platformie</p>
           </div>
         </div>
-        <p class="text-sm text-[var(--color-muted)] mb-4 leading-relaxed">Użyj n8n do przetłumaczenia webhooka platformy na wywołanie faktury KSeF. Trzy węzły: Webhook → Transformacja → HTTP Request.</p>
+        <p class="text-sm text-[var(--color-muted)] mb-4 leading-relaxed">Gotowe workflow do wysyłania i odbierania faktur — zero kodu po Twojej stronie. Wysyłka: webhook platformy → transformacja → <code class="font-mono text-xs">POST /ksef/invoice</code>. Odbiór: cykliczny poll → pobranie PDF.</p>
         <div class="flex items-center gap-3 text-xs text-[var(--color-faint)] mb-4">
           <span class="card-floating px-2.5 py-1 rounded-full">Węzeł Webhook</span>
           <svg width="10" height="10" viewBox="0 0 10 10" fill="currentColor" aria-hidden="true"><path d="M1 5h8M6 2l3 3-3 3"/></svg>
@@ -36,7 +36,7 @@ const GITHUB_URL = "https://github.com/jurczykpawel/ksef-gateway";
           <span class="card-floating px-2.5 py-1 rounded-full">POST /ksef/invoice</span>
         </div>
         <div class="space-y-2 mb-5">
-          {["Sellf → KSeF (workflow w zestawie)", "WooCommerce → KSeF (workflow w zestawie)", "Każda platforma obsługująca webhooks"].map(item => (
+          {["Sellf → KSeF (workflow w zestawie)", "WooCommerce → KSeF (workflow w zestawie)", "Odbieranie faktur + PDF co 20 min (workflow w zestawie)", "Każda platforma obsługująca webhooks"].map(item => (
             <div class="flex items-center gap-2 text-sm text-[var(--color-muted)]">
               <svg width="13" height="13" viewBox="0 0 16 16" fill="var(--color-accent)" aria-hidden="true"><path d="M8 .5a7.5 7.5 0 1 0 0 15A7.5 7.5 0 0 0 8 .5Zm3.28 5.72-4 4a.75.75 0 0 1-1.06 0l-2-2a.75.75 0 0 1 1.06-1.06L6.75 8.69l3.47-3.47a.75.75 0 1 1 1.06 1.06Z"/></svg>
               {item}

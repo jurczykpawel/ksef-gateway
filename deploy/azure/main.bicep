@@ -3,10 +3,25 @@
 param location string = resourceGroup().location
 param envName string = 'ksef-gateway'
 
+// Required - the gateway has no other caller-facing auth, see README "Security".
+// Generate with: openssl rand -hex 32
 @secure()
-param ksefToken string
+param gatewayApiKey string
+
+@secure()
+param ksefToken string = ''
 param ksefNip string
 param ksefEnv string = 'TEST'
+
+// Certificate-based auth (alternative to ksefToken) - PEM content, not a file path,
+// since Container Apps has no convenient way to mount an arbitrary file. Leave all
+// three empty if using ksefToken instead.
+@secure()
+param ksefCertContent string = ''
+@secure()
+param ksefKeyContent string = ''
+@secure()
+param ksefKeyPassword string = ''
 
 param apiImage string = 'ghcr.io/jurczykpawel/ksef-gateway-api:latest'
 param pdfImage string = 'ghcr.io/jurczykpawel/ksef-gateway-pdf:latest'
@@ -79,7 +94,11 @@ resource ksefApi 'Microsoft.App/containerApps@2023-05-01' = {
         targetPort: 8080
       }
       secrets: [
+        { name: 'gateway-api-key', value: gatewayApiKey }
         { name: 'ksef-token', value: ksefToken }
+        { name: 'ksef-cert-content', value: ksefCertContent }
+        { name: 'ksef-key-content', value: ksefKeyContent }
+        { name: 'ksef-key-password', value: ksefKeyPassword }
       ]
     }
     template: {
@@ -92,7 +111,11 @@ resource ksefApi 'Microsoft.App/containerApps@2023-05-01' = {
             memory: '1Gi'
           }
           env: [
+            { name: 'GATEWAY_API_KEY', secretRef: 'gateway-api-key' }
             { name: 'KSEF_TOKEN', secretRef: 'ksef-token' }
+            { name: 'KSEF_CERT_CONTENT', secretRef: 'ksef-cert-content' }
+            { name: 'KSEF_KEY_CONTENT', secretRef: 'ksef-key-content' }
+            { name: 'KSEF_KEY_PASSWORD', secretRef: 'ksef-key-password' }
             { name: 'KSEF_NIP', value: ksefNip }
             { name: 'KSEF_ENV', value: ksefEnv }
             { name: 'PDF_SERVICE_URL', value: 'http://ksef-pdf' }

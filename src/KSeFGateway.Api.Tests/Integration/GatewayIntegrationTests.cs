@@ -8,7 +8,9 @@ namespace KSeFGateway.Api.Tests.Integration;
 
 /// <summary>
 /// Integration tests against a running KSeF Gateway (localhost:8080).
-/// Requires gateway running with a valid KSEF_TOKEN + KSEF_NIP.
+/// Requires gateway running with a valid KSEF_TOKEN + KSEF_NIP, and GATEWAY_API_KEY set to the
+/// same value the gateway itself was started with (falls back to no header if unset, which
+/// only works against a gateway that also has no GATEWAY_API_KEY configured).
 ///
 /// Run: dotnet test --filter Category=Integration
 /// Not run in CI (no token available).
@@ -19,7 +21,17 @@ public class GatewayIntegrationTests
     private static readonly string BaseUrl =
         Environment.GetEnvironmentVariable("GATEWAY_URL") ?? "http://localhost:8080";
 
-    private static readonly HttpClient Http = new() { Timeout = TimeSpan.FromMinutes(3) };
+    private static string? ApiKey => Environment.GetEnvironmentVariable("GATEWAY_API_KEY");
+
+    private static readonly HttpClient Http = CreateHttpClient(includeApiKey: true);
+
+    private static HttpClient CreateHttpClient(bool includeApiKey)
+    {
+        var client = new HttpClient { Timeout = TimeSpan.FromMinutes(3) };
+        if (includeApiKey && !string.IsNullOrEmpty(ApiKey))
+            client.DefaultRequestHeaders.Add("X-Api-Key", ApiKey);
+        return client;
+    }
 
     private static string SellerNip =>
         Environment.GetEnvironmentVariable("KSEF_NIP") ?? "9124229327";
@@ -100,6 +112,118 @@ public class GatewayIntegrationTests
         var bytes = await resp.Content.ReadAsByteArrayAsync();
         Assert.True(bytes.Length > 1000, $"PDF suspiciously small: {bytes.Length} bytes");
         Assert.Equal("%PDF"u8.ToArray(), bytes[..4]);
+    }
+
+    [Fact]
+    public async Task ListReceivedInvoices_AfterSelfInvoice_FindsItAsBuyer()
+    {
+        // Self-invoice (seller == buyer == our only authenticated test NIP) is the only way
+        // to reliably exercise the buyer-role query with a single-NIP CI credential.
+        // IssueDate must be today - the query below searches by today's date, but
+        // SampleInvoice() defaults to a fixed historical date for XML/XSD tests.
+        var today = DateTimeOffset.UtcNow.ToString("yyyy-MM-dd");
+        var invoiceNumber = UniqueNumber("FV/INT/RECEIVED");
+        var invoice = SampleInvoice(invoiceNumber) with
+        {
+            IssueDate = today,
+            SaleDate = today,
+            Buyer = new BuyerData
+            {
+                Nip = SellerNip,
+                Name = "Integration Test Seller sp. z o.o.",
+                Address = new AddressData { Street = "ul. Testowa 1", City = "00-001 Warszawa" }
+            }
+        };
+        var sendResp = await Http.PostAsJsonAsync($"{BaseUrl}/ksef/invoice", invoice);
+        sendResp.EnsureSuccessStatusCode();
+
+        var from = DateTimeOffset.UtcNow.AddDays(-1).ToString("O");
+        var to = DateTimeOffset.UtcNow.AddDays(1).ToString("O");
+        var resp = await Http.GetAsync(
+            $"{BaseUrl}/ksef/invoices/received?from={Uri.EscapeDataString(from)}&to={Uri.EscapeDataString(to)}");
+
+        Assert.Equal(HttpStatusCode.OK, resp.StatusCode);
+        var body = await resp.Content.ReadFromJsonAsync<JsonElement>();
+        Assert.True(body.GetProperty("success").GetBoolean());
+
+        var invoiceNumbers = body.GetProperty("data").GetProperty("invoices")
+            .EnumerateArray()
+            .Select(i => i.GetProperty("invoiceNumber").GetString())
+            .ToList();
+        Assert.Contains(invoiceNumber, invoiceNumbers);
+    }
+
+    [Fact]
+    public async Task ListIssuedInvoices_AfterSend_FindsItAsSeller()
+    {
+        // Any invoice we send has our own authenticated NIP as the seller - no self-invoice
+        // trick needed here (unlike the buyer-role test above).
+        var today = DateTimeOffset.UtcNow.ToString("yyyy-MM-dd");
+        var invoiceNumber = UniqueNumber("FV/INT/ISSUED");
+        var invoice = SampleInvoice(invoiceNumber) with { IssueDate = today, SaleDate = today };
+        var sendResp = await Http.PostAsJsonAsync($"{BaseUrl}/ksef/invoice", invoice);
+        sendResp.EnsureSuccessStatusCode();
+
+        var from = DateTimeOffset.UtcNow.AddDays(-1).ToString("O");
+        var to = DateTimeOffset.UtcNow.AddDays(1).ToString("O");
+        var resp = await Http.GetAsync(
+            $"{BaseUrl}/ksef/invoices/issued?from={Uri.EscapeDataString(from)}&to={Uri.EscapeDataString(to)}");
+
+        Assert.Equal(HttpStatusCode.OK, resp.StatusCode);
+        var body = await resp.Content.ReadFromJsonAsync<JsonElement>();
+        Assert.True(body.GetProperty("success").GetBoolean());
+
+        var invoiceNumbers = body.GetProperty("data").GetProperty("invoices")
+            .EnumerateArray()
+            .Select(i => i.GetProperty("invoiceNumber").GetString())
+            .ToList();
+        Assert.Contains(invoiceNumber, invoiceNumbers);
+    }
+
+    [Fact]
+    public async Task ListNewReceivedInvoices_SinceNow_ReturnsEmptyWithCheckpoint()
+    {
+        // "since" this close to real time is always later than KSeF's own
+        // PermanentStorageHwmDate (data isn't durably complete there yet) - exercises the
+        // gateway's graceful handling of KSeF's 21183 rejection (nothing new yet, not an error).
+        var since = DateTimeOffset.UtcNow.ToString("O");
+        var resp = await Http.GetAsync($"{BaseUrl}/ksef/invoices/received/new?since={Uri.EscapeDataString(since)}");
+
+        Assert.Equal(HttpStatusCode.OK, resp.StatusCode);
+        var body = await resp.Content.ReadFromJsonAsync<JsonElement>();
+        Assert.True(body.GetProperty("success").GetBoolean());
+        Assert.Empty(body.GetProperty("data").GetProperty("invoices").EnumerateArray());
+        Assert.True(body.GetProperty("data").TryGetProperty("nextSince", out _));
+    }
+
+    // ── API key protection ───────────────────────────────────────────────────
+
+    [Fact]
+    public async Task Status_WithoutApiKey_Returns401()
+    {
+        using var client = CreateHttpClient(includeApiKey: false);
+        var resp = await client.GetAsync($"{BaseUrl}/ksef/status");
+
+        Assert.Equal(HttpStatusCode.Unauthorized, resp.StatusCode);
+    }
+
+    [Fact]
+    public async Task Status_WithWrongApiKey_Returns401()
+    {
+        using var client = CreateHttpClient(includeApiKey: false);
+        client.DefaultRequestHeaders.Add("X-Api-Key", "definitely-wrong");
+        var resp = await client.GetAsync($"{BaseUrl}/ksef/status");
+
+        Assert.Equal(HttpStatusCode.Unauthorized, resp.StatusCode);
+    }
+
+    [Fact]
+    public async Task Health_WithoutApiKey_StillReturns200()
+    {
+        using var client = CreateHttpClient(includeApiKey: false);
+        var resp = await client.GetAsync($"{BaseUrl}/health");
+
+        Assert.Equal(HttpStatusCode.OK, resp.StatusCode);
     }
 
     // ── Error paths ───────────────────────────────────────────────────────────

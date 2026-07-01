@@ -25,6 +25,12 @@ public class ContextProviderTests
         .AddInMemoryCollection(new Dictionary<string, string?> { ["KSEF_CONTEXTS_FILE"] = contextsPath })
         .Build();
 
+    private static IConfiguration BuildConfig(Dictionary<string, string?> values) =>
+        new ConfigurationBuilder().AddInMemoryCollection(values).Build();
+
+    private static string NonExistentContextsPath() =>
+        Path.Combine(Path.GetTempPath(), $"ksef-contexts-missing-{Guid.NewGuid():N}.json");
+
     private static async Task<LicenseService> MakeUnlicensedService()
     {
         var config = new ConfigurationBuilder().Build();
@@ -123,5 +129,189 @@ public class ContextProviderTests
         var provider = new ContextProvider(MakeConfig(path), NullLogger<ContextProvider>.Instance, licenseService);
 
         Assert.Equal(5, provider.GetAll().Count);
+    }
+
+    [Fact]
+    public async Task EnvVars_TokenOnly_LoadsSingleTokenContext()
+    {
+        var config = BuildConfig(new()
+        {
+            ["KSEF_CONTEXTS_FILE"] = NonExistentContextsPath(),
+            ["KSEF_TOKEN"] = "some-token",
+            ["KSEF_NIP"] = "1234567890",
+        });
+        var licenseService = await MakeLicensedService();
+
+        var provider = new ContextProvider(config, NullLogger<ContextProvider>.Instance, licenseService);
+
+        var context = Assert.Single(provider.GetAll());
+        Assert.Equal("1234567890", context.Nip);
+        Assert.Equal("some-token", context.Token);
+        Assert.False(context.UsesCertificate);
+    }
+
+    [Fact]
+    public async Task EnvVars_CertAndKeyOnly_LoadsSingleCertificateContext()
+    {
+        var config = BuildConfig(new()
+        {
+            ["KSEF_CONTEXTS_FILE"] = NonExistentContextsPath(),
+            ["KSEF_NIP"] = "1234567890",
+            ["KSEF_CERT_PATH"] = "/app/certs/company.crt",
+            ["KSEF_KEY_PATH"] = "/app/certs/company.key",
+        });
+        var licenseService = await MakeLicensedService();
+
+        var provider = new ContextProvider(config, NullLogger<ContextProvider>.Instance, licenseService);
+
+        var context = Assert.Single(provider.GetAll());
+        Assert.Equal("1234567890", context.Nip);
+        Assert.True(context.UsesCertificate);
+        Assert.Equal("/app/certs/company.crt", context.CertificatePath);
+        Assert.Equal("/app/certs/company.key", context.PrivateKeyPath);
+    }
+
+    [Fact]
+    public async Task EnvVars_CertKeyAndPassword_LoadsPasswordOnContext()
+    {
+        var config = BuildConfig(new()
+        {
+            ["KSEF_CONTEXTS_FILE"] = NonExistentContextsPath(),
+            ["KSEF_NIP"] = "1234567890",
+            ["KSEF_CERT_PATH"] = "/app/certs/company.crt",
+            ["KSEF_KEY_PATH"] = "/app/certs/company.key",
+            ["KSEF_KEY_PASSWORD"] = "s3cret!",
+        });
+        var licenseService = await MakeLicensedService();
+
+        var provider = new ContextProvider(config, NullLogger<ContextProvider>.Instance, licenseService);
+
+        var context = Assert.Single(provider.GetAll());
+        Assert.Equal("s3cret!", context.PrivateKeyPassword);
+    }
+
+    [Fact]
+    public async Task EnvVars_CertContentAndKeyContentOnly_LoadsContentBasedContext()
+    {
+        var config = BuildConfig(new()
+        {
+            ["KSEF_CONTEXTS_FILE"] = NonExistentContextsPath(),
+            ["KSEF_NIP"] = "1234567890",
+            ["KSEF_CERT_CONTENT"] = "-----BEGIN CERTIFICATE-----\nMII...\n-----END CERTIFICATE-----",
+            ["KSEF_KEY_CONTENT"] = "-----BEGIN PRIVATE KEY-----\nMII...\n-----END PRIVATE KEY-----",
+        });
+        var licenseService = await MakeLicensedService();
+
+        var provider = new ContextProvider(config, NullLogger<ContextProvider>.Instance, licenseService);
+
+        var context = Assert.Single(provider.GetAll());
+        Assert.True(context.UsesCertificate);
+        Assert.False(context.HasCertificatePath);
+        Assert.True(context.HasCertificateContent);
+    }
+
+    [Fact]
+    public async Task EnvVars_CertPathTakesPriorityOverCertContent_WhenBothPresent()
+    {
+        var config = BuildConfig(new()
+        {
+            ["KSEF_CONTEXTS_FILE"] = NonExistentContextsPath(),
+            ["KSEF_NIP"] = "1234567890",
+            ["KSEF_CERT_PATH"] = "/app/certs/company.crt",
+            ["KSEF_KEY_PATH"] = "/app/certs/company.key",
+            ["KSEF_CERT_CONTENT"] = "-----BEGIN CERTIFICATE-----",
+            ["KSEF_KEY_CONTENT"] = "-----BEGIN PRIVATE KEY-----",
+        });
+        var licenseService = await MakeLicensedService();
+
+        var provider = new ContextProvider(config, NullLogger<ContextProvider>.Instance, licenseService);
+
+        var context = Assert.Single(provider.GetAll());
+        Assert.True(context.HasCertificatePath);
+        Assert.False(context.HasCertificateContent);
+    }
+
+    [Fact]
+    public async Task EnvVars_TokenTakesPriorityOverCert_WhenBothPresent()
+    {
+        var config = BuildConfig(new()
+        {
+            ["KSEF_CONTEXTS_FILE"] = NonExistentContextsPath(),
+            ["KSEF_NIP"] = "1234567890",
+            ["KSEF_TOKEN"] = "some-token",
+            ["KSEF_CERT_PATH"] = "/app/certs/company.crt",
+            ["KSEF_KEY_PATH"] = "/app/certs/company.key",
+        });
+        var licenseService = await MakeLicensedService();
+
+        var provider = new ContextProvider(config, NullLogger<ContextProvider>.Instance, licenseService);
+
+        var context = Assert.Single(provider.GetAll());
+        Assert.False(context.UsesCertificate);
+    }
+
+    [Fact]
+    public async Task NoEnvVarsNoFile_LoadsEmptyContextList()
+    {
+        var config = BuildConfig(new()
+        {
+            ["KSEF_CONTEXTS_FILE"] = NonExistentContextsPath(),
+        });
+        var licenseService = await MakeLicensedService();
+
+        var provider = new ContextProvider(config, NullLogger<ContextProvider>.Instance, licenseService);
+
+        Assert.Empty(provider.GetAll());
+        Assert.Null(provider.GetDefault());
+    }
+
+    [Fact]
+    public async Task ContextsFile_WithMixedTokenAndCertificateEntries_LoadsBoth()
+    {
+        var path = Path.Combine(Path.GetTempPath(), $"ksef-contexts-{Guid.NewGuid():N}.json");
+        File.WriteAllText(path, """
+        [
+          { "nip": "1111111111", "token": "token-a", "label": "Company A" },
+          { "nip": "2222222222", "certificatePath": "/app/certs/b.crt", "privateKeyPath": "/app/certs/b.key", "label": "Company B" }
+        ]
+        """);
+
+        try
+        {
+            var config = BuildConfig(new() { ["KSEF_CONTEXTS_FILE"] = path });
+            var licenseService = await MakeLicensedService();
+            var provider = new ContextProvider(config, NullLogger<ContextProvider>.Instance, licenseService);
+
+            Assert.Equal(2, provider.GetAll().Count);
+            Assert.False(provider.GetByNip("1111111111")!.UsesCertificate);
+            Assert.True(provider.GetByNip("2222222222")!.UsesCertificate);
+        }
+        finally
+        {
+            File.Delete(path);
+        }
+    }
+
+    [Fact]
+    public async Task ContextsFile_WithCertificatePathButNoKeyPath_Throws()
+    {
+        var path = Path.Combine(Path.GetTempPath(), $"ksef-contexts-{Guid.NewGuid():N}.json");
+        File.WriteAllText(path, """
+        [
+          { "nip": "1111111111", "certificatePath": "/app/certs/a.crt" }
+        ]
+        """);
+
+        try
+        {
+            var config = BuildConfig(new() { ["KSEF_CONTEXTS_FILE"] = path });
+            var licenseService = await MakeLicensedService();
+            Assert.Throws<InvalidOperationException>(() =>
+                new ContextProvider(config, NullLogger<ContextProvider>.Instance, licenseService));
+        }
+        finally
+        {
+            File.Delete(path);
+        }
     }
 }

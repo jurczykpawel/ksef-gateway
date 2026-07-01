@@ -73,7 +73,9 @@ var app = builder.Build();
 // LicenseService.MaxNips synchronously in its constructor) - must happen first, blocking.
 await app.Services.GetRequiredService<LicenseService>().RefreshAsync();
 
-// Middleware
+// Middleware - API key check runs first: fail fast on unauthenticated traffic
+// before spending any rate-limit budget or reaching an endpoint.
+app.UseMiddleware<ApiKeyMiddleware>();
 app.UseMiddleware<RateLimitMiddleware>();
 app.UseMiddleware<ErrorHandlingMiddleware>();
 
@@ -90,6 +92,7 @@ var endpoints = SdkReflector.DiscoverEndpoints();
 app.MapDiscoveredEndpoints(endpoints);
 app.MapHealthEndpoints(endpoints.Count);
 app.MapWorkflowEndpoints();
+app.MapInvoiceDownloadEndpoints();
 
 app.Logger.LogInformation(
     "Discovered {Count} SDK endpoints across {Groups} groups",

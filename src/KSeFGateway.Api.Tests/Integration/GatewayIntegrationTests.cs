@@ -93,7 +93,9 @@ public class GatewayIntegrationTests
     public async Task GetInvoiceXml_AfterSend_ReturnsXml()
     {
         var ksefNumber = await SendAndGetKsefNumber();
-        var resp = await Http.GetAsync($"{BaseUrl}/ksef/invoice/{ksefNumber}");
+        var resp = await RetryUntilAsync(
+            () => Http.GetAsync($"{BaseUrl}/ksef/invoice/{ksefNumber}"),
+            r => r.StatusCode == HttpStatusCode.OK);
 
         Assert.Equal(HttpStatusCode.OK, resp.StatusCode);
         var xml = await resp.Content.ReadAsStringAsync();
@@ -105,7 +107,9 @@ public class GatewayIntegrationTests
     public async Task GetInvoicePdf_AfterSend_ReturnsPdf()
     {
         var ksefNumber = await SendAndGetKsefNumber();
-        var resp = await Http.GetAsync($"{BaseUrl}/ksef/invoice/{ksefNumber}/pdf");
+        var resp = await RetryUntilAsync(
+            () => Http.GetAsync($"{BaseUrl}/ksef/invoice/{ksefNumber}/pdf"),
+            r => r.StatusCode == HttpStatusCode.OK);
 
         Assert.Equal(HttpStatusCode.OK, resp.StatusCode);
         Assert.Equal("application/pdf", resp.Content.Headers.ContentType?.MediaType);
@@ -139,17 +143,10 @@ public class GatewayIntegrationTests
 
         var from = DateTimeOffset.UtcNow.AddDays(-1).ToString("O");
         var to = DateTimeOffset.UtcNow.AddDays(1).ToString("O");
-        var resp = await Http.GetAsync(
-            $"{BaseUrl}/ksef/invoices/received?from={Uri.EscapeDataString(from)}&to={Uri.EscapeDataString(to)}");
+        var invoiceNumbers = await PollForInvoiceNumbersAsync(
+            $"{BaseUrl}/ksef/invoices/received?from={Uri.EscapeDataString(from)}&to={Uri.EscapeDataString(to)}",
+            invoiceNumber);
 
-        Assert.Equal(HttpStatusCode.OK, resp.StatusCode);
-        var body = await resp.Content.ReadFromJsonAsync<JsonElement>();
-        Assert.True(body.GetProperty("success").GetBoolean());
-
-        var invoiceNumbers = body.GetProperty("data").GetProperty("invoices")
-            .EnumerateArray()
-            .Select(i => i.GetProperty("invoiceNumber").GetString())
-            .ToList();
         Assert.Contains(invoiceNumber, invoiceNumbers);
     }
 
@@ -166,17 +163,10 @@ public class GatewayIntegrationTests
 
         var from = DateTimeOffset.UtcNow.AddDays(-1).ToString("O");
         var to = DateTimeOffset.UtcNow.AddDays(1).ToString("O");
-        var resp = await Http.GetAsync(
-            $"{BaseUrl}/ksef/invoices/issued?from={Uri.EscapeDataString(from)}&to={Uri.EscapeDataString(to)}");
+        var invoiceNumbers = await PollForInvoiceNumbersAsync(
+            $"{BaseUrl}/ksef/invoices/issued?from={Uri.EscapeDataString(from)}&to={Uri.EscapeDataString(to)}",
+            invoiceNumber);
 
-        Assert.Equal(HttpStatusCode.OK, resp.StatusCode);
-        var body = await resp.Content.ReadFromJsonAsync<JsonElement>();
-        Assert.True(body.GetProperty("success").GetBoolean());
-
-        var invoiceNumbers = body.GetProperty("data").GetProperty("invoices")
-            .EnumerateArray()
-            .Select(i => i.GetProperty("invoiceNumber").GetString())
-            .ToList();
         Assert.Contains(invoiceNumber, invoiceNumbers);
     }
 
@@ -300,5 +290,70 @@ public class GatewayIntegrationTests
         var body = await resp.Content.ReadFromJsonAsync<JsonElement>();
         return body.GetProperty("data").GetProperty("ksefNumber").GetString()
             ?? throw new InvalidOperationException("No ksefNumber in response");
+    }
+
+    /// <summary>
+    /// KSeF's own indexing (query/metadata, invoice-by-number lookup) lags a send by anywhere
+    /// from under a second to several seconds - polls until <paramref name="isReady"/> passes or
+    /// attempts run out, returning whatever the last attempt produced either way so the caller's
+    /// own asserts still fail with a real diagnostic message instead of a bare timeout.
+    /// </summary>
+    private static async Task<T> RetryUntilAsync<T>(
+        Func<Task<T>> action, Func<T, bool> isReady, int maxAttempts = 8, TimeSpan? delay = null)
+    {
+        var interval = delay ?? TimeSpan.FromSeconds(1.5);
+        var result = await action();
+        for (var attempt = 1; attempt < maxAttempts && !isReady(result); attempt++)
+        {
+            await Task.Delay(interval);
+            result = await action();
+        }
+        return result;
+    }
+
+    /// <summary>
+    /// Polls a /ksef/invoices/{received,issued} URL until targetInvoiceNumber shows up. This
+    /// endpoint shares KSeF's own tight invoices/query budget: a short 429 (the gateway's own
+    /// proactive per-second/per-minute throttle) means "back off exactly as long as told, then
+    /// keep polling". A long 429 means KSeF's real per-hour account quota is exhausted - that
+    /// won't clear before the test times out anyway, so fail fast with a clear diagnostic instead
+    /// of silently blocking a CI run for up to an hour.
+    /// </summary>
+    private static readonly TimeSpan MaxWorthwhileRetryAfter = TimeSpan.FromSeconds(15);
+
+    private static async Task<List<string?>> PollForInvoiceNumbersAsync(string url, string targetInvoiceNumber, int maxAttempts = 5)
+    {
+        var invoiceNumbers = new List<string?>();
+        for (var attempt = 1; attempt <= maxAttempts; attempt++)
+        {
+            var resp = await Http.GetAsync(url);
+            if (resp.StatusCode == HttpStatusCode.TooManyRequests)
+            {
+                var retryAfter = resp.Headers.RetryAfter?.Delta;
+                if (retryAfter is null || retryAfter > MaxWorthwhileRetryAfter)
+                {
+                    var errorBody = await resp.Content.ReadAsStringAsync();
+                    throw new InvalidOperationException(
+                        $"Hit KSeF's real rate limit polling {url} - Retry-After is " +
+                        $"{(retryAfter?.ToString() ?? "unset")}, too long to wait out in a test run. " +
+                        $"Response: {errorBody}");
+                }
+                await Task.Delay(retryAfter.Value + TimeSpan.FromSeconds(1));
+                continue;
+            }
+
+            resp.EnsureSuccessStatusCode();
+            var body = await resp.Content.ReadFromJsonAsync<JsonElement>();
+            invoiceNumbers = body.GetProperty("data").GetProperty("invoices")
+                .EnumerateArray()
+                .Select(i => i.GetProperty("invoiceNumber").GetString())
+                .ToList();
+
+            if (invoiceNumbers.Contains(targetInvoiceNumber) || attempt == maxAttempts)
+                return invoiceNumbers;
+
+            await Task.Delay(TimeSpan.FromSeconds(2));
+        }
+        return invoiceNumbers;
     }
 }

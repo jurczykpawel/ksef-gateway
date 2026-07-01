@@ -4,7 +4,7 @@
 
 ### Added
 
-- Multi-NIP support - `TokenPool`/`ContextProvider` manage one auth context per NIP, `X-KSeF-NIP` header selects which one a request uses
+- Multi-NIP support - `TokenPool`/`ContextProvider` manage one auth context per NIP, `X-KSeF-NIP` header selects which one a request uses; verified live with several distinct certificates (not just tokens or one shared certificate) authenticating independently for different NIPs
 - Multi-NIP license gating - running more than one NIP requires a `GATEWAY_LICENSE` (one-time purchase, [Sellf](https://sellf.techskills.academy/p/ksef-gateway-multi-nip)), verified fully offline (ECDSA P-256, JWKS + k-anonymity revocation check); a single NIP stays free forever
 - `POST /ksef/invoice` - friendly JSON invoice input (`{seller, buyer, items}`) with automatic VAT calculation and XML generation, no XML knowledge required
 - Certificate-based authentication (X.509 + XAdES signing) as an alternative to `KSEF_TOKEN` - as a file path or as PEM content (for platforms without file mounts, e.g. AWS Lambda/Azure Container Apps)

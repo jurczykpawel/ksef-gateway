@@ -140,6 +140,10 @@ public static class KsefRateLimits
         if (path.Contains("/ksef/invoice") && path.EndsWith("/pdf"))
             return InvoiceGet;
 
+        // Friendly workflow endpoints - both proxy QueryInvoiceMetadataAsync directly
+        if (path.Contains("/ksef/invoices/received"))
+            return InvoiceQuery;
+
         // Auto-discovered SDK endpoints
         if (path.Contains("/invoice-download/query-invoice-metadata"))
             return InvoiceQuery;

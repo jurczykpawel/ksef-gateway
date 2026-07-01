@@ -20,10 +20,12 @@ docker compose up --build
 ## Key files
 - `src/KSeFGateway.Api/Discovery/SdkReflector.cs` - reflection engine (discovers 60+ SDK methods)
 - `src/KSeFGateway.Api/Discovery/EndpointMapper.cs` - auto-registers POST /ksef/{group}/{method}
-- `src/KSeFGateway.Api/Auth/TokenManager.cs` - KSeF token auth + background refresh
+- `src/KSeFGateway.Api/Auth/TokenPool.cs` - multi-NIP KSeF token auth + background refresh
 - `src/KSeFGateway.Api/Endpoints/WorkflowEndpoints.cs` - high-level: /ksef/send, /ksef/send/json, /ksef/invoice/{nr}/pdf
+- `src/KSeFGateway.Api/Endpoints/InvoiceDownloadEndpoints.cs` - /ksef/invoices/received, /ksef/invoices/received/new
 - `src/KSeFGateway.Api/Endpoints/HealthEndpoints.cs` - /health, /ksef/status
-- `src/KSeFGateway.Api/Middleware/ErrorHandlingMiddleware.cs` - KsefApiException → HTTP responses
+- `src/KSeFGateway.Api/Middleware/ErrorHandlingMiddleware.cs` - KsefApiException/KsefRateLimitException/KsefCircuitBreakerOpenException → HTTP responses
+- `src/KSeFGateway.Api/Middleware/EndpointErrorHandling.cs` - shared `Guard()` helper so every endpoint handler rethrows KSeF errors to the middleware instead of flattening them into 500
 - `pdf-service/src/server.ts` - PDF generation, JSON→XML conversion, QR codes
 - `pdf-service/lib/` - git submodule: CIRFMF/ksef-pdf-generator
 - `tools/TokenGenerator/` - one-command KSeF TEST token generator
@@ -52,8 +54,10 @@ Note: `ksef-api`'s runtime image has no SDK and a fixed `ENTRYPOINT`, so it can'
 ## Architecture
 - `SdkReflector` discovers all methods on `IKSeFClient` (13 sub-interfaces) via .NET reflection at startup
 - `EndpointMapper` registers each method as `POST /ksef/{group}/{method}` with dynamic JSON→SDK parameter mapping
-- `TokenManager` (BackgroundService) authenticates via `IAuthCoordinator.AuthKsefTokenAsync()` and auto-refreshes at 80% TTL
+- `TokenPool` (BackgroundService) authenticates per NIP via `IAuthCoordinator.AuthKsefTokenAsync()` and auto-refreshes at 80% TTL
 - `WorkflowEndpoints` provide high-level flows: XML/JSON → encrypt → session → send → KSeF number
+- `InvoiceDownloadEndpoints` wraps `QueryInvoiceMetadataAsync` (SubjectType=Subject2/buyer) for discovering received invoices without knowing their KSeF number; `/received/new` uses `DateType=PermanentStorage` + HWM for a stateless polling cursor
+- Every endpoint handler runs through `EndpointErrorHandling.Guard()`, which rethrows `KsefApiException`/`KsefRateLimitException`/`KsefCircuitBreakerOpenException` (unwrapping `TargetInvocationException` from reflection-invoked calls first) so `ErrorHandlingMiddleware` can turn them into 502/429+Retry-After/503+Retry-After - everything else becomes a generic 500
 - `pdf-service` uses xml-js for bidirectional JSON/XML conversion and CIRFMF lib for PDF rendering
 - QR codes use SHA-256 hash of KSeF-canonical XML + P_1 date + seller NIP
 

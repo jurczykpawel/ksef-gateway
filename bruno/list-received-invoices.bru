@@ -1,0 +1,15 @@
+meta {
+  name: List received invoices
+  type: http
+  seq: 10
+}
+
+get {
+  url: {{baseUrl}}/ksef/invoices/received?from=2026-06-01T00:00:00Z&to=2026-07-01T00:00:00Z
+  body: none
+  auth: none
+}
+
+assert {
+  res.status: eq 200
+}

@@ -72,6 +72,7 @@ var endpoints = SdkReflector.DiscoverEndpoints();
 app.MapDiscoveredEndpoints(endpoints);
 app.MapHealthEndpoints(endpoints.Count);
 app.MapWorkflowEndpoints();
+app.MapInvoiceDownloadEndpoints();
 
 app.Logger.LogInformation(
     "Discovered {Count} SDK endpoints across {Groups} groups",

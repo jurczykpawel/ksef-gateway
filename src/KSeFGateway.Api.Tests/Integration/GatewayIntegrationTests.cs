@@ -102,6 +102,53 @@ public class GatewayIntegrationTests
         Assert.Equal("%PDF"u8.ToArray(), bytes[..4]);
     }
 
+    [Fact]
+    public async Task ListReceivedInvoices_AfterSelfInvoice_FindsItAsBuyer()
+    {
+        // Self-invoice (seller == buyer == our only authenticated test NIP) is the only way
+        // to reliably exercise the buyer-role query with a single-NIP CI credential.
+        var invoiceNumber = UniqueNumber("FV/INT/RECEIVED");
+        var invoice = SampleInvoice(invoiceNumber) with
+        {
+            Buyer = new BuyerData
+            {
+                Nip = SellerNip,
+                Name = "Integration Test Seller sp. z o.o.",
+                Address = new AddressData { Street = "ul. Testowa 1", City = "00-001 Warszawa" }
+            }
+        };
+        var sendResp = await Http.PostAsJsonAsync($"{BaseUrl}/ksef/invoice", invoice);
+        sendResp.EnsureSuccessStatusCode();
+
+        var from = DateTimeOffset.UtcNow.AddDays(-1).ToString("O");
+        var to = DateTimeOffset.UtcNow.AddDays(1).ToString("O");
+        var resp = await Http.GetAsync(
+            $"{BaseUrl}/ksef/invoices/received?from={Uri.EscapeDataString(from)}&to={Uri.EscapeDataString(to)}");
+
+        Assert.Equal(HttpStatusCode.OK, resp.StatusCode);
+        var body = await resp.Content.ReadFromJsonAsync<JsonElement>();
+        Assert.True(body.GetProperty("success").GetBoolean());
+
+        var invoiceNumbers = body.GetProperty("data").GetProperty("invoices")
+            .EnumerateArray()
+            .Select(i => i.GetProperty("invoiceNumber").GetString())
+            .ToList();
+        Assert.Contains(invoiceNumber, invoiceNumbers);
+    }
+
+    [Fact]
+    public async Task ListNewReceivedInvoices_SinceFarFuture_ReturnsEmptyWithCheckpoint()
+    {
+        var since = DateTimeOffset.UtcNow.AddYears(1).ToString("O");
+        var resp = await Http.GetAsync($"{BaseUrl}/ksef/invoices/received/new?since={Uri.EscapeDataString(since)}");
+
+        Assert.Equal(HttpStatusCode.OK, resp.StatusCode);
+        var body = await resp.Content.ReadFromJsonAsync<JsonElement>();
+        Assert.True(body.GetProperty("success").GetBoolean());
+        Assert.Empty(body.GetProperty("data").GetProperty("invoices").EnumerateArray());
+        Assert.True(body.GetProperty("data").TryGetProperty("nextSince", out _));
+    }
+
     // ── Error paths ───────────────────────────────────────────────────────────
 
     [Fact]

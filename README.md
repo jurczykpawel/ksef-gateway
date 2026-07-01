@@ -142,6 +142,19 @@ curl -o faktura.pdf http://localhost:8080/ksef/invoice/{ksefNumber}/pdf
 
 > **Also supports raw XML** (`POST /ksef/send`) and xml-js JSON format (`POST /ksef/send/json`) - see [Sending Invoices](#sending-invoices) below.
 
+### 5. Find an invoice sent to you
+
+On TEST/DEMO you can try this immediately without a second company: set `buyer.nip` to the **same** NIP you used as `seller.nip` above (KSeF supports self-invoicing), then look yourself up as the buyer:
+
+```bash
+curl "http://localhost:8080/ksef/invoices/received?from=2026-03-01&to=2026-04-01" \
+  -H "X-KSeF-NIP: YOUR_NIP"
+
+# Response: {"success":true,"data":{"invoices":[{"ksefNumber":"...","invoiceNumber":"FV/2026/001",...}],"hasMore":false}}
+```
+
+No need to already know the KSeF number - see [Receiving Invoices](#receiving-invoices) below for the full picture, including polling for new invoices.
+
 ---
 
 ## Testing with Bruno
@@ -178,6 +191,8 @@ bru run --env local
 | `POST` | `/ksef/send/json` | JSON (xml-js format, 1:1 with XML) | KSeF number |
 | `GET` | `/ksef/invoice/{ksefNumber}` | - | Invoice XML |
 | `GET` | `/ksef/invoice/{ksefNumber}/pdf` | - | PDF with QR code |
+| `GET` | `/ksef/invoices/received` | `?from=&to=&page=&pageSize=` | List of invoices you received (buyer role) |
+| `GET` | `/ksef/invoices/received/new` | `?since=` | New invoices since a checkpoint, for polling/sync |
 | `GET` | `/ksef/status` | - | Gateway + KSeF status |
 | `GET` | `/health` | - | Health check |
 
@@ -265,6 +280,20 @@ curl -X POST http://localhost:8080/ksef/send/json \
 }
 ```
 
+### Error responses
+
+Every endpoint returns the same shape on failure: `{"success": false, "data": null, "error": "..."}`. The HTTP status code tells you whether to retry and how:
+
+| Status | Meaning | What to do |
+|--------|---------|------------|
+| `400` | Bad input (missing NIP, invalid XML, malformed body) | Fix the request, don't retry as-is |
+| `429` | You're about to hit (or hit) a KSeF rate limit | Wait the `Retry-After` header (seconds), then retry |
+| `502` | KSeF's own API rejected or failed the request | Check `error` for the KSeF error code/message; not always safe to retry blindly |
+| `503` | Either KSeF's SDK circuit breaker is open (has `Retry-After` header - wait then retry), or the gateway isn't authenticated for that NIP yet (`TokenPool` still starting up - no `Retry-After`, retry shortly) | See `error` message to tell which one |
+| `500` | Unexpected error in the gateway itself | Check gateway logs; please open an issue |
+
+`429` and circuit-breaker `503` responses include a `Retry-After` header (seconds) - respect it instead of retrying immediately, especially for the [rate-limited receiving endpoints](#receiving-invoices).
+
 ---
 
 ## PDF Generation
@@ -285,6 +314,67 @@ curl -X POST "http://localhost:8080/pdf/invoice?nrKSeF={ksefNumber}" \
 ```
 
 PDFs are generated using the official [CIRFMF/ksef-pdf-generator](https://github.com/CIRFMF/ksef-pdf-generator) library. QR codes contain the KSeF verification URL with SHA-256 hash - scannable and verified by KSeF.
+
+---
+
+## Receiving Invoices
+
+KSeF has no email/webhook notifications - invoices issued to you just sit in the system. These endpoints let you find them without already knowing their KSeF number.
+
+Both endpoints search for invoices where **your NIP is the buyer** (`Podmiot2`), matching however KSeF resolves the caller's context - see [Multi-NIP Mode](#multi-nip-mode) if you run the gateway for more than one company: pass `X-KSeF-NIP` to pick which NIP's inbox to search. Requires a token with the `InvoiceRead` permission - see the note in [Production Token](#production-token-step-by-step).
+
+### Browse what you've received
+
+```bash
+curl "http://localhost:8080/ksef/invoices/received?from=2026-06-01&to=2026-07-01" \
+  -H "X-KSeF-NIP: YOUR_NIP"
+```
+
+```json
+{
+  "success": true,
+  "data": {
+    "invoices": [
+      {
+        "ksefNumber": "8094031464-20260701-3EA2E3400000-26",
+        "invoiceNumber": "FV/DOSTAWCA/2026/042",
+        "issueDate": "2026-07-01T00:00:00+00:00",
+        "permanentStorageDate": "2026-07-01T06:54:30.083815+00:00",
+        "sellerNip": "8094031464",
+        "sellerName": "Dostawca Testowy sp. z o.o.",
+        "netAmount": 555, "grossAmount": 682.65, "vatAmount": 127.65,
+        "currency": "PLN",
+        "hasAttachment": false
+      }
+    ],
+    "hasMore": false
+  }
+}
+```
+
+Download the PDF the same way you would for an invoice you sent - `GET /ksef/invoice/{ksefNumber}/pdf` works for both roles, no extra endpoint needed.
+
+| Query param | Default | Notes |
+|---|---|---|
+| `from` | 30 days ago | ISO 8601 date/date-time |
+| `to` | now | ISO 8601 date/date-time. **KSeF caps the `from`-`to` span at 3 months per call** - page through older history with several calls |
+| `page` | `0` | Zero-based page offset |
+| `pageSize` | `50` | Max invoices per page |
+
+### Poll for new invoices (sync / notifications)
+
+```bash
+# First call - no checkpoint yet
+curl "http://localhost:8080/ksef/invoices/received/new" -H "X-KSeF-NIP: YOUR_NIP"
+# → {"invoices": [...], "nextSince": "2026-07-01T07:00:00Z"}
+
+# Persist nextSince yourself, pass it back next time - only genuinely new invoices come back
+curl "http://localhost:8080/ksef/invoices/received/new?since=2026-07-01T07:00:00Z" -H "X-KSeF-NIP: YOUR_NIP"
+```
+
+Wire this into a cron/n8n workflow polling every 15-30 minutes to get notified (email/Slack/webhook) when something new lands - the gateway itself stays stateless, your workflow owns the checkpoint.
+
+KSeF's `query/metadata` endpoint (which this wraps) is capped at **20 requests/hour** - the gateway's own rate limiter enforces this proactively (429 with `Retry-After` before it ever reaches KSeF). Don't poll more often than every 15 minutes per KSeF's own guidance. For very high invoice volume, use the raw `invoice-download/export-invoices` endpoint (async batch export) instead - not yet wrapped in a friendly endpoint here.
 
 ---
 
@@ -389,7 +479,7 @@ For production you need a **qualified e-signature** (podpis kwalifikowany) - the
 7. Enter a descriptive **name** for the token (e.g. "ksef-gateway API")
 8. Select permissions:
    - **Wystawianie faktur** (InvoiceWrite) - sending invoices
-   - **Odczyt faktur** (InvoiceRead) - downloading invoices
+   - **Odczyt faktur** (InvoiceRead) - downloading invoices (**required** for [Receiving Invoices](#receiving-invoices) too - `/ksef/invoices/received` and `/ksef/invoice/{ksefNumber}` both need it, not just `/ksef/send`)
 9. Confirm with your e-signature
 10. **Copy the token immediately** - it is displayed only once
 11. Set in your `.env`:
@@ -479,8 +569,10 @@ Two containers, no database, no Redis. Auth state in memory (restart = re-auth i
 |-----------|------|
 | **SdkReflector** | Discovers SDK interfaces via .NET reflection at startup |
 | **EndpointMapper** | Registers each method as `POST /ksef/{group}/{method}` |
-| **TokenManager** | Background service: KSeF token auth + auto-refresh |
+| **TokenPool** | Background service: per-NIP KSeF token auth + auto-refresh |
 | **WorkflowEndpoints** | High-level: `/ksef/send`, `/ksef/send/json`, `/ksef/invoice/{nr}/pdf` |
+| **InvoiceDownloadEndpoints** | High-level: `/ksef/invoices/received`, `/ksef/invoices/received/new` |
+| **EndpointErrorHandling** | Shared `Guard()` - lets KSeF rate-limit/circuit-breaker/API errors surface as proper 429/503/502 (with `Retry-After`) instead of a flat 500 |
 | **PDF Service** | XML to PDF via CIRFMF library + QR code generation |
 | **JSON-to-XML** | `js2xml()` - zero-maintenance JSON/XML conversion |
 

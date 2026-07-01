@@ -505,19 +505,66 @@ You only need to do this once. If you lose the token, revoke it in the portal an
 
 > **Who can generate a token?** Only a person authorized to represent the company (owner, board member listed in KRS, or someone with a KSeF authorization granted by them).
 
+### Certificate-Based Auth (Alternative to Tokens)
+
+Instead of a token, the gateway can authenticate with a **KSeF certificate** - a certificate + private key pair issued by the KSeF portal. Every (re-)login gets signed with the certificate (XAdES) instead of presenting a static secret. This is the officially supported, ongoing authentication path - not a token workaround.
+
+**Getting a certificate:**
+
+1. Log in to [ap.ksef.mf.gov.pl](https://ap.ksef.mf.gov.pl/) the same way as for a token (Profil Zaufany, podpis kwalifikowany, etc.)
+2. Go to **Certyfikaty** → **Wnioskuj o certyfikat**
+3. Name the certificate and set a password protecting the private key (the portal enforces its own rules for both - follow whatever the form currently asks)
+4. Download the two files it generates: a certificate (`.crt`) and a private key (`.key`), both in PEM format
+
+**Using it in the gateway:**
+
+```
+KSEF_CERT_PATH=/app/certs/company.crt
+KSEF_KEY_PATH=/app/certs/company.key
+KSEF_KEY_PASSWORD=<only if the private key is password-protected>
+KSEF_NIP=<your company NIP>
+KSEF_ENV=PRODUCTION
+```
+
+Or per-context in `contexts.json`:
+
+```json
+{
+  "nip": "1234567890",
+  "certificatePath": "/app/certs/company.crt",
+  "privateKeyPath": "/app/certs/company.key",
+  "privateKeyPassword": "only-if-encrypted",
+  "label": "Company A (certificate)"
+}
+```
+
+Mount the cert/key files read-only, same idea as `contexts.json`:
+
+```yaml
+volumes:
+  - ./certs:/app/certs:ro
+```
+
+A context needs either `token`, or `certificatePath` + `privateKeyPath` - not both. Everything else (endpoints, rate limits, multi-NIP) works identically regardless of which one a context uses.
+
 ---
 
 ## Configuration
 
 | Variable | Required | Default | Description |
 |----------|----------|---------|-------------|
-| `KSEF_TOKEN` | Yes | - | KSeF authentication token |
+| `KSEF_TOKEN` | Yes* | - | KSeF authentication token |
+| `KSEF_CERT_PATH` | Yes* | - | Path to KSeF certificate (PEM) - alternative to `KSEF_TOKEN`, see [Certificate-Based Auth](#certificate-based-auth-alternative-to-tokens) |
+| `KSEF_KEY_PATH` | Yes* | - | Path to the certificate's private key (PEM) - required alongside `KSEF_CERT_PATH` |
+| `KSEF_KEY_PASSWORD` | No | - | Password for the private key, if it's encrypted |
 | `KSEF_NIP` | Yes | - | NIP for authentication context |
 | `KSEF_ENV` | No | `TEST` | Environment: `TEST`, `DEMO`, `PRODUCTION` |
 | `KSEF_API_PORT` | No | `8080` | Gateway API port |
 | `KSEF_QR_URL` | No | `https://qr-test.ksef.mf.gov.pl` | QR verification base URL |
 | `GITHUB_PAT` | Build | - | GitHub PAT with `read:packages` for CIRFMF SDK |
 | `KSEF_CONTEXTS_FILE` | No | `/app/contexts.json` | Path to multi-NIP config file |
+
+\* Provide either `KSEF_TOKEN`, or `KSEF_CERT_PATH` + `KSEF_KEY_PATH` - not both.
 
 ### Multi-NIP Mode
 
@@ -532,11 +579,14 @@ To handle invoices for multiple companies, create a `contexts.json` file:
   },
   {
     "nip": "0987654321",
-    "token": "ksef-token-for-company-B",
-    "label": "Company B"
+    "certificatePath": "/app/certs/company-b.crt",
+    "privateKeyPath": "/app/certs/company-b.key",
+    "label": "Company B (certificate)"
   }
 ]
 ```
+
+Contexts can mix tokens and certificates freely - see [Certificate-Based Auth](#certificate-based-auth-alternative-to-tokens) above.
 
 Mount it in Docker Compose (already configured in `docker-compose.yml`):
 
@@ -579,7 +629,7 @@ Two containers, no database, no Redis. Auth state in memory (restart = re-auth i
 |-----------|------|
 | **SdkReflector** | Discovers SDK interfaces via .NET reflection at startup |
 | **EndpointMapper** | Registers each method as `POST /ksef/{group}/{method}` |
-| **TokenPool** | Background service: per-NIP KSeF token auth + auto-refresh |
+| **TokenPool** | Background service: per-NIP KSeF auth (token or certificate/XAdES) + auto-refresh |
 | **WorkflowEndpoints** | High-level: `/ksef/send`, `/ksef/send/json`, `/ksef/invoice/{nr}/pdf` |
 | **InvoiceDownloadEndpoints** | High-level: `/ksef/invoices/received`, `/ksef/invoices/received/new` |
 | **EndpointErrorHandling** | Shared `Guard()` - lets KSeF rate-limit/circuit-breaker/API errors surface as proper 429/503/502 (with `Retry-After`) instead of a flat 500 |

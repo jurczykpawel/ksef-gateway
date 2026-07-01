@@ -15,6 +15,13 @@
 - [x] GET /ksef/invoices/received/new - stateless polling cursor (PermanentStorage HWM) for sync/notification workflows
 - [x] Shared EndpointErrorHandling.Guard() - KsefRateLimitException/KsefCircuitBreakerOpenException/KsefApiException now surface as proper 429/503/502 (with Retry-After) instead of a flat 500, across every handler
 
+## Certificate-based auth - DONE
+
+- [x] KsefContext supports certificatePath+privateKeyPath(+privateKeyPassword) as an alternative to token
+- [x] TokenPool authenticates via IAuthCoordinator.AuthAsync() + XAdES signing (SignatureService.Sign) when a context uses a certificate
+- [x] Supports both plain and password-encrypted private key PEMs (X509Certificate2.CreateFromPemFile / CreateFromEncryptedPemFile)
+- [x] Verified end-to-end against live TEST KSeF API with a self-signed cert (both key variants) - auth + a read-only endpoint
+
 ## Future
 
 - [ ] JSON Schema auto-generated from XSD (validation + Scalar docs)

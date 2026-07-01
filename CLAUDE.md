@@ -20,7 +20,8 @@ docker compose up --build
 ## Key files
 - `src/KSeFGateway.Api/Discovery/SdkReflector.cs` - reflection engine (discovers 60+ SDK methods)
 - `src/KSeFGateway.Api/Discovery/EndpointMapper.cs` - auto-registers POST /ksef/{group}/{method}
-- `src/KSeFGateway.Api/Auth/TokenPool.cs` - multi-NIP KSeF token auth + background refresh
+- `src/KSeFGateway.Api/Auth/TokenPool.cs` - multi-NIP KSeF auth (token or certificate/XAdES) + background refresh
+- `src/KSeFGateway.Api/Auth/KsefContext.cs` - per-NIP context: token XOR certificate+key(+password)
 - `src/KSeFGateway.Api/Endpoints/WorkflowEndpoints.cs` - high-level: /ksef/send, /ksef/send/json, /ksef/invoice/{nr}/pdf
 - `src/KSeFGateway.Api/Endpoints/InvoiceDownloadEndpoints.cs` - /ksef/invoices/received, /ksef/invoices/received/new
 - `src/KSeFGateway.Api/Endpoints/HealthEndpoints.cs` - /health, /ksef/status
@@ -54,7 +55,7 @@ Note: `ksef-api`'s runtime image has no SDK and a fixed `ENTRYPOINT`, so it can'
 ## Architecture
 - `SdkReflector` discovers all methods on `IKSeFClient` (13 sub-interfaces) via .NET reflection at startup
 - `EndpointMapper` registers each method as `POST /ksef/{group}/{method}` with dynamic JSON→SDK parameter mapping
-- `TokenPool` (BackgroundService) authenticates per NIP via `IAuthCoordinator.AuthKsefTokenAsync()` and auto-refreshes at 80% TTL
+- `TokenPool` (BackgroundService) authenticates per NIP via `IAuthCoordinator.AuthKsefTokenAsync()` (token) or `.AuthAsync()` with an XAdES `xmlSigner` built from a loaded `X509Certificate2` (certificate) and auto-refreshes at 80% TTL
 - `WorkflowEndpoints` provide high-level flows: XML/JSON → encrypt → session → send → KSeF number
 - `InvoiceDownloadEndpoints` wraps `QueryInvoiceMetadataAsync` (SubjectType=Subject2/buyer) for discovering received invoices without knowing their KSeF number; `/received/new` uses `DateType=PermanentStorage` + HWM for a stateless polling cursor
 - Every endpoint handler runs through `EndpointErrorHandling.Guard()`, which rethrows `KsefApiException`/`KsefRateLimitException`/`KsefCircuitBreakerOpenException` (unwrapping `TargetInvocationException` from reflection-invoked calls first) so `ErrorHandlingMiddleware` can turn them into 502/429+Retry-After/503+Retry-After - everything else becomes a generic 500

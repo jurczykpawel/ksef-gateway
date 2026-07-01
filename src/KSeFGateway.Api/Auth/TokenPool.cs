@@ -1,4 +1,6 @@
 using System.Collections.Concurrent;
+using System.Security.Cryptography.X509Certificates;
+using KSeF.Client.Api.Services;
 using KSeF.Client.Core.Interfaces;
 using KSeF.Client.Core.Interfaces.Services;
 using KSeF.Client.Core.Models;
@@ -170,19 +172,15 @@ public class TokenPool : BackgroundService
         var context = _contextProvider.GetByNip(nip)
             ?? throw new InvalidOperationException($"No KSeF context configured for NIP {nip}");
 
-        _logger.LogInformation("Authenticating with KSeF for NIP {Nip}", nip);
+        _logger.LogInformation("Authenticating with KSeF for NIP {Nip} via {Method}",
+            nip, context.UsesCertificate ? "certificate" : "token");
 
         using var scope = _services.CreateScope();
         var authCoordinator = scope.ServiceProvider.GetRequiredService<IAuthCoordinator>();
-        var cryptoService = scope.ServiceProvider.GetRequiredService<ICryptographyService>();
 
-        var result = await authCoordinator.AuthKsefTokenAsync(
-            contextIdentifierType: AuthenticationTokenContextIdentifierType.Nip,
-            contextIdentifierValue: nip,
-            tokenKsef: context.Token,
-            cryptographyService: cryptoService,
-            encryptionMethod: EncryptionMethodEnum.Rsa,
-            cancellationToken: ct);
+        var result = context.UsesCertificate
+            ? await AuthenticateWithCertificateAsync(authCoordinator, nip, context, ct)
+            : await AuthenticateWithTokenAsync(authCoordinator, scope, nip, context, ct);
 
         state.AccessToken = result.AccessToken?.Token;
         state.RefreshToken = result.RefreshToken?.Token;
@@ -190,5 +188,33 @@ public class TokenPool : BackgroundService
         state.RefreshTokenExpiresAt = result.RefreshToken?.ValidUntil;
 
         _logger.LogInformation("Authenticated NIP {Nip}. Expires at {ExpiresAt}", nip, state.AccessTokenExpiresAt);
+    }
+
+    private static Task<AuthenticationOperationStatusResponse> AuthenticateWithTokenAsync(
+        IAuthCoordinator authCoordinator, IServiceScope scope, string nip, KsefContext context, CancellationToken ct)
+    {
+        var cryptoService = scope.ServiceProvider.GetRequiredService<ICryptographyService>();
+        return authCoordinator.AuthKsefTokenAsync(
+            contextIdentifierType: AuthenticationTokenContextIdentifierType.Nip,
+            contextIdentifierValue: nip,
+            tokenKsef: context.Token!,
+            cryptographyService: cryptoService,
+            encryptionMethod: EncryptionMethodEnum.Rsa,
+            cancellationToken: ct);
+    }
+
+    private static async Task<AuthenticationOperationStatusResponse> AuthenticateWithCertificateAsync(
+        IAuthCoordinator authCoordinator, string nip, KsefContext context, CancellationToken ct)
+    {
+        using var certificate = string.IsNullOrEmpty(context.PrivateKeyPassword)
+            ? X509Certificate2.CreateFromPemFile(context.CertificatePath!, context.PrivateKeyPath)
+            : X509Certificate2.CreateFromEncryptedPemFile(context.CertificatePath!, context.PrivateKeyPassword, context.PrivateKeyPath);
+
+        return await authCoordinator.AuthAsync(
+            contextIdentifierType: AuthenticationTokenContextIdentifierType.Nip,
+            contextIdentifierValue: nip,
+            identifierType: AuthenticationTokenSubjectIdentifierTypeEnum.CertificateSubject,
+            xmlSigner: xml => Task.FromResult(SignatureService.Sign(xml, certificate)),
+            cancellationToken: ct);
     }
 }

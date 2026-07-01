@@ -13,8 +13,14 @@ services:
       - KSEF_ENV=${KSEF_ENV:-TEST}
       - PDF_SERVICE_URL=http://ksef-pdf:3000
       - KSEF_CONTEXTS_FILE=/app/contexts.json
+      # Certificate-based auth (alternative to KSEF_TOKEN) - see README "Certificate-Based Auth"
+      - KSEF_CERT_PATH=${KSEF_CERT_PATH:-}
+      - KSEF_KEY_PATH=${KSEF_KEY_PATH:-}
+      - KSEF_KEY_PASSWORD=${KSEF_KEY_PASSWORD:-}
     volumes:
       - ./contexts.json:/app/contexts.json:ro
+      # Mount your cert/key files here if using certificate-based auth (single-NIP or via contexts.json)
+      # - ./certs:/app/certs:ro
     healthcheck:
       test: ["CMD", "curl", "-sf", "http://localhost:8080/health"]
       interval: 10s

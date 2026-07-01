@@ -740,7 +740,7 @@ To handle invoices for multiple companies, create a `contexts.json` file:
 ]
 ```
 
-Contexts can mix tokens and certificates freely - see [Certificate-Based Auth](#certificate-based-auth-alternative-to-tokens) above.
+Contexts can mix tokens and certificates freely - see [Certificate-Based Auth](#certificate-based-auth-alternative-to-tokens) above. Each context authenticates independently, so this also covers an accounting-office style setup - **one certificate representing several client NIPs** (list the same `certificatePath`/`certificateContent` under multiple contexts, one per NIP). The gateway itself is NIP-agnostic about which certificate backs which context; whether a given certificate can actually authenticate into a NIP it doesn't belong to depends on KSeF's own authorization on that NIP's side (granting the certificate holder's identity representation/`ProxyEntity` rights) - a real KSeF-portal step per company, outside the gateway's control, and not something this project's own TEST tooling exercises (`CertGenerator` always mints a certificate scoped to the one NIP it registers).
 
 Mount it in Docker Compose (already configured in `docker-compose.yml`):
 
@@ -835,6 +835,8 @@ Two containers, no database, no Redis. Auth state in memory (restart = re-auth i
 [![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com/deploy?repo=https://github.com/jurczykpawel/ksef-gateway)
 
 Click the button, set three env vars (`GITHUB_PAT`, `KSEF_TOKEN`, `KSEF_NIP`), done. Both services (API + PDF) deploy automatically from `render.yaml`. Prefer a certificate? Leave `KSEF_TOKEN` blank, upload the cert/key as [Secret Files](https://render.com/docs/configure-environment-variables) in the dashboard, and set `KSEF_CERT_PATH`/`KSEF_KEY_PATH` to `/etc/secrets/<filename>` instead.
+
+**Multi-NIP with several certificates on Render:** Secret Files aren't limited to one pair - upload as many cert/key files as you have companies (e.g. `company-a.crt`/`company-a.key`, `company-b.crt`/`company-b.key`, ...), *plus* your `contexts.json` itself as another Secret File, with each entry's `certificatePath`/`privateKeyPath` pointing at the matching `/etc/secrets/<filename>`. Then set `KSEF_CONTEXTS_FILE=/etc/secrets/contexts.json` (env var) instead of `KSEF_TOKEN`/`KSEF_CERT_PATH`. Requires a [multi-NIP license](#multi-nip-licensing) for more than one NIP.
 
 ### AWS Lambda
 

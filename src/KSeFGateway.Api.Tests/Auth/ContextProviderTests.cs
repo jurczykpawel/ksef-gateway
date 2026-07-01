@@ -315,6 +315,39 @@ public class ContextProviderTests
     }
 
     [Fact]
+    public async Task ContextsFile_WithMultipleDistinctCertificateEntries_LoadsEachIndependently()
+    {
+        // Accounting-office style setup: several client NIPs, each with its own certificate
+        // (not the same certificate reused) - verified live against real KSeF this each
+        // authenticates independently (see release notes for 0.2.0). This test covers the
+        // parsing/storage side: distinct cert paths must stay distinct, not collapsed/aliased.
+        var path = Path.Combine(Path.GetTempPath(), $"ksef-contexts-{Guid.NewGuid():N}.json");
+        File.WriteAllText(path, """
+        [
+          { "nip": "1111111111", "certificatePath": "/app/certs/a.crt", "privateKeyPath": "/app/certs/a.key", "label": "Company A" },
+          { "nip": "2222222222", "certificatePath": "/app/certs/b.crt", "privateKeyPath": "/app/certs/b.key", "label": "Company B" },
+          { "nip": "3333333333", "certificatePath": "/app/certs/c.crt", "privateKeyPath": "/app/certs/c.key", "label": "Company C" }
+        ]
+        """);
+
+        try
+        {
+            var config = BuildConfig(new() { ["KSEF_CONTEXTS_FILE"] = path });
+            var licenseService = await MakeLicensedService();
+            var provider = new ContextProvider(config, NullLogger<ContextProvider>.Instance, licenseService);
+
+            Assert.Equal(3, provider.GetAll().Count);
+            Assert.Equal("/app/certs/a.crt", provider.GetByNip("1111111111")!.CertificatePath);
+            Assert.Equal("/app/certs/b.crt", provider.GetByNip("2222222222")!.CertificatePath);
+            Assert.Equal("/app/certs/c.crt", provider.GetByNip("3333333333")!.CertificatePath);
+        }
+        finally
+        {
+            File.Delete(path);
+        }
+    }
+
+    [Fact]
     public async Task ContextsFile_WithCertificatePathButNoKeyPath_Throws()
     {
         var path = Path.Combine(Path.GetTempPath(), $"ksef-contexts-{Guid.NewGuid():N}.json");

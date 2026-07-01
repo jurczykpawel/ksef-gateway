@@ -73,7 +73,7 @@ jobs:
         run: dotnet test src/KSeFGateway.Api.Tests/KSeFGateway.Api.Tests.csproj -c Release --no-restore --verbosity normal
 
   cert-auth-integration:
-    name: Certificate auth integration test
+    name: Certificate auth integration test (file + content)
     if: github.actor != 'dependabot[bot]'
     runs-on: ubuntu-latest
     steps:
@@ -117,7 +117,7 @@ jobs:
         run: |
           for i in $(seq 1 15); do
             if curl -sf http://localhost:8081/ksef/status | tee status.json | grep -q '"authenticated":true'; then
-              echo "Certificate auth OK"
+              echo "Certificate auth OK (file path)"
               exit 0
             fi
             sleep 2
@@ -125,6 +125,36 @@ jobs:
           echo "Certificate auth did not complete in time"
           cat status.json 2>/dev/null
           docker logs ksef-cert-test
+          exit 1
+
+      - name: Start a second gateway authenticated with the certificate as content
+        run: |
+          docker run -d --name ksef-cert-content-test -p 8082:8080 \
+            -e KSEF_ENV=TEST -e "KSEF_NIP=$NIP" \
+            -e KSEF_CERT_CONTENT="$(cat output/test-cert.crt)" \
+            -e KSEF_KEY_CONTENT="$(cat output/test-cert.key)" \
+            ksef-api-cert-test
+
+      - name: Wait for second gateway
+        run: |
+          for i in $(seq 1 30); do
+            if curl -sf http://localhost:8082/health; then exit 0; fi
+            sleep 2
+          done
+          echo "Gateway failed to start" && docker logs ksef-cert-content-test && exit 1
+
+      - name: Verify certificate-content-based context is authenticated
+        run: |
+          for i in $(seq 1 15); do
+            if curl -sf http://localhost:8082/ksef/status | tee status-content.json | grep -q '"authenticated":true'; then
+              echo "Certificate auth OK (PEM content)"
+              exit 0
+            fi
+            sleep 2
+          done
+          echo "Certificate-content auth did not complete in time"
+          cat status-content.json 2>/dev/null
+          docker logs ksef-cert-content-test
           exit 1
 
   build-docker:

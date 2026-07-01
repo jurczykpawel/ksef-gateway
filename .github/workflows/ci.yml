@@ -41,12 +41,22 @@ jobs:
         with:
           submodules: recursive
 
+      - name: Generate a fresh test token (own NIP - avoids sharing rate-limit history with any other run)
+        env:
+          GITHUB_PAT: ${{ secrets.CIRFMF_PAT }}
+        run: |
+          # Public repo: token-generator prints the token to stdout, which CI would otherwise
+          # log in the clear. Suppress that output and mask the value as defense in depth.
+          docker compose --profile tools run --rm token-generator > /dev/null
+          TOKEN="$(cat output/test-token.txt)"
+          echo "::add-mask::$TOKEN"
+          echo "KSEF_TOKEN=$TOKEN" >> "$GITHUB_ENV"
+          echo "KSEF_NIP=$(cat output/test-token.nip)" >> "$GITHUB_ENV"
+
       - name: Start gateway
         env:
           GITHUB_PAT: ${{ secrets.CIRFMF_PAT }}
           GATEWAY_API_KEY: ci-test-key
-          KSEF_TOKEN: ${{ secrets.KSEF_TOKEN }}
-          KSEF_NIP: ${{ secrets.KSEF_NIP }}
           KSEF_ENV: TEST
         run: docker compose up -d --build --quiet-pull
 
@@ -69,7 +79,6 @@ jobs:
 
       - name: All tests (unit + integration)
         env:
-          KSEF_NIP: ${{ secrets.KSEF_NIP }}
           GATEWAY_URL: http://localhost:8080
           GATEWAY_API_KEY: ci-test-key
         run: dotnet test src/KSeFGateway.Api.Tests/KSeFGateway.Api.Tests.csproj -c Release --no-restore --verbosity normal

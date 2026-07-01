@@ -132,6 +132,12 @@ if (activeToken?.Status != AuthenticationKsefTokenStatus.Active)
 
 Console.WriteLine("[5/5] Token activated!");
 Console.WriteLine();
+
+const string OutputDir = "/app/output";
+Directory.CreateDirectory(OutputDir);
+await File.WriteAllTextAsync(Path.Combine(OutputDir, "test-token.txt"), tokenResponse.Token);
+await File.WriteAllTextAsync(Path.Combine(OutputDir, "test-token.nip"), nip);
+
 Console.WriteLine("╔══════════════════════════════════════════════════════════════╗");
 Console.WriteLine("║  YOUR KSEF TEST TOKEN                                       ║");
 Console.WriteLine("╠══════════════════════════════════════════════════════════════╣");
@@ -140,7 +146,8 @@ Console.WriteLine($"  KSEF_NIP={nip}");
 Console.WriteLine($"  KSEF_ENV=TEST");
 Console.WriteLine("╚══════════════════════════════════════════════════════════════╝");
 Console.WriteLine();
-Console.WriteLine("Add these to your .env file to start the gateway.");
+Console.WriteLine("Add these to your .env file to start the gateway, or read them from");
+Console.WriteLine("./output/test-token.txt and ./output/test-token.nip.");
 
 // Random NIP generator with valid checksum
 static string GenerateRandomNip()

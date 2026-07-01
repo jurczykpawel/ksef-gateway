@@ -64,6 +64,8 @@ services:
       context: ./tools/TokenGenerator
       args:
         GITHUB_PAT: ${GITHUB_PAT}
+    volumes:
+      - ./output:/app/output
     profiles: ["tools"]
 
   # One-off tool: generates + verifies a self-signed KSeF certificate on TEST environment

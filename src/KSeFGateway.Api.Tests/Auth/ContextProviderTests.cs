@@ -172,6 +172,28 @@ public class ContextProviderTests
     }
 
     [Fact]
+    public async Task EnvVars_TokenAndCertContentBothSet_UsesTokenAndWarns()
+    {
+        var config = BuildConfig(new()
+        {
+            ["KSEF_CONTEXTS_FILE"] = NonExistentContextsPath(),
+            ["KSEF_NIP"] = "1234567890",
+            ["KSEF_TOKEN"] = "some-token",
+            ["KSEF_CERT_CONTENT"] = "-----BEGIN CERTIFICATE-----\nfake\n-----END CERTIFICATE-----",
+            ["KSEF_KEY_CONTENT"] = "-----BEGIN PRIVATE KEY-----\nfake\n-----END PRIVATE KEY-----",
+        });
+        var licenseService = await MakeLicensedService();
+        var logger = new CapturingLogger<ContextProvider>();
+
+        var provider = new ContextProvider(config, logger, licenseService);
+
+        var context = Assert.Single(provider.GetAll());
+        Assert.False(context.UsesCertificate);
+        Assert.Equal("some-token", context.Token);
+        Assert.Contains(logger.Warnings, w => w.Contains("Multiple KSeF auth methods configured"));
+    }
+
+    [Fact]
     public async Task EnvVars_CertKeyAndPassword_LoadsPasswordOnContext()
     {
         var config = BuildConfig(new()
@@ -312,6 +334,23 @@ public class ContextProviderTests
         finally
         {
             File.Delete(path);
+        }
+    }
+
+    private sealed class CapturingLogger<T> : Microsoft.Extensions.Logging.ILogger<T>
+    {
+        public List<string> Warnings { get; } = [];
+
+        public IDisposable? BeginScope<TState>(TState state) where TState : notnull => null;
+
+        public bool IsEnabled(Microsoft.Extensions.Logging.LogLevel logLevel) => true;
+
+        public void Log<TState>(
+            Microsoft.Extensions.Logging.LogLevel logLevel, Microsoft.Extensions.Logging.EventId eventId, TState state,
+            Exception? exception, Func<TState, Exception?, string> formatter)
+        {
+            if (logLevel == Microsoft.Extensions.Logging.LogLevel.Warning)
+                Warnings.Add(formatter(state, exception));
         }
     }
 }

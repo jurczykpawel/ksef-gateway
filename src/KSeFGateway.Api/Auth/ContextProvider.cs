@@ -23,6 +23,17 @@ public class ContextProvider
         var envKeyPassword = config["KSEF_KEY_PASSWORD"];
         var envCertContent = config["KSEF_CERT_CONTENT"];
         var envKeyContent = config["KSEF_KEY_CONTENT"];
+
+        var configuredAuthMethods = new List<string>();
+        if (!string.IsNullOrEmpty(envToken)) configuredAuthMethods.Add("KSEF_TOKEN");
+        if (!string.IsNullOrEmpty(envCertPath) && !string.IsNullOrEmpty(envKeyPath)) configuredAuthMethods.Add("KSEF_CERT_PATH+KSEF_KEY_PATH");
+        if (!string.IsNullOrEmpty(envCertContent) && !string.IsNullOrEmpty(envKeyContent)) configuredAuthMethods.Add("KSEF_CERT_CONTENT+KSEF_KEY_CONTENT");
+        if (configuredAuthMethods.Count > 1)
+            logger.LogWarning(
+                "Multiple KSeF auth methods configured for env NIP {Nip}: {Methods} - using {Winner}, silently " +
+                "ignoring the rest. Remove the ones you're not using.",
+                envNip, string.Join(", ", configuredAuthMethods), configuredAuthMethods[0]);
+
         var envContext = BuildEnvContext(envNip, envToken, envCertPath, envKeyPath, envKeyPassword, envCertContent, envKeyContent);
 
         if (File.Exists(contextsPath))

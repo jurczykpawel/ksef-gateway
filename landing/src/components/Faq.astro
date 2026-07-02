@@ -21,6 +21,10 @@ const items = [
     a: "Nie — każde zapytanie (poza /health) wymaga nagłówka X-Api-Key z Twoim własnym kluczem gatewaya. Bez niego dostajesz 401, a jeśli klucz w ogóle nie jest ustawiony, gateway odrzuca wszystko (fail-closed), zamiast po cichu zostać otwarty.",
   },
   {
+    q: "Jak dołożyć dodatkową warstwę zabezpieczeń poza kluczem API?",
+    a: "Ustaw allowlistę IP przed usługą. Postaw ją za Cloudflare albo reverse proxy i przepuszczaj tylko adres(y), z których naprawdę ją wołasz — zwykle egress IP Twojego serwera automatyzacji (np. n8n) albo backendu. Wtedy nawet gdyby klucz API wyciekł, użyje go wyłącznie zaufany adres. Działa to najlepiej, gdy caller ma stałe IP; adresy domowe/mobilne bywają zmienne, a wewnętrzne adresy VPN (np. Tailscale) nie są widoczne dla publicznej usługi — w takim wypadku kieruj ruch przez stały host i to jego IP allowlistuj.",
+  },
+  {
     q: "Ile to kosztuje?",
     a: "Sam gateway jest open source (AGPL-3.0) i darmowy. Płacisz jedynie za hosting — własny serwer, darmowy tier Render albo pay-as-you-go Lambda/Azure. Samo KSeF jest bezpłatne.",
   },

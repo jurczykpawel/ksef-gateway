@@ -1,6 +1,6 @@
 ---
 const steps = [
-  { n: "01", title: "Uruchom bramę", desc: "Jedno polecenie na dowolnym komputerze z Dockerem — niczego więcej nie instalujesz.", code: `docker compose up --build\n# API gotowe na http://localhost:8080`, or: 'Wolisz bez terminala? Kliknij „Wdróż na Render" — brama stawia się sama w chmurze.' },
+  { n: "01", title: "Uruchom usługę", desc: "Jedno polecenie na dowolnym komputerze z Dockerem — niczego więcej nie instalujesz.", code: `docker compose up --build\n# API gotowe na http://localhost:8080`, or: 'Wolisz bez terminala? Kliknij „Wdróż na Render" — usługa stawia się sama w chmurze.' },
   { n: "02", title: "Zdobądź certyfikat KSeF", desc: "Do testów: jedno polecenie i masz gotowy certyfikat na środowisku testowym KSeF. Na produkcji: logujesz się Profilem Zaufanym (masz go z bankowości, za darmo) na ap.ksef.mf.gov.pl i wyklikujesz certyfikat w kilka chwil — bez podpisu kwalifikowanego.", code: `docker compose --profile tools run \\\n  --rm cert-generator\n# zapisuje certyfikat, klucz i NIP do ./output`, or: null },
   { n: "03", title: "Wyślij pierwszą fakturę", desc: "Dane sprzedawcy, nabywcy i pozycje — w odpowiedzi dostajesz numer KSeF. Twoja pierwsza faktura właśnie jest w systemie.", code: `curl -X POST http://localhost:8080/ksef/invoice \\\n  -d '{"sprzedawca":{...},"nabywca":{...},"pozycje":[...]}'\n# → {"numerKSeF":"1234567890-20260326-..."}`, or: null },
 ];

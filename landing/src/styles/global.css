@@ -351,7 +351,7 @@
     animation: toast-dot 1.6s ease-in-out infinite;
   }
 
-  /* Sygnatura "Odbieranie": rurociąg harmonogram → brama → mail z PDF (pętla 10s).
+  /* Sygnatura "Odbieranie": rurociąg harmonogram → usługa → mail z PDF (pętla 10s).
      Wędrujący impuls używa translateX(100cqw) - transform-only i responsywnie. */
   .pipe-seg {
     position: relative;

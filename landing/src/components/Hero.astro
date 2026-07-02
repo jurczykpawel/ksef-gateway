@@ -24,7 +24,7 @@ const DEMO_URL = "https://github.com/jurczykpawel/ksef-gateway#wypróbuj-live-de
         </h1>
 
         <p class="text-lg text-[var(--color-muted)] leading-relaxed max-w-xl mb-8" data-reveal>
-          KSeF Gateway to gotowa brama do rządowego systemu e-Faktur. Podłączasz ją raz
+          KSeF Gateway to gotowa usługa do rządowego systemu e-Faktur. Podłączasz ją raz
           &mdash; do sklepu, systemu księgowego albo automatyzacji n8n &mdash; i od tej pory
           wystawianie oraz odbieranie faktur dzieje się automatycznie. Cała techniczna
           złożoność KSeF zostaje w środku.
@@ -83,7 +83,7 @@ const DEMO_URL = "https://github.com/jurczykpawel/ksef-gateway#wypróbuj-live-de
           <svg width="12" height="12" viewBox="0 0 16 16" fill="var(--color-accent)" aria-hidden="true">
             <path d="M8 .5a7.5 7.5 0 1 0 0 15A7.5 7.5 0 0 0 8 .5Zm3.28 5.72-4 4a.75.75 0 0 1-1.06 0l-2-2a.75.75 0 0 1 1.06-1.06L6.75 8.69l3.47-3.47a.75.75 0 1 1 1.06 1.06Z"/>
           </svg>
-          Formaty, szyfrowanie i sesje KSeF brama bierze na siebie &mdash; Ty widzisz tylko odpowiedź
+          Formaty, szyfrowanie i sesje KSeF usługa bierze na siebie &mdash; Ty widzisz tylko odpowiedź
         </div>
       </div>
 
@@ -111,7 +111,7 @@ const DEMO_URL = "https://github.com/jurczykpawel/ksef-gateway#wypróbuj-live-de
 
   const requestLines = [
     [`<span class="text-[var(--color-faint)] select-none">$</span>`, "mb-1"],
-    [`${c("curl")} ${m("-X POST https://twoja-brama/ksef/invoice \\")}`],
+    [`${c("curl")} ${m("-X POST https://twoj-serwer/ksef/invoice \\")}`],
     [`${m("-H ")}${v('"Content-Type: application/json"')} ${m("\\")}`, "pl-4"],
     [`${m("-d '")}${m("{")}${k('"sprzedawca"')}${m(":")}${m("{")}${k('"nip"')}${m(":")}${v('"1234567890"')}${m("...}")}${m(",")}`, "pl-4"],
     [`${k('"nabywca"')}${m(":")}${m("{")}${k('"nip"')}${m(":")}${v('"0987654321"')}${m("...}")}${m(",")}`, "pl-8"],

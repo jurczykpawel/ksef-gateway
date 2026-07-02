@@ -53,7 +53,7 @@ Twoja aplikacja → zbuduj XML → zaszyfruj AES-256 → wymień klucze RSA → 
 ### Z KSeF Gateway
 
 ```bash
-curl -X POST https://twoja-brama/ksef/invoice \
+curl -X POST https://twoj-serwer/ksef/invoice \
   -H "Content-Type: application/json" \
   -d '{"seller":{"nip":"..."},"buyer":{"nip":"..."},"items":[{"name":"Usługa","unitPrice":100,"vatRate":23}]}'
 
@@ -64,7 +64,7 @@ curl -X POST https://twoja-brama/ksef/invoice \
 
 ## Dlaczego KSeF Gateway?
 
-- **Jedno wywołanie HTTP** - wysyłasz JSON, dostajesz numer KSeF. Brama obsługuje szyfrowanie, sesje, odpytywanie statusu
+- **Jedno wywołanie HTTP** - wysyłasz JSON, dostajesz numer KSeF. Usługa obsługuje szyfrowanie, sesje, odpytywanie statusu
 - **Proste dane wejściowe JSON** - `{seller, buyer, items}` z automatycznym liczeniem VAT. Nie musisz znać XML
 - **Odbieranie bez znajomości numeru** - KSeF nie wysyła powiadomień e-mail/webhook; zamiast tego [przeglądaj lub odpytuj o faktury wystawione na Ciebie](#odbieranie-faktur) po dacie
 - **PDF z kodem QR** - pobierz zweryfikowany PDF faktury po numerze KSeF, jednym wywołaniem
@@ -77,13 +77,13 @@ curl -X POST https://twoja-brama/ksef/invoice \
 
 ## Bezpieczeństwo
 
-Brama uwierzytelnia *samą siebie* w KSeF (token lub certyfikat - patrz niżej), ale sama z siebie **nie ma żadnego sposobu, żeby uwierzytelnić tego, kto ją wywołuje**. Wdróż ją pod publicznym adresem bez zabezpieczenia, a każdy, kto znajdzie ten adres, może wysyłać lub czytać prawdziwe faktury dla NIP-u, na który jest skonfigurowana.
+Usługa uwierzytelnia *samą siebie* w KSeF (token lub certyfikat - patrz niżej), ale sama z siebie **nie ma żadnego sposobu, żeby uwierzytelnić tego, kto ją wywołuje**. Wdróż ją pod publicznym adresem bez zabezpieczenia, a każdy, kto znajdzie ten adres, może wysyłać lub czytać prawdziwe faktury dla NIP-u, na który jest skonfigurowana.
 
-**`GATEWAY_API_KEY` zamyka tę lukę.** Każde żądanie oprócz `GET /health` (używanego przez health checki/monitoring) musi zawierać ten klucz jako nagłówek `X-Api-Key`, inaczej brama je odrzuci - łącznie z `/scalar/v1` i JSON-em OpenAPI, więc sama powierzchnia API też nie jest wystawiona:
+**`GATEWAY_API_KEY` zamyka tę lukę.** Każde żądanie oprócz `GET /health` (używanego przez health checki/monitoring) musi zawierać ten klucz jako nagłówek `X-Api-Key`, inaczej usługa je odrzuci - łącznie z `/scalar/v1` i JSON-em OpenAPI, więc sama powierzchnia API też nie jest wystawiona:
 
 | Sytuacja | Odpowiedź |
 |---|---|
-| `GATEWAY_API_KEY` nie ustawiony na bramie | `503` - zawodzi **domknięte**: odmawia wszystkiego zamiast po cichu zostać otwarta |
+| `GATEWAY_API_KEY` nie ustawiony na usłudze | `503` - zawodzi **domknięte**: odmawia wszystkiego zamiast po cichu zostać otwarta |
 | Brakujący lub zły nagłówek `X-Api-Key` | `401` |
 | Poprawny nagłówek `X-Api-Key` | Żądanie przechodzi normalnie |
 
@@ -93,9 +93,9 @@ Wygeneruj silny klucz raz, trzymaj w tajemnicy - tak samo jak `KSEF_TOKEN`:
 openssl rand -hex 32
 ```
 
-> To jest osobne od autoryzacji `KSEF_TOKEN`/certyfikatem, która chroni własne połączenie bramy *do* KSeF. Potrzebujesz obu: jednego żeby brama mogła rozmawiać z KSeF, drugiego żeby tylko Ty mógł rozmawiać z bramą.
+> To jest osobne od autoryzacji `KSEF_TOKEN`/certyfikatem, która chroni własne połączenie usługi *do* KSeF. Potrzebujesz obu: jednego żeby usługa mogła rozmawiać z KSeF, drugiego żeby tylko Ty mógł rozmawiać z usługą.
 
-**Obrona w głąb dla produkcji:** klucz API to jedyna rzecz stojąca między publicznym adresem a całym internetem, więc dla prawdziwego wdrożenia ogranicz też dostęp sieciowy tam, gdzie platforma na to pozwala - allowlista IP (Render, Azure), VPN/sieć prywatna, albo reverse proxy przed bramą. Nie polegaj na kluczu jako jedynej warstwie.
+**Obrona w głąb dla produkcji:** klucz API to jedyna rzecz stojąca między publicznym adresem a całym internetem, więc dla prawdziwego wdrożenia ogranicz też dostęp sieciowy tam, gdzie platforma na to pozwala - allowlista IP (Render, Azure), VPN/sieć prywatna, albo reverse proxy przed usługą. Nie polegaj na kluczu jako jedynej warstwie.
 
 ---
 
@@ -149,7 +149,7 @@ cp .env.example .env
 # Edytuj .env: ustaw GITHUB_PAT i GATEWAY_API_KEY (np. `openssl rand -hex 32`)
 ```
 
-> **Dlaczego `.env` potrzebuje `GATEWAY_API_KEY`?** Brama nie ma żadnej innej autoryzacji dla wywołujących - patrz [Bezpieczeństwo](#bezpieczeństwo) niżej. Każde żądanie oprócz `GET /health` potrzebuje go z powrotem jako nagłówek `X-Api-Key`, inaczej brama je odrzuci.
+> **Dlaczego `.env` potrzebuje `GATEWAY_API_KEY`?** Usługa nie ma żadnej innej autoryzacji dla wywołujących - patrz [Bezpieczeństwo](#bezpieczeństwo) niżej. Każde żądanie oprócz `GET /health` potrzebuje go z powrotem jako nagłówek `X-Api-Key`, inaczej usługa je odrzuci.
 
 ### 2. Wygeneruj testowy token KSeF
 
@@ -161,7 +161,7 @@ Skopiuj wynik (`KSEF_TOKEN`, `KSEF_NIP`, `KSEF_ENV`) do pliku `.env`.
 
 > **Co to robi?** Patrz [Jak Działa Generator Tokenów](#jak-działa-generator-tokenów) niżej. Wolisz przetestować [ścieżkę autoryzacji certyfikatem](#autoryzacja-certyfikatem-alternatywa-dla-tokenów)? `docker compose --profile tools run --rm cert-generator` robi to samo dla certyfikatów - patrz [Jak Działa Generator Certyfikatów](#jak-działa-generator-certyfikatów).
 
-### 3. Uruchom bramę
+### 3. Uruchom usługę
 
 ```bash
 docker compose up --build
@@ -275,7 +275,7 @@ bru run --env local
 | `GET` | `/ksef/invoices/received` | `?from=&to=&page=&pageSize=` | Lista faktur, które odebrałeś (rola nabywcy) |
 | `GET` | `/ksef/invoices/received/new` | `?since=` | Nowe faktury od checkpointu, do odpytywania/synchronizacji |
 | `GET` | `/ksef/invoices/issued` | `?from=&to=&page=&pageSize=` | Lista faktur, które wystawiłeś (rola sprzedawcy) |
-| `GET` | `/ksef/status` | - | Status bramy + KSeF |
+| `GET` | `/ksef/status` | - | Status usługi + KSeF |
 | `GET` | `/health` | - | Health check |
 
 ### Automatycznie odkryte endpointy SDK (niskopoziomowe)
@@ -302,7 +302,7 @@ Pełna interaktywna dokumentacja pod `/scalar/v1`.
 
 ### Opcja 1: Przyjazny JSON (zalecane)
 
-Prosty JSON z czytelnymi polami. Brama buduje XML FA(3), liczy sumy VAT, obsługuje wszystkie pola KSeF automatycznie.
+Prosty JSON z czytelnymi polami. Usługa buduje XML FA(3), liczy sumy VAT, obsługuje wszystkie pola KSeF automatycznie.
 
 ```bash
 curl -X POST http://localhost:8080/ksef/invoice \
@@ -369,11 +369,11 @@ Każdy endpoint zwraca ten sam kształt przy błędzie: `{"success": false, "dat
 | Status | Znaczenie | Co zrobić |
 |--------|---------|------------|
 | `400` | Złe dane wejściowe (brak NIP, nieprawidłowy XML, źle sformowane ciało) | Popraw żądanie, nie ponawiaj bez zmian |
-| `401` | Brakujący lub zły nagłówek `X-Api-Key` - patrz [Bezpieczeństwo](#bezpieczeństwo) | Wyślij poprawny klucz API bramy |
+| `401` | Brakujący lub zły nagłówek `X-Api-Key` - patrz [Bezpieczeństwo](#bezpieczeństwo) | Wyślij poprawny klucz API usługi |
 | `429` | Zaraz przekroczysz (albo przekroczyłeś) limit żądań KSeF | Poczekaj tyle, ile mówi nagłówek `Retry-After` (sekundy), potem ponów |
 | `502` | Własne API KSeF odrzuciło lub nie powiodło się żądanie | Sprawdź `error` po kod/wiadomość błędu KSeF; nie zawsze bezpiecznie ponowić bez zastanowienia |
-| `503` | Jedno z: `GATEWAY_API_KEY` w ogóle nie skonfigurowany na bramie, wyłącznik obwodu SDK KSeF jest otwarty (ma nagłówek `Retry-After` - poczekaj i ponów), albo brama nie jest jeszcze uwierzytelniona dla tego NIP-u (`TokenPool` wciąż startuje - brak `Retry-After`, ponów wkrótce) | Sprawdź wiadomość `error`, żeby wiedzieć który przypadek |
-| `500` | Nieoczekiwany błąd w samej bramie | Sprawdź logi bramy; proszę zgłoś issue |
+| `503` | Jedno z: `GATEWAY_API_KEY` w ogóle nie skonfigurowany na usłudze, wyłącznik obwodu SDK KSeF jest otwarty (ma nagłówek `Retry-After` - poczekaj i ponów), albo usługa nie jest jeszcze uwierzytelniona dla tego NIP-u (`TokenPool` wciąż startuje - brak `Retry-After`, ponów wkrótce) | Sprawdź wiadomość `error`, żeby wiedzieć który przypadek |
+| `500` | Nieoczekiwany błąd w samej usłudze | Sprawdź logi usługi; proszę zgłoś issue |
 
 Odpowiedzi `429` i wyłącznika obwodu `503` zawierają nagłówek `Retry-After` (sekundy) - uszanuj go zamiast ponawiać natychmiast, szczególnie przy [endpointach odbierania z limitem żądań](#odbieranie-faktur).
 
@@ -404,7 +404,7 @@ PDF-y są generowane przy użyciu oficjalnej biblioteki [CIRFMF/ksef-pdf-generat
 
 KSeF nie wysyła powiadomień e-mail/webhook - faktury wystawione na Ciebie po prostu leżą w systemie. Te endpointy pozwalają je znaleźć bez wcześniejszej znajomości ich numeru KSeF.
 
-Oba endpointy szukają faktur, gdzie **Twój NIP jest nabywcą** (`Podmiot2`), zgodnie z tym, jak KSeF rozwiązuje kontekst wywołującego - patrz [Tryb Multi-NIP](#tryb-multi-nip), jeśli prowadzisz bramę dla więcej niż jednej firmy: przekaż `X-KSeF-NIP`, żeby wybrać, w skrzynce którego NIP-u szukać. Wymaga tokenu z uprawnieniem `InvoiceRead` - patrz uwaga w [Token Produkcyjny](#token-produkcyjny-krok-po-kroku).
+Oba endpointy szukają faktur, gdzie **Twój NIP jest nabywcą** (`Podmiot2`), zgodnie z tym, jak KSeF rozwiązuje kontekst wywołującego - patrz [Tryb Multi-NIP](#tryb-multi-nip), jeśli prowadzisz usługę dla więcej niż jednej firmy: przekaż `X-KSeF-NIP`, żeby wybrać, w skrzynce którego NIP-u szukać. Wymaga tokenu z uprawnieniem `InvoiceRead` - patrz uwaga w [Token Produkcyjny](#token-produkcyjny-krok-po-kroku).
 
 ### Przeglądaj to, co odebrałeś
 
@@ -455,9 +455,9 @@ curl "http://localhost:8080/ksef/invoices/received/new" -H "X-KSeF-NIP: TWOJ_NIP
 curl "http://localhost:8080/ksef/invoices/received/new?since=2026-07-01T07:00:00Z" -H "X-KSeF-NIP: TWOJ_NIP"
 ```
 
-Podłącz to do workflow cron/n8n odpytującego co 15-30 minut, żeby dostawać powiadomienia (e-mail/Slack/webhook), gdy coś nowego się pojawi - sama brama pozostaje bezstanowa, Twój workflow trzyma checkpoint.
+Podłącz to do workflow cron/n8n odpytującego co 15-30 minut, żeby dostawać powiadomienia (e-mail/Slack/webhook), gdy coś nowego się pojawi - sama usługa pozostaje bezstanowa, Twój workflow trzyma checkpoint.
 
-Endpoint `query/metadata` KSeF (który to opakowuje) jest ograniczony do **20 żądań/godzinę** - własny limiter żądań bramy egzekwuje to proaktywnie (429 z `Retry-After`, zanim żądanie w ogóle dotrze do KSeF). Nie odpytuj częściej niż co 15 minut, zgodnie z zaleceniem samego KSeF. Przy bardzo dużym wolumenie faktur użyj zamiast tego surowego endpointu `invoice-download/export-invoices` (asynchroniczny eksport wsadowy) - jeszcze nie opakowanego tutaj w przyjazny endpoint.
+Endpoint `query/metadata` KSeF (który to opakowuje) jest ograniczony do **20 żądań/godzinę** - własny limiter żądań usługi egzekwuje to proaktywnie (429 z `Retry-After`, zanim żądanie w ogóle dotrze do KSeF). Nie odpytuj częściej niż co 15 minut, zgodnie z zaleceniem samego KSeF. Przy bardzo dużym wolumenie faktur użyj zamiast tego surowego endpointu `invoice-download/export-invoices` (asynchroniczny eksport wsadowy) - jeszcze nie opakowanego tutaj w przyjazny endpoint.
 
 **Gotowy do zaimportowania przykład n8n:** [`examples/n8n/receive-invoices.json`](examples/n8n/receive-invoices.json) ([wersja polska](examples/n8n/receive-invoices-PL.json)) - odpytuje `/ksef/invoices/received/new` co 20 minut, trzyma checkpoint we własnych danych statycznych workflow, pobiera PDF każdej nowej faktury na dysk i zostawia węzeł `Notify (TODO)` do podłączenia Slacka/e-maila/Discorda.
 
@@ -517,7 +517,7 @@ Klient płaci → Webhook platformy → (opcjonalnie: transformacja n8n) → POS
 Dodaj wywołanie `POST /ksef/invoice` w handlerze udanej płatności:
 
 ```bash
-curl -X POST https://twoja-brama-ksef.onrender.com/ksef/invoice \
+curl -X POST https://twoj-serwer-ksef.onrender.com/ksef/invoice \
   -H "Content-Type: application/json" \
   -d '{
     "invoiceNumber": "FV/2026/001",
@@ -536,7 +536,7 @@ Większość platform wysyła webhooki we własnym formacie, nie w formacie KSeF
 
 1. **Węzeł Webhook** - odbiera webhook płatności z Twojej platformy (Sellf, WooCommerce, Stripe itd.)
 2. **Węzeł Transform** - mapuje JSON platformy na format faktury KSeF (sprzedawca, nabywca, pozycje)
-3. **Węzeł HTTP Request** - wysyła `POST /ksef/invoice` do Twojej bramy
+3. **Węzeł HTTP Request** - wysyła `POST /ksef/invoice` do Twojej usługi
 
 Zero zmian kodu w Twojej platformie e-commerce. Skonfiguruj URL webhooka w ustawieniach platformy, resztą zajmie się n8n.
 
@@ -545,7 +545,7 @@ Gotowe do zaimportowania workflow w [`examples/n8n/`](examples/n8n/):
 - **WooCommerce → KSeF** (`woocommerce-ksef.json`) - zamówienia WooCommerce, automatyczne wykrywanie stawki VAT, pomijanie konsumentów
 - **Odbieranie i Pobieranie Faktur** (`receive-invoices.json`) - odpytuje o faktury wystawione *na Ciebie* co 20 minut, pobiera PDF-y, z checkpointem, żeby nic nie zostało pominięte ani zeskanowane ponownie - patrz [Odbieranie Faktur](#odbieranie-faktur)
 
-### Wdróż bramę
+### Wdróż usługę
 
 Potrzebujesz działającej instancji KSeF Gateway. Wybierz jedną:
 
@@ -573,7 +573,7 @@ Krok 9: Odpytuj aż status tokenu = Active
 
 Wynik: `KSEF_TOKEN`, `KSEF_NIP`, `KSEF_ENV` - wklej do `.env`.
 
-Token żyje aż do unieważnienia. Brama używa go codziennie: szyfruje go kluczem publicznym KSeF, dostaje JWT, auto-odświeża przed wygaśnięciem.
+Token żyje aż do unieważnienia. Usługa używa go codziennie: szyfruje go kluczem publicznym KSeF, dostaje JWT, auto-odświeża przed wygaśnięciem.
 
 ### Jak Działa Generator Certyfikatów
 
@@ -589,15 +589,13 @@ Krok 6: Odpytuj GET /auth/{ref} aż status = 200 (autoryzacja zweryfikowana)
 Krok 7: Wyeksportuj certyfikat + klucz prywatny jako PEM do ./output
 ```
 
-Wynik: `test-cert.crt`, `test-cert.key`, `test-cert.nip` w `./output` - te same pliki, które dostajesz pobierając prawdziwy certyfikat produkcyjny z portalu, tylko samopodpisane zamiast wydanego przez MF. W przeciwieństwie do generatora tokenów, zatrzymuje się po zweryfikowaniu, że autoryzacja się powiodła - dowodzi, że kod ładowania certyfikatu w bramie działa, nie tworzy długo żyjących poświadczeń.
+Wynik: `test-cert.crt`, `test-cert.key`, `test-cert.nip` w `./output` - te same pliki, które dostajesz pobierając prawdziwy certyfikat produkcyjny z portalu, tylko samopodpisane zamiast wydanego przez MF. W przeciwieństwie do generatora tokenów, zatrzymuje się po zweryfikowaniu, że autoryzacja się powiodła - dowodzi, że kod ładowania certyfikatu w usłudze działa, nie tworzy długo żyjących poświadczeń.
 
-### KSeF jest już obowiązkowy
+### KSeF wchodzi obowiązkowo — etapami
 
-- **1 lutego 2026** - najwięksi podatnicy (>200 mln PLN przychodu w 2024) muszą wystawiać faktury przez KSeF. **Wszyscy**, niezależnie od wielkości, muszą umieć **odbierać** faktury zakupowe przez KSeF od tej daty.
-- **1 kwietnia 2026** - reszta rynku B2B (JDG, MŚP, sp. z o.o. itd.) też musi wystawiać przez KSeF.
-- **2027** - dołączają mikroprzedsiębiorcy (≤10 tys. PLN brutto faktur miesięcznie), zamykając ostatnie zwolnienie.
+Obowiązek e-fakturowania przez KSeF jest w Polsce wprowadzany etapami i obejmuje zarówno **wystawianie**, jak i **odbieranie** faktur — kolejne grupy firm są nim stopniowo obejmowane. Dokładne terminy i zwolnienia bywają aktualizowane, więc to, co dotyczy Twojej firmy, sprawdź w oficjalnym źródle: [podatki.gov.pl/ksef](https://www.podatki.gov.pl/ksef/).
 
-Jeśli czytasz to po tych datach, konfiguracja produkcyjna poniżej nie jest już opcjonalna dla większości firm - to jest to, co stoi między Tobą a zgodną z prawem fakturą.
+Wniosek jest prosty: prędzej czy później integracja z KSeF przestaje być opcjonalna. Lepiej mieć ją gotową i przetestowaną wcześniej, niż wdrażać na ostatnią chwilę — poniższa konfiguracja produkcyjna właśnie to umożliwia.
 
 ### Test vs Produkcja
 
@@ -639,7 +637,7 @@ Uzyskanie tokenu produkcyjnego zajmuje około 10 minut i dla większości firm *
     KSEF_NIP=<NIP Twojej firmy>
     KSEF_ENV=PRODUCTION
     ```
-12. Zrestartuj bramę. Żadnych zmian kodu, żadnego przebudowywania - tylko zmienne środowiskowe powyżej.
+12. Zrestartuj usługę. Żadnych zmian kodu, żadnego przebudowywania - tylko zmienne środowiskowe powyżej.
 
 Musisz to zrobić tylko raz. Jeśli zgubisz token, unieważnij go w portalu i wygeneruj nowy.
 
@@ -647,7 +645,7 @@ Musisz to zrobić tylko raz. Jeśli zgubisz token, unieważnij go w portalu i wy
 
 ### Autoryzacja Certyfikatem (Alternatywa dla Tokenów)
 
-Zamiast tokenu, brama może uwierzytelniać się **certyfikatem KSeF** - parą certyfikat + klucz prywatny wydaną przez portal KSeF. Każde (ponowne) logowanie jest podpisywane certyfikatem (XAdES) zamiast prezentowania statycznego sekretu. To oficjalnie wspierana, docelowa ścieżka autoryzacji - nie obejście tokenu.
+Zamiast tokenu usługa może uwierzytelniać się **certyfikatem KSeF** - parą certyfikat + klucz prywatny wydaną przez portal KSeF. Każde (ponowne) logowanie jest podpisywane certyfikatem (XAdES) zamiast prezentowania statycznego sekretu. To oficjalnie wspierana ścieżka autoryzacji.
 
 **Wypróbuj najpierw na TEST:**
 
@@ -664,7 +662,7 @@ Jedna komenda generuje jednorazowy certyfikat samopodpisany, weryfikuje że fakt
 3. Nazwij certyfikat i ustaw hasło chroniące klucz prywatny (portal egzekwuje własne zasady dla obu - postępuj zgodnie z tym, o co aktualnie pyta formularz)
 4. Pobierz dwa wygenerowane pliki: certyfikat (`.crt`) i klucz prywatny (`.key`), oba w formacie PEM
 
-**Używanie go w bramie:**
+**Używanie go w usłudze:**
 
 ```
 KSEF_CERT_PATH=/app/certs/company.crt
@@ -703,7 +701,7 @@ Kontekst potrzebuje dokładnie jednego z: `token`, `certificatePath` + `privateK
 
 | Zmienna | Wymagana | Domyślnie | Opis |
 |----------|----------|---------|-------------|
-| `GATEWAY_API_KEY` | Tak | - | Współdzielony sekret, który wywołujący muszą wysyłać jako `X-Api-Key` - patrz [Bezpieczeństwo](#bezpieczeństwo). Brama zawodzi domknięta (503), jeśli nieustawiona |
+| `GATEWAY_API_KEY` | Tak | - | Współdzielony sekret, który wywołujący muszą wysyłać jako `X-Api-Key` - patrz [Bezpieczeństwo](#bezpieczeństwo). Usługa zawodzi domknięta (503), jeśli nieustawiona |
 | `KSEF_TOKEN` | Tak* | - | Token autoryzacji KSeF |
 | `KSEF_CERT_PATH` | Tak* | - | Ścieżka do certyfikatu KSeF (PEM) - alternatywa dla `KSEF_TOKEN`, patrz [Autoryzacja Certyfikatem](#autoryzacja-certyfikatem-alternatywa-dla-tokenów) |
 | `KSEF_KEY_PATH` | Tak* | - | Ścieżka do klucza prywatnego certyfikatu (PEM) - wymagana razem z `KSEF_CERT_PATH` |
@@ -712,7 +710,7 @@ Kontekst potrzebuje dokładnie jednego z: `token`, `certificatePath` + `privateK
 | `KSEF_KEY_PASSWORD` | Nie | - | Hasło do klucza prywatnego, jeśli jest zaszyfrowany (działa z formą ścieżki albo treści) |
 | `KSEF_NIP` | Tak | - | NIP dla kontekstu autoryzacji |
 | `KSEF_ENV` | Nie | `TEST` | Środowisko: `TEST`, `DEMO`, `PRODUCTION` |
-| `KSEF_API_PORT` | Nie | `8080` | Port API bramy |
+| `KSEF_API_PORT` | Nie | `8080` | Port API usługi |
 | `KSEF_QR_URL` | Nie | `https://qr-test.ksef.mf.gov.pl` | Bazowy URL weryfikacji QR |
 | `GITHUB_PAT` | Build | - | GitHub PAT z `read:packages` dla SDK CIRFMF |
 | `KSEF_CONTEXTS_FILE` | Nie | `/app/contexts.json` | Ścieżka do pliku konfiguracji multi-NIP |
@@ -740,7 +738,7 @@ Kontekst potrzebuje dokładnie jednego z: `token`, `certificatePath` + `privateK
 ]
 ```
 
-Konteksty mogą dowolnie mieszać tokeny i certyfikaty - patrz [Autoryzacja Certyfikatem](#autoryzacja-certyfikatem-alternatywa-dla-tokenów) powyżej. Każdy kontekst autoryzuje się niezależnie, więc to pokrywa też konfigurację w stylu biura rachunkowego - **jeden certyfikat reprezentujący kilka NIP-ów klientów** (wypisz ten sam `certificatePath`/`certificateContent` pod wieloma kontekstami, po jednym na NIP). Sama brama jest niezależna od NIP-u co do tego, który certyfikat stoi za którym kontekstem; to, czy dany certyfikat faktycznie może uwierzytelnić się w NIP-ie, do którego formalnie nie należy, zależy od autoryzacji samego KSeF po stronie tego NIP-u (nadanie praw reprezentacji/`ProxyEntity` posiadaczowi certyfikatu) - to prawdziwy krok w portalu KSeF, wykonywany per firma, poza kontrolą bramy, i coś, czego własne narzędzia TEST tego projektu nie sprawdzają (`CertGenerator` zawsze tworzy certyfikat ograniczony do jednego NIP-u, którym się rejestruje).
+Konteksty mogą dowolnie mieszać tokeny i certyfikaty - patrz [Autoryzacja Certyfikatem](#autoryzacja-certyfikatem-alternatywa-dla-tokenów) powyżej. Każdy kontekst autoryzuje się niezależnie, więc to pokrywa też konfigurację w stylu biura rachunkowego - **jeden certyfikat reprezentujący kilka NIP-ów klientów** (wypisz ten sam `certificatePath`/`certificateContent` pod wieloma kontekstami, po jednym na NIP). Sama usługa jest niezależna od NIP-u co do tego, który certyfikat stoi za którym kontekstem; to, czy dany certyfikat faktycznie może uwierzytelnić się w NIP-ie, do którego formalnie nie należy, zależy od autoryzacji samego KSeF po stronie tego NIP-u (nadanie praw reprezentacji/`ProxyEntity` posiadaczowi certyfikatu) - to prawdziwy krok w portalu KSeF, wykonywany per firma, poza kontrolą usługi, i coś, czego własne narzędzia TEST tego projektu nie sprawdzają (`CertGenerator` zawsze tworzy certyfikat ograniczony do jednego NIP-u, którym się rejestruje).
 
 Zamontuj go w Docker Compose (już skonfigurowane w `docker-compose.yml`):
 
@@ -749,7 +747,7 @@ volumes:
   - ./contexts.json:/app/contexts.json:ro
 ```
 
-Brama automatycznie wykrywa, którego NIP-u użyć, na podstawie:
+Usługa automatycznie wykrywa, którego NIP-u użyć, na podstawie:
 1. Nagłówka `X-KSeF-NIP` (jawny)
 2. NIP-u sprzedawcy z ciała faktury
 3. Kontekstu domyślnego (pierwszy na liście albo ze zmiennej środowiskowej `KSEF_NIP`)
@@ -766,13 +764,13 @@ Jeden NIP jest darmowy, zawsze - żadnej licencji, żadnego limitu czasowego. Pr
 
 Ustaw klucz licencji jako `GATEWAY_LICENSE`. Weryfikacja jest w pełni offline (sprawdzenie podpisu ECDSA wobec zbuforowanego klucza publicznego) - token licencji nigdy nie opuszcza Twojego serwera, a chwilowa awaria sieci nie blokuje Ci dostępu (patrz niżej).
 
-Jeśli `contexts.json` konfiguruje więcej NIP-ów niż pozwala Twoja licencja, brama nie odmawia startu - aktywuje pierwsze `N` (Twój domyślny NIP jest zawsze zachowany, nawet jeśli nie był pierwszy w pliku) i loguje wyraźne ostrzeżenie, wymieniając które zostały pominięte. Sprawdź `GET /ksef/status` po `license: {licensed, maxNips, activeNips, email, expiresAt}` (`email` jest tylko dla Twojej własnej informacji - do jakiego zakupu należy ta licencja - nie jest sprawdzane wobec niczego).
+Jeśli `contexts.json` konfiguruje więcej NIP-ów niż pozwala Twoja licencja, usługa nie odmawia startu - aktywuje pierwsze `N` (Twój domyślny NIP jest zawsze zachowany, nawet jeśli nie był pierwszy w pliku) i loguje wyraźne ostrzeżenie, wymieniając które zostały pominięte. Sprawdź `GET /ksef/status` po `license: {licensed, maxNips, activeNips, email, expiresAt}` (`email` jest tylko dla Twojej własnej informacji - do jakiego zakupu należy ta licencja - nie jest sprawdzane wobec niczego).
 
 | Sytuacja | Zachowanie |
 |---|---|
 | `GATEWAY_LICENSE` nieustawiony | Darmowy tier - tylko pierwszy skonfigurowany NIP |
 | Ważna licencja | Nielimitowane NIP-y |
-| Licencja wygasła/unieważniona/źle sformowana | Powrót do darmowego tieru (1 NIP) - nigdy nie crashuje bramy |
+| Licencja wygasła/unieważniona/źle sformowana | Powrót do darmowego tieru (1 NIP) - nigdy nie crashuje usługi |
 | Serwer licencji Sellf chwilowo nieosiągalny | Serwuje ostatni zweryfikowany wynik przez do 7 dni (zbuforowany), potem powraca do darmowego tieru - awaria nie blokuje Cię wstecznie, ale też nie przedłuża się w nieskończoność |
 
 ---
@@ -810,7 +808,7 @@ Dwa kontenery, bez bazy danych, bez Redis. Stan autoryzacji w pamięci (restart 
 ### Zasady Projektowe
 - **Cienki wrapper** - zero logiki biznesowej, tłumaczenie HTTP-na-SDK
 - **Auto-adaptacyjny** - zmiany SDK propagują się przy przebudowie (refleksja)
-- **Przejrzysta kryptografia** - wywołujący wysyłają plaintext, brama szyfruje
+- **Przejrzysta kryptografia** - wywołujący wysyłają plaintext, usługa szyfruje
 - **JSON zero-utrzymania** - odzwierciedla XML 1:1, brak kodu mapującego
 - **Odporny** - błędy autoryzacji nie crashują, ponawiają automatycznie
 
@@ -820,7 +818,7 @@ Dwa kontenery, bez bazy danych, bez Redis. Stan autoryzacji w pamięci (restart 
 
 | Technologia | Rola |
 |------------|------|
-| [ASP.NET 9 Minimal API](https://learn.microsoft.com/en-us/aspnet/core/fundamentals/minimal-apis) | Warstwa HTTP bramy |
+| [ASP.NET 9 Minimal API](https://learn.microsoft.com/en-us/aspnet/core/fundamentals/minimal-apis) | Warstwa HTTP usługi |
 | [CIRFMF KSeF.Client](https://github.com/CIRFMF/ksef-client-csharp) | Oficjalne SDK KSeF (Ministerstwo Finansów) |
 | [CIRFMF ksef-pdf-generator](https://github.com/CIRFMF/ksef-pdf-generator) | Oficjalne generowanie PDF z XML FA(3) |
 | [xml-js](https://www.npmjs.com/package/xml-js) | Dwukierunkowa konwersja JSON/XML |

@@ -14,7 +14,7 @@ const GITHUB_URL = "https://github.com/jurczykpawel/ksef-gateway";
       KSeF przestał być opcjonalny
     </h2>
     <p class="text-[var(--color-muted)] mb-12 max-w-xl" data-prod>
-      KSeF jest już obowiązkowy dla większości firm w Polsce &mdash; w obie strony: musisz umieć wystawiać faktury i je odbierać, niezależnie od wielkości firmy. Przejście ze środowiska testowego na produkcyjne to kilka kliknięć w rządowym portalu i w większości przypadków nic nie kosztuje.
+      KSeF staje się w Polsce obowiązkowy &mdash; wchodzi etapami i obejmuje zarówno wystawianie, jak i odbieranie faktur. Zamiast wdrażać integrację na ostatnią chwilę, lepiej mieć ją gotową wcześniej. Przejście z testu na produkcję to kilka kliknięć w rządowym portalu, a certyfikat wygenerujesz Profilem Zaufanym za darmo.
     </p>
 
     <div class="grid md:grid-cols-2 gap-6" data-prod>
@@ -31,7 +31,7 @@ const GITHUB_URL = "https://github.com/jurczykpawel/ksef-gateway";
           {[
             "Potrzebujesz tylko Profilu Zaufanego — tego samego, którym logujesz się do banku czy mObywatela",
             "Certyfikat KSeF wyklikujesz w rządowej aplikacji w kilka minut — bez wniosków papierowych i bez opłat",
-            "Podajesz certyfikat bramie i gotowe — od tej chwili wystawiasz prawdziwe faktury",
+            "Wskazujesz certyfikat w konfiguracji i gotowe — od tej chwili wystawiasz prawdziwe faktury",
           ].map((step) => (
             <li class="flex items-start gap-3 text-sm text-[var(--color-muted)]">
               <svg class="mt-0.5 shrink-0" width="14" height="14" viewBox="0 0 16 16" fill="var(--color-accent)" aria-hidden="true">
@@ -78,7 +78,7 @@ const GITHUB_URL = "https://github.com/jurczykpawel/ksef-gateway";
     <div class="mt-6 card-floating p-5 flex flex-col sm:flex-row items-start sm:items-center gap-4" data-prod>
       <div class="flex-1">
         <p class="text-sm font-semibold text-[var(--color-ink)] mb-0.5">Chcesz zobaczyć każdy krok?</p>
-        <p class="text-sm text-[var(--color-muted)]">Certyfikat KSeF to docelowa metoda uwierzytelniania — tokeny wciąż działają, ale są wygaszane. Pełny przewodnik po certyfikatach, uprawnieniach i konfiguracji multi-NIP — w dokumentacji.</p>
+        <p class="text-sm text-[var(--color-muted)]">Uwierzytelnianie w produkcji opiera się na certyfikacie KSeF. Pełny przewodnik po certyfikatach, uprawnieniach i konfiguracji multi-NIP — znajdziesz w dokumentacji.</p>
       </div>
       <a href={`${GITHUB_URL}#autoryzacja-certyfikatem-alternatywa-dla-tokenów`} target="_blank" rel="noopener noreferrer" class="shrink-0 link-arrow inline-flex items-center gap-1.5 text-sm font-medium text-[var(--color-accent-bright)] hover:text-[#a5b4fc] transition-colors">
         Pełna instrukcja krok po kroku

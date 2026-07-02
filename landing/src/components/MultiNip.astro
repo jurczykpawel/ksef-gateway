@@ -2,6 +2,7 @@
 const SELLF_ORIGIN = "https://sellf.techskills.academy";
 const PRODUCT_URL = `${SELLF_ORIGIN}/p/ksef-gateway-multi-nip`;
 const README_MULTI_NIP_URL = "https://github.com/jurczykpawel/ksef-gateway#tryb-multi-nip";
+const RENDER_URL = "https://render.com/deploy?repo=https://github.com/jurczykpawel/ksef-gateway";
 ---
 <section id="multi-nip" class="section-gap" aria-labelledby="multi-nip-heading">
   <div class="container-kg">
@@ -18,15 +19,31 @@ const README_MULTI_NIP_URL = "https://github.com/jurczykpawel/ksef-gateway#tryb-
       Więcej — jedna opłata, na zawsze.
     </h2>
     <p class="text-[var(--color-muted)] mb-10 max-w-xl" data-multinip>
-      Obsługujesz faktury dla więcej niż jednego NIP-u (klienci biura rachunkowego, spółki w grupie)? Jedna brama, dowolna liczba firm — każda ze swoim certyfikatem.
+      Obsługujesz faktury dla więcej niż jednego NIP-u (klienci biura rachunkowego, spółki w grupie)? Jedna usługa, dowolna liczba firm — każda ze swoim certyfikatem.
     </p>
 
     <div class="grid md:grid-cols-2 gap-6" data-multinip>
-      <div class="card-floating p-6">
+      <div class="card-floating p-6 flex flex-col">
         <div class="text-sm font-semibold text-[var(--color-ink)] mb-1">1 NIP</div>
         <div class="text-3xl font-bold text-[var(--color-ink)] mb-3">Za darmo</div>
-        <p class="text-sm text-[var(--color-muted)] mb-4">Bez limitu czasowego, bez karty kredytowej. Cała funkcjonalność bramy, jedna firma.</p>
-        <div class="text-xs text-[var(--color-faint)] font-mono">Domyślny tryb — nic nie musisz kupować</div>
+        <p class="text-sm text-[var(--color-muted)] mb-2">Bez limitu czasowego, bez karty kredytowej — pełna moc usługi dla jednej firmy.</p>
+        <p class="text-sm text-[var(--color-muted)] mb-6">To domyślny tryb: uruchamiasz u siebie i od razu wystawiasz faktury. Bez kont, bez haczyków.</p>
+        <div class="mt-auto flex flex-col sm:flex-row gap-3">
+          <a href={RENDER_URL} target="_blank" rel="noopener noreferrer" class="btn-primary justify-center">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <polyline points="16 16 12 12 8 16"/>
+              <line x1="12" y1="12" x2="12" y2="21"/>
+              <path d="M20.39 18.39A5 5 0 0 0 18 9h-1.26A8 8 0 1 0 3 16.3"/>
+            </svg>
+            Wdróż na Render
+          </a>
+          <a href="#how-it-works" class="btn-ghost justify-center">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M12 5v14M19 12l-7 7-7-7"/>
+            </svg>
+            Jak to wdrożyć
+          </a>
+        </div>
       </div>
 
       <div class="card-floating p-6 relative overflow-hidden">

@@ -2,7 +2,7 @@
 const RENDER_URL = "https://render.com/deploy?repo=https://github.com/jurczykpawel/ksef-gateway";
 const GITHUB_URL = "https://github.com/jurczykpawel/ksef-gateway";
 const options = [
-  { name: "Docker Compose", badge: "Lokalnie / VPS", badgeColor: "blue", desc: "Dwa polecenia i brama działa. Bez konta w chmurze. Działa na każdym VPS.", code: `docker compose up --build`, link: { href: `${GITHUB_URL}#szybki-start`, label: "Dokumentacja" }, highlight: false },
+  { name: "Docker Compose", badge: "Lokalnie / VPS", badgeColor: "blue", desc: "Dwa polecenia i usługa działa. Bez konta w chmurze. Działa na każdym VPS.", code: `docker compose up --build`, link: { href: `${GITHUB_URL}#szybki-start`, label: "Dokumentacja" }, highlight: false },
   { name: "Render", badge: "Polecane", badgeColor: "accent", desc: "Wdrożenie jednym kliknięciem. Ustaw trzy zmienne środowiskowe. Darmowy tier. Oba kontenery (API + PDF) wdrażają się automatycznie.", code: `# Kliknij przycisk poniżej`, link: { href: RENDER_URL, label: "Wdróż na Render" }, highlight: true },
   { name: "AWS Lambda", badge: "Serverless", badgeColor: "yellow", desc: "Deploy jako Lambda z Function URL. SAM CLI obsługuje build. Bliskie zeru koszty przy małym ruchu.", code: `sam deploy --guided`, link: { href: `${GITHUB_URL}/tree/main/deploy/aws`, label: "Konfiguracja SAM" }, highlight: false },
   { name: "Azure Container Apps", badge: "Cloud", badgeColor: "blue", desc: "Zarządzane kontenery odzwierciedlające Docker Compose. Szablon Bicep w zestawie, zero zmian w kodzie.", code: `az deployment group create \\\n  --template-file deploy/azure/main.bicep`, link: { href: `${GITHUB_URL}/tree/main/deploy/azure`, label: "Szablon Bicep" }, highlight: false },

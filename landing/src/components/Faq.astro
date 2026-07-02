@@ -10,7 +10,7 @@ const items = [
   },
   {
     q: "Gdzie trzyma się mój certyfikat KSeF? Czy to bezpieczne?",
-    a: "Wyłącznie na Twoim serwerze. Gateway nie ma bazy danych ani zewnętrznego serwisu pośredniczącego — certyfikat i klucz nigdzie nie wypływają poza oficjalne API KSeF, do którego brama się nimi uwierzytelnia.",
+    a: "Wyłącznie na Twoim serwerze. Gateway nie ma bazy danych ani zewnętrznego serwisu pośredniczącego — certyfikat i klucz nigdzie nie wypływają poza oficjalne API KSeF, do którego usługa się nimi uwierzytelnia.",
   },
   {
     q: "Czy ktokolwiek, kto znajdzie mój URL, może wysłać fakturę w moim imieniu?",
@@ -22,15 +22,15 @@ const items = [
   },
   {
     q: "Czy przejście z testu na produkcję wymaga zmian w kodzie?",
-    a: "Nie. Podmieniasz certyfikat testowy na produkcyjny w konfiguracji i restartujesz bramę. Wszystko inne — adresy, format danych, podpięte automatyzacje — zostaje bez zmian.",
+    a: "Nie. Podmieniasz certyfikat testowy na produkcyjny w konfiguracji i restartujesz usługę. Wszystko inne — adresy, format danych, podpięte automatyzacje — zostaje bez zmian.",
   },
   {
     q: "Co się stanie, jeśli przekroczę limit zapytań KSeF?",
     a: "Gateway pilnuje oficjalnych limitów po swojej stronie i odda Ci 429 z nagłówkiem Retry-After, zanim jeszcze uderzy w limit KSeF — nie musisz sam implementować throttlingu.",
   },
   {
-    q: "Obsługuję kilka firm/NIP-ów — da się to zrobić z jednej bramy?",
-    a: "Tak, przez tryb multi-NIP: każda firma ze swoim certyfikatem w jednym pliku konfiguracyjnym, a brama sama rozpoznaje, w imieniu której firmy działa — po NIP sprzedawcy z faktury albo jawnym nagłówku.",
+    q: "Obsługuję kilka firm/NIP-ów — da się to zrobić z jednej instancji?",
+    a: "Tak, przez tryb multi-NIP: każda firma ze swoim certyfikatem w jednym pliku konfiguracyjnym, a usługa sama rozpoznaje, w imieniu której firmy działa — po NIP sprzedawcy z faktury albo jawnym nagłówku.",
   },
 ];
 ---

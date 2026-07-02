@@ -19,7 +19,7 @@ const withoutSteps = [
       KSeF nie powie Ci, że dostałeś fakturę
     </h2>
     <p class="text-[var(--color-muted)] mb-12 max-w-xl" data-recv>
-      Kontrahenci wystawiają faktury w KSeF i nie zawsze wysyłają je mailem. Bez powiadomień w samym systemie musisz sam sprawdzać, czy coś wpadło &mdash; albo znać numer KSeF z góry. Gateway odwraca ten problem: przeszukuje faktury po dacie i roli nabywcy, bez znajomości numeru.
+      Kontrahenci wystawiają faktury w KSeF i nie zawsze wysyłają je mailem. Bez powiadomień w samym systemie musisz sam sprawdzać, czy coś wpadło &mdash; albo znać numer KSeF z góry. Usługa robi to za Ciebie: sama znajduje nowe faktury po dacie i roli nabywcy &mdash; bez znajomości numeru.
     </p>
 
     <div class="grid md:grid-cols-2 gap-6" data-recv>
@@ -114,11 +114,11 @@ const withoutSteps = [
       </div>
     </div>
 
-    <!-- Sygnatura: pełny obieg - harmonogram sprawdza, brama pobiera, mail z PDF-em ląduje u Ciebie -->
+    <!-- Sygnatura: pełny obieg - harmonogram sprawdza, usługa pobiera, mail z PDF-em ląduje u Ciebie -->
     <div class="mt-6 card-floating p-6" data-recv>
       <div class="mb-8 max-w-md">
         <p class="text-sm font-semibold text-[var(--color-ink)] mb-0.5">Działa, kiedy śpisz</p>
-        <p class="text-sm text-[var(--color-muted)]">Gotowy workflow n8n co 20 minut pyta bramę o nowe faktury i wysyła każdą na Twój adres — z PDF-em w załączniku. Zero sprawdzania ręcznie.</p>
+        <p class="text-sm text-[var(--color-muted)]">Gotowy workflow n8n co 20 minut pyta usługę o nowe faktury i wysyła każdą na Twój adres — z PDF-em w załączniku. Zero sprawdzania ręcznie.</p>
       </div>
 
       <div class="flex items-center gap-2 sm:gap-4" aria-hidden="true">
@@ -141,7 +141,7 @@ const withoutSteps = [
               <path d="M4 7h16M4 12h16M4 17h9"/>
             </svg>
           </div>
-          <span class="text-[0.65rem] sm:text-xs text-[var(--color-faint)] text-center leading-tight">Brama sprawdza KSeF</span>
+          <span class="text-[0.65rem] sm:text-xs text-[var(--color-faint)] text-center leading-tight">Usługa sprawdza KSeF</span>
         </div>
 
         <div class="pipe-seg" data-seg="2"><span class="pipe-dot"></span></div>

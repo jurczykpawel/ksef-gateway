@@ -70,7 +70,7 @@ const GITHUB_URL = "https://github.com/jurczykpawel/ksef-gateway";
           <div class="terminal-bar"><span class="text-xs text-[var(--color-faint)]">platnosc_sukces.js</span></div>
           <div class="p-4 text-xs font-mono text-[var(--color-muted)]">
             <span class="text-[var(--color-faint)]">// Po udanej płatności</span><br/>
-            <span class="text-[#93c5fd]">await</span> fetch(<span class="text-[#fbbf24]">"https://twoja-brama/ksef/invoice"</span>, {'{'}<br/>
+            <span class="text-[#93c5fd]">await</span> fetch(<span class="text-[#fbbf24]">"https://twoj-serwer/ksef/invoice"</span>, {'{'}<br/>
             &nbsp;&nbsp;method: <span class="text-[#fbbf24]">"POST"</span>,<br/>
             &nbsp;&nbsp;body: JSON.stringify({'{'} sprzedawca, nabywca, pozycje {'}'}),<br/>
             {'}'});
@@ -94,7 +94,7 @@ const GITHUB_URL = "https://github.com/jurczykpawel/ksef-gateway";
       </div>
       <div>
         <p class="text-sm font-semibold text-[var(--color-ink)] mb-0.5">Obsługa wielu NIP-ów</p>
-        <p class="text-sm text-[var(--color-muted)]">Obsługuj faktury dla wielu firm z jednej bramy — wszystkie wpisujesz do jednego pliku konfiguracyjnego, każda ze swoim certyfikatem. Brama sama rozpoznaje po fakturze, w imieniu której firmy działa.</p>
+        <p class="text-sm text-[var(--color-muted)]">Obsługuj faktury dla wielu firm z jednej instancji — wszystkie wpisujesz do jednego pliku konfiguracyjnego, każda ze swoim certyfikatem. Usługa sama rozpoznaje po fakturze, w imieniu której firmy działa.</p>
       </div>
     </div>
   </div>

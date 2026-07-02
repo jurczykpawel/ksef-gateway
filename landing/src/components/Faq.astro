@@ -13,7 +13,7 @@ const items = [
     a: "Wyłącznie na Twoim serwerze. Gateway nie ma bazy danych ani zewnętrznego serwisu pośredniczącego — certyfikat i klucz nigdzie nie wypływają poza oficjalne API KSeF, do którego usługa się nimi uwierzytelnia. Klucz może leżeć zaszyfrowany na dysku i jest odszyfrowywany dopiero w pamięci; nigdy nie trafia do repozytorium ani do obrazu Dockera.",
   },
   {
-    q: "Bezpiecznie hostować to w chmurze (np. Render), skoro tam jest mój certyfikat?",
+    q: "Czy hostowanie w chmurze (np. na Render) jest bezpieczne, skoro trafia tam mój certyfikat?",
     a: "Tak, z jednym zastrzeżeniem, które warto rozumieć. Każdy host — chmura czy własny VPS — technicznie ma dostęp do sekretów usługi w czasie działania, bo dostawca kontroluje warstwę pod spodem (hypervisor). Własny serwer tego nie eliminuje — zmienia tylko, komu ufasz, a zatłoczona maszyna z wieloma usługami bywa mniej bezpieczna niż izolowana instancja u reputowanego dostawcy. Realnie chroni Cię nie to, gdzie leży certyfikat, tylko mocny X-Api-Key, ograniczenie kto może wołać usługę (allowlista IP) oraz to, że certyfikat KSeF w każdej chwili wygenerujesz od nowa, a stary przestaje działać.",
   },
   {

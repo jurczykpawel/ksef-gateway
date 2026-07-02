@@ -11,6 +11,13 @@ services:
       # Generate with: openssl rand -hex 32
       - key: GATEWAY_API_KEY
         sync: false
+      # Optional defense-in-depth: only accept traffic forwarded by your proxy (e.g. Cloudflare).
+      # Set this + inject the same value as a header in the proxy (default X-Trusted-Proxy-Secret)
+      # so a direct hit on this service's public *.onrender.com URL is rejected. See README "Security".
+      - key: TRUSTED_PROXY_SECRET
+        sync: false
+      - key: TRUSTED_PROXY_HEADER
+        sync: false
       # Leave KSEF_TOKEN blank and use KSEF_CERT_PATH/KSEF_KEY_PATH instead if you'd
       # rather authenticate with a certificate: upload the .crt/.key as Secret Files
       # (dashboard: Environment -> Secret Files), they land at /etc/secrets/<filename>.

@@ -73,8 +73,11 @@ var app = builder.Build();
 // LicenseService.MaxNips synchronously in its constructor) - must happen first, blocking.
 await app.Services.GetRequiredService<LicenseService>().RefreshAsync();
 
-// Middleware - API key check runs first: fail fast on unauthenticated traffic
+// Middleware - caller-facing auth runs first: fail fast on unauthenticated traffic
 // before spending any rate-limit budget or reaching an endpoint.
+// TrustedProxyMiddleware is opt-in (no-op unless TRUSTED_PROXY_SECRET is set) and runs before the
+// API-key check so direct-to-origin traffic that bypasses the configured proxy is rejected first.
+app.UseMiddleware<TrustedProxyMiddleware>();
 app.UseMiddleware<ApiKeyMiddleware>();
 app.UseMiddleware<RateLimitMiddleware>();
 app.UseMiddleware<ErrorHandlingMiddleware>();

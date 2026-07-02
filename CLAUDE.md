@@ -25,13 +25,14 @@ docker compose up --build
 - `src/KSeFGateway.Api/Auth/ContextProvider.cs` - loads NIP contexts, caps them at LicenseService.MaxNips
 - `src/KSeFGateway.Api/Licensing/` - GATEWAY_LICENSE verification (LicenseService, LicenseVerifier, JwksClient, RevocationClient) - gates multi-NIP
 - `src/KSeFGateway.Api/Endpoints/WorkflowEndpoints.cs` - high-level: /ksef/send, /ksef/send/json, /ksef/invoice/{nr}/pdf
+- `src/KSeFGateway.Api/Endpoints/PdfService.cs` - single place for calling `ksef-pdf`: normalizes `PDF_SERVICE_URL` scheme (Render Blueprint `fromService … hostport` is schemeless, HttpClient rejects it) + attaches optional `X-Pdf-Secret` (`PDF_SERVICE_SECRET`) so the PDF service can be reached over its public URL on Render free tier (free web services can't receive private-network traffic) without being an open XML→PDF endpoint
 - `src/KSeFGateway.Api/Endpoints/InvoiceDownloadEndpoints.cs` - /ksef/invoices/received, /ksef/invoices/received/new, /ksef/invoices/issued
 - `src/KSeFGateway.Api/Endpoints/HealthEndpoints.cs` - /health, /ksef/status
 - `src/KSeFGateway.Api/Middleware/ApiKeyMiddleware.cs` - fail-closed X-Api-Key check on every request except /health (gateway has no other caller-facing auth)
 - `src/KSeFGateway.Api/Middleware/TrustedProxyMiddleware.cs` - opt-in (TRUSTED_PROXY_SECRET): require a proxy-injected secret header so direct-to-origin hits bypassing a CF/reverse-proxy IP allowlist get 403; no-op when unset; shares constant-time compare via Middleware/SecretComparison.cs
 - `src/KSeFGateway.Api/Middleware/ErrorHandlingMiddleware.cs` - KsefApiException/KsefRateLimitException/KsefCircuitBreakerOpenException → HTTP responses
 - `src/KSeFGateway.Api/Middleware/EndpointErrorHandling.cs` - shared `Guard()` helper so every endpoint handler rethrows KSeF errors to the middleware instead of flattening them into 500
-- `pdf-service/src/server.ts` - PDF generation, JSON→XML conversion, QR codes
+- `pdf-service/src/server.ts` - PDF generation, JSON→XML conversion, QR codes; `app.ts` has an opt-in shared-secret gate (require `X-Pdf-Secret` == `PDF_SERVICE_SECRET` when set; open otherwise; `/health` always bypasses)
 - `pdf-service/lib/` - git submodule: CIRFMF/ksef-pdf-generator
 - `tools/TokenGenerator/` - one-command KSeF TEST token generator
 - `tools/CertGenerator/` - one-command KSeF TEST certificate generator (self-signed, verifies auth, exports PEM)

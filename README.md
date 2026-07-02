@@ -431,6 +431,15 @@ curl -X POST "http://localhost:8080/pdf/invoice?nrKSeF={ksefNumber}" \
 
 PDF-y są generowane przy użyciu oficjalnej biblioteki [CIRFMF/ksef-pdf-generator](https://github.com/CIRFMF/ksef-pdf-generator). Kody QR zawierają URL weryfikacyjny KSeF z hashem SHA-256 - skanowalny i weryfikowany przez KSeF.
 
+### Konfiguracja usługi PDF (`PDF_SERVICE_URL` / `PDF_SERVICE_SECRET`)
+
+Generowanie PDF to osobna usługa (`ksef-pdf`), którą brama woła po HTTP. Jak ją wskazać, zależy od tego, gdzie stoi:
+
+- **Lokalnie (docker compose) albo płatny Render (private networking):** zostaw domyślne - brama woła ją po sieci prywatnej (`http://ksef-pdf:3000`, a na Render `fromService … hostport`). Bez sekretu. `PDF_SERVICE_URL` bez schematu (`host:port`) jest OK - brama sama dostawia `http://`.
+- **Darmowy Render:** darmowe web services **nie mogą przyjmować ruchu po sieci prywatnej**, więc bramy nie dobijesz do usługi PDF wewnętrznie. Ustaw `PDF_SERVICE_URL` na **publiczny adres** usługi PDF (`https://<twoja-usluga-pdf>.onrender.com`) i ustaw **ten sam** `PDF_SERVICE_SECRET` na obu usługach. Brama wysyła go jako nagłówek `X-Pdf-Secret`, a usługa PDF odrzuca żądania bez niego (`403`) - dzięki temu publiczny endpoint PDF nie jest otwarty. Wygeneruj: `openssl rand -hex 32`.
+
+Gdy `PDF_SERVICE_SECRET` jest pusty, usługa PDF jest otwarta (do użytku w sieci prywatnej). `GET /health` zawsze pomija ten check.
+
 ---
 
 ## Odbieranie Faktur

@@ -1,4 +1,5 @@
 import express from "express";
+import crypto from "node:crypto";
 import { js2xml } from "xml-js";
 import pdfMake from "pdfmake/build/pdfmake.js";
 import pdfFonts from "pdfmake/build/vfs_fonts.js";
@@ -9,6 +10,26 @@ pdfMake.vfs = pdfFonts.vfs;
 
 export function createApp() {
   const app = express();
+
+  // Optional shared-secret gate (opt-in). When PDF_SERVICE_SECRET is set, every request except
+  // /health must carry it in the X-Pdf-Secret header. This lets the service be reached over the
+  // public internet (Render free web services can't receive private-network traffic) without being
+  // an open XML→PDF endpoint. Unset = open, for private networks (local compose / paid private
+  // networking). Runs before the body parsers so unauthenticated requests are rejected before a
+  // 10mb body is read.
+  const pdfSecret = process.env.PDF_SERVICE_SECRET;
+  if (pdfSecret && pdfSecret.trim()) {
+    const expected = Buffer.from(pdfSecret);
+    app.use((req, res, next) => {
+      if (req.path === "/health") return next();
+      const provided = Buffer.from(req.get("X-Pdf-Secret") ?? "");
+      if (provided.length !== expected.length || !crypto.timingSafeEqual(provided, expected)) {
+        res.status(403).json({ error: "This PDF service only accepts authenticated requests." });
+        return;
+      }
+      next();
+    });
+  }
 
   app.use(express.text({ type: ["application/xml", "text/xml"], limit: "10mb" }));
   app.use(express.json({ limit: "10mb" }));

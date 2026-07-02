@@ -88,10 +88,11 @@ public static class WorkflowEndpoints
             return await EndpointErrorHandling.Guard(async () =>
             {
                 var xml = await ksefClient.GetInvoiceAsync(ksefNumber, accessToken);
-                var pdfServiceUrl = config["PDF_SERVICE_URL"] ?? "http://ksef-pdf:3000";
+                var pdfServiceUrl = PdfService.BaseUrl(config);
                 var client = httpClientFactory.CreateClient();
                 var pdfRequest = new HttpRequestMessage(HttpMethod.Post,
                     $"{pdfServiceUrl}/pdf/invoice?nrKSeF={Uri.EscapeDataString(ksefNumber)}");
+                PdfService.Authorize(pdfRequest, config);
                 pdfRequest.Content = new StringContent(xml, Encoding.UTF8, "application/xml");
 
                 var pdfResponse = await client.SendAsync(pdfRequest);
@@ -133,10 +134,11 @@ public static class WorkflowEndpoints
 
             return await EndpointErrorHandling.Guard(async () =>
             {
-                var pdfServiceUrl = config["PDF_SERVICE_URL"] ?? "http://ksef-pdf:3000";
+                var pdfServiceUrl = PdfService.BaseUrl(config);
                 var client = httpClientFactory.CreateClient();
 
                 var convertRequest = new HttpRequestMessage(HttpMethod.Post, $"{pdfServiceUrl}/json-to-xml");
+                PdfService.Authorize(convertRequest, config);
                 convertRequest.Content = new StringContent(jsonBody, Encoding.UTF8, "application/json");
 
                 var convertResponse = await client.SendAsync(convertRequest, httpContext.RequestAborted);

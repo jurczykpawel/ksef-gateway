@@ -3,7 +3,7 @@
 @import "@fontsource-variable/jetbrains-mono";
 
 @theme {
-  --color-base: #0a1220;
+  --color-bg: #0a1220;
   --color-elevated: #111d30;
   --color-floating: #182440;
   --color-glass: rgba(24, 36, 64, 0.6);
@@ -15,9 +15,12 @@
   --color-ink: #f0f0f0;
   --color-muted: #a6b3c4;
   --color-faint: #8b97ad;
-  --color-dim: #5c6982;
+  --color-dim: #8591a9;
 
   --color-accent: #6366f1;
+  /* Button/skip-link background - darker than accent so white text meets WCAG 4.5:1 */
+  --color-accent-strong: #5b5ef0;
+  --color-accent-strong-hover: #4f55e9;
   --color-accent-soft: rgba(99, 102, 241, 0.10);
   --color-accent-glow: rgba(99, 102, 241, 0.32);
   --color-accent-bright: #818cf8;
@@ -40,20 +43,57 @@
 
 @layer base {
   html {
-    background-color: var(--color-base);
+    background-color: var(--color-bg);
     color: var(--color-muted);
     font-family: var(--font-sans);
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
     text-rendering: optimizeLegibility;
     scroll-behavior: smooth;
+    scrollbar-gutter: stable;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    html {
+      scroll-behavior: auto;
+    }
+
+    *, *::before, *::after {
+      animation-duration: 0.01ms !important;
+      animation-delay: 0s !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+    }
+  }
+
+  *:focus-visible {
+    outline: 2px solid var(--color-accent-bright);
+    outline-offset: 2px;
+    border-radius: 4px;
+  }
+
+  .skip-link {
+    position: absolute;
+    left: -9999px;
+    z-index: 100;
+    padding: 0.75rem 1.25rem;
+    background: var(--color-accent-strong);
+    color: #fff;
+    font-weight: 600;
+    border-radius: 0.5rem;
+    text-decoration: none;
+  }
+
+  .skip-link:focus {
+    left: 0.5rem;
+    top: 0.5rem;
   }
 
   body {
     background:
       radial-gradient(ellipse 70% 45% at 25% -5%, rgba(99, 102, 241, 0.08), transparent 55%),
       radial-gradient(ellipse 55% 35% at 85% 12%, rgba(96, 165, 250, 0.05), transparent 55%),
-      var(--color-base);
+      var(--color-bg);
     background-attachment: fixed;
     min-height: 100dvh;
     padding-top: var(--nav-h);
@@ -101,7 +141,7 @@
     font-weight: 600;
     letter-spacing: 0.1em;
     text-transform: uppercase;
-    color: var(--color-accent);
+    color: var(--color-accent-bright);
     margin-bottom: 1rem;
   }
 
@@ -120,7 +160,7 @@
     font-size: 0.875rem;
     font-weight: 600;
     color: #fff;
-    background: var(--color-accent);
+    background: var(--color-accent-strong);
     border-radius: 0.5rem;
     text-decoration: none;
     transition: transform 0.2s var(--ease-spring), box-shadow 0.2s var(--ease-out), background 0.15s;
@@ -129,7 +169,7 @@
   }
 
   .btn-primary:hover {
-    background: var(--color-accent-bright);
+    background: var(--color-accent-strong-hover);
     transform: translateY(-1px);
     box-shadow: 0 8px 24px -6px var(--color-accent-glow);
   }
@@ -177,12 +217,301 @@
     gap: 0.375rem;
     padding: 0.625rem 1rem;
     border-bottom: 1px solid var(--color-line-strong);
-    background: color-mix(in oklab, var(--color-floating) 80%, var(--color-base));
+    background: color-mix(in oklab, var(--color-floating) 80%, var(--color-bg));
   }
 
   .terminal-dot {
     width: 0.5rem;
     height: 0.5rem;
     border-radius: 50%;
+  }
+
+  /* Micro-interakcje (tylko CSS, tylko transform/opacity) */
+  .link-arrow svg {
+    transition: transform 0.2s var(--ease-out);
+  }
+
+  .link-arrow:hover svg {
+    transform: translateX(3px);
+  }
+
+  .card-lift {
+    transition: transform 0.25s var(--ease-out), border-color 0.25s, box-shadow 0.25s var(--ease-out);
+  }
+
+  .card-lift:hover {
+    transform: translateY(-4px);
+    border-color: rgba(99, 102, 241, 0.4);
+    box-shadow:
+      0 18px 44px -16px rgba(0, 0, 0, 0.6),
+      0 0 0 1px rgba(99, 102, 241, 0.12);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .card-lift:hover { transform: none; }
+  }
+
+  /* Terminal w hero: linie pojawiają się sekwencyjnie (delay per linia inline) */
+  @keyframes tline-in {
+    from { opacity: 0; transform: translateY(4px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+
+  .tline {
+    opacity: 0;
+    animation: tline-in 0.35s var(--ease-out) forwards;
+  }
+
+  @keyframes cursor-blink {
+    0%, 49%   { opacity: 1; }
+    50%, 100% { opacity: 0; }
+  }
+
+  .cursor-blink {
+    display: inline-block;
+    width: 7px;
+    height: 0.9em;
+    margin-left: 3px;
+    vertical-align: text-bottom;
+    background: var(--color-accent-bright);
+    animation: cursor-blink 1.1s steps(1) infinite;
+  }
+
+  /* Ambient: dryfujące bloby tła (dekoracyjne, za treścią) */
+  @keyframes blob-drift {
+    0%, 100% { transform: translate(0, 0) scale(1); }
+    50%      { transform: translate(36px, -28px) scale(1.08); }
+  }
+
+  .blob {
+    position: absolute;
+    border-radius: 9999px;
+    filter: blur(72px);
+    pointer-events: none;
+    animation: blob-drift 26s ease-in-out infinite;
+  }
+
+  /* Sygnatura hero: numer KSeF dostaje krótki "stempel przyjęcia" po wpisaniu */
+  @keyframes ksef-accept {
+    0%   { background: transparent; }
+    25%  { background: rgba(52, 211, 153, 0.18); }
+    100% { background: rgba(52, 211, 153, 0.06); }
+  }
+
+  .ksef-flash {
+    border-radius: 4px;
+    padding-inline: 2px;
+    animation: ksef-accept 1.6s var(--ease-out) forwards;
+  }
+
+  /* Sygnatura "Odbieranie": toast z nową fakturą wpada do karty i podmienia się w pętli */
+  @keyframes toast-cycle {
+    0%, 4%    { opacity: 0; transform: translateY(14px) scale(0.97); }
+    9%, 46%   { opacity: 1; transform: translateY(0) scale(1); }
+    50%, 100% { opacity: 0; transform: translateY(-8px) scale(0.98); }
+  }
+
+  .toast-invoice {
+    position: absolute;
+    right: 1rem;
+    bottom: 1rem;
+    display: flex;
+    align-items: center;
+    gap: 0.625rem;
+    padding: 0.625rem 0.875rem;
+    background: color-mix(in oklab, var(--color-floating) 60%, #10241c);
+    border: 1px solid rgba(52, 211, 153, 0.35);
+    border-radius: 0.625rem;
+    box-shadow: 0 10px 30px -10px rgba(0, 0, 0, 0.6);
+    opacity: 0;
+    animation: toast-cycle 9s var(--ease-out) infinite;
+    pointer-events: none;
+  }
+
+  .toast-invoice:nth-of-type(2) {
+    animation-delay: 4.5s;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    /* Bez animacji: pierwszy toast po prostu widoczny, drugi ukryty (bez pętli) */
+    .toast-invoice { opacity: 1; animation: none; }
+    .toast-invoice:nth-of-type(2) { opacity: 0; }
+  }
+
+  @keyframes toast-dot {
+    0%, 100% { transform: scale(1); }
+    50%      { transform: scale(1.35); }
+  }
+
+  .toast-dot {
+    width: 0.5rem;
+    height: 0.5rem;
+    border-radius: 50%;
+    background: #34d399;
+    animation: toast-dot 1.6s ease-in-out infinite;
+  }
+
+  /* Sygnatura "Odbieranie": rurociąg harmonogram → brama → mail z PDF (pętla 10s).
+     Wędrujący impuls używa translateX(100cqw) - transform-only i responsywnie. */
+  .pipe-seg {
+    position: relative;
+    flex: 1;
+    height: 2px;
+    min-width: 1rem;
+    background: var(--color-line-strong);
+    container-type: inline-size;
+    overflow: visible;
+  }
+
+  .pipe-dot {
+    position: absolute;
+    top: 50%;
+    left: -4px;
+    width: 8px;
+    height: 8px;
+    margin-top: -4px;
+    border-radius: 50%;
+    background: var(--color-accent-bright);
+    box-shadow: 0 0 10px 2px var(--color-accent-glow);
+    opacity: 0;
+  }
+
+  /* UWAGA: nie :nth-of-type - w rzędzie są też divy węzłów, więc nth-of-type liczy
+     wszystkie divy, nie same .pipe-seg. Kotwiczymy jawnie przez data-seg. */
+  .pipe-seg[data-seg="1"] .pipe-dot { animation: pipe-dot-1 10s linear infinite; }
+  .pipe-seg[data-seg="2"] .pipe-dot { animation: pipe-dot-2 10s linear infinite; }
+
+  @keyframes pipe-dot-1 {
+    0%, 4%    { opacity: 0; transform: translateX(0); }
+    7%        { opacity: 1; }
+    21%       { opacity: 1; transform: translateX(100cqw); }
+    24%, 100% { opacity: 0; transform: translateX(100cqw); }
+  }
+
+  @keyframes pipe-dot-2 {
+    0%, 27%   { opacity: 0; transform: translateX(0); }
+    30%       { opacity: 1; }
+    44%       { opacity: 1; transform: translateX(100cqw); }
+    47%, 100% { opacity: 0; transform: translateX(100cqw); }
+  }
+
+  .pipe-node {
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 3rem;
+    height: 3rem;
+    border-radius: 0.75rem;
+    background: var(--color-elevated);
+    border: 1px solid var(--color-line-bright);
+    flex-shrink: 0;
+  }
+
+  .pipe-node::after {
+    content: "";
+    position: absolute;
+    inset: -5px;
+    border-radius: 1rem;
+    border: 2px solid var(--color-accent-bright);
+    opacity: 0;
+    transform: scale(0.85);
+  }
+
+  .pipe-node[data-node="1"]::after { animation: pipe-ring-1 10s var(--ease-out) infinite; }
+  .pipe-node[data-node="2"]::after { animation: pipe-ring-2 10s var(--ease-out) infinite; }
+  .pipe-node[data-node="3"]::after { animation: pipe-ring-3 10s var(--ease-out) infinite; }
+
+  @keyframes pipe-ring-1 {
+    0%        { opacity: 0; transform: scale(0.85); }
+    2%        { opacity: 0.9; transform: scale(0.9); }
+    8%, 100%  { opacity: 0; transform: scale(1.2); }
+  }
+
+  @keyframes pipe-ring-2 {
+    0%, 21%   { opacity: 0; transform: scale(0.85); }
+    23%       { opacity: 0.9; transform: scale(0.9); }
+    30%, 100% { opacity: 0; transform: scale(1.2); }
+  }
+
+  /* Węzeł "Mail do Ciebie" - mocniejszy, wolniej rozchodzący się pierścień:
+     to on "otwiera" powiadomienie wyskakujące nad ikonką */
+  @keyframes pipe-ring-3 {
+    0%, 44%   { opacity: 0; transform: scale(0.8); }
+    47%       { opacity: 1; transform: scale(0.9); }
+    62%, 100% { opacity: 0; transform: scale(1.55); }
+  }
+
+  /* Badge "1 nowa" nad bramą - pojawia się gdy impuls dociera, znika gdy rusza dalej */
+  .pipe-badge {
+    position: absolute;
+    top: -0.625rem;
+    right: -0.625rem;
+    padding: 0.125rem 0.375rem;
+    font-size: 0.625rem;
+    font-weight: 700;
+    color: #fff;
+    background: #34d399;
+    border-radius: 999px;
+    opacity: 0;
+    transform: scale(0.6);
+    animation: pipe-badge 10s var(--ease-spring) infinite;
+  }
+
+  @keyframes pipe-badge {
+    0%, 22%   { opacity: 0; transform: scale(0.6); }
+    25%, 60%  { opacity: 1; transform: scale(1); }
+    64%, 100% { opacity: 0; transform: scale(0.6); }
+  }
+
+  /* Powiadomienie wyskakuje NAD ikonką "Mail do Ciebie" - kotwiczone do jej kolumny
+     (position: absolute), więc nie rezerwuje miejsca pod spodem. Rozwija się z ikonki
+     (transform-origin przy dolnej krawędzi) dokładnie wtedy, gdy dobiega tam impuls. */
+  .pipe-mail {
+    position: absolute;
+    right: 0;
+    bottom: calc(100% - 1.25rem); /* dolna krawędź nachodzi na górę ikonki */
+    z-index: 20;
+    transform-origin: bottom right;
+    opacity: 0;
+    transform: translateY(6px) scale(0.86);
+    animation: pipe-mail 10s var(--ease-out) infinite;
+  }
+
+  @keyframes pipe-mail {
+    0%, 44%   { opacity: 0; transform: translateY(6px) scale(0.86); }
+    51%, 88%  { opacity: 1; transform: translateY(0) scale(1); }
+    94%, 100% { opacity: 0; transform: translateY(2px) scale(0.92); }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .pipe-dot   { animation: none; opacity: 0; }
+    .pipe-node::after { animation: none !important; opacity: 0; }
+    .pipe-badge { animation: none; opacity: 1; transform: scale(1); }
+    .pipe-mail  { animation: none; opacity: 1; transform: translateY(0) scale(1); }
+  }
+
+  /* Sygnatura "Szybki start": linia postępu rysuje się wzdłuż kroków 01→03 */
+  .hiw-line {
+    position: absolute;
+    left: 1.5rem;
+    top: 3.5rem;
+    bottom: 2rem;
+    width: 2px;
+    background: linear-gradient(to bottom, var(--color-accent), rgba(99, 102, 241, 0.12));
+    transform-origin: top;
+    transform: translateX(-50%) scaleY(0);
+    transition: transform 1.4s var(--ease-out);
+  }
+
+  .hiw-line.drawn {
+    transform: translateX(-50%) scaleY(1);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .hiw-line {
+      transform: translateX(-50%) scaleY(1);
+      transition: none;
+    }
   }
 }

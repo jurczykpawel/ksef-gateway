@@ -1,23 +1,23 @@
 # KSeF Gateway
 
-> REST API for Poland's e-Invoice System (KSeF). Send a JSON, get a KSeF number. Receive invoices without knowing their number. One HTTP call, both directions.
+> REST API do polskiego Krajowego Systemu e-Faktur (KSeF). Wysyłasz JSON, dostajesz numer KSeF. Odbierasz faktury bez znajomości ich numeru. Jedno wywołanie HTTP w obie strony.
 
 <details>
-<summary>🇵🇱 Po polsku</summary>
+<summary>🇬🇧 In English</summary>
 
-**KSeF Gateway** to bramka REST API do Krajowego Systemu e-Faktur. Wysyłasz prosty JSON z danymi faktury, dostajesz numer KSeF. Odbierasz faktury wystawione na Ciebie bez znajomości ich numeru - jednym zapytaniem po dacie. Jedno wywołanie HTTP zamiast budowania XML, szyfrowania AES-256, zarządzania sesjami i tokenami.
+**KSeF Gateway** is a REST API gateway for Poland's National e-Invoice System (KSeF). Send a simple JSON invoice, get a KSeF number back. Receive invoices issued to you without knowing their number - search by date instead. One HTTP call instead of building XML, AES-256 encryption, session management, and token handling.
 
 ```bash
-curl -X POST https://twoj-gateway/ksef/invoice \
-  -d '{"seller":{"nip":"..."},"buyer":{"nip":"..."},"items":[{"name":"Usługa","unitPrice":100,"vatRate":23}]}'
+curl -X POST https://your-gateway/ksef/invoice \
+  -d '{"seller":{"nip":"..."},"buyer":{"nip":"..."},"items":[{"name":"Service","unitPrice":100,"vatRate":23}]}'
 # → {"success":true,"data":{"ksefNumber":"1234567890-20260326-..."}}
 ```
 
-**Szybki start:** `docker compose up` i gotowe. Nie potrzebujesz .NET lokalnie.
+**Quick start:** `docker compose up` and you're done. No local .NET required.
 
-**Cechy:** wysyłanie i odbieranie faktur, oficjalne SDK Ministerstwa Finansów (CIRFMF), PDF z QR, 60+ endpointów, multi-NIP, deploy jednym kliknięciem (Render/Lambda/Azure). Gotowe na obowiązkowy KSeF (produkcja, nie tylko test).
+**Features:** sending and receiving invoices, official Ministry of Finance SDK (CIRFMF), PDF with QR code, 60+ endpoints, multi-NIP, one-click deploy (Render/Lambda/Azure). Ready for mandatory KSeF (production, not just test).
 
-**Instrukcja generowania tokenu produkcyjnego:** [Production Token](#production-token-step-by-step)
+**Full README:** [README.en.md](README.en.md)
 
 </details>
 
@@ -31,77 +31,77 @@ curl -X POST https://twoj-gateway/ksef/invoice \
 
 ---
 
-## The Problem
+## Problem
 
-Integrating with KSeF directly means:
-- Building FA(3) XML from scratch (complex schema, Polish field names like P_13_1, P_14_1)
-- AES-256 encryption of invoices with KSeF's RSA public key
-- Session management (open, send, poll status, close)
-- Token authentication with XAdES signatures and auto-refresh
-- Handling rate limits, retries, and error codes from KSeF API
+Integracja z KSeF bezpośrednio oznacza:
+- Budowanie XML FA(3) od zera (skomplikowany schemat, polskie nazwy pól jak P_13_1, P_14_1)
+- Szyfrowanie faktur AES-256 kluczem publicznym RSA KSeF
+- Zarządzanie sesjami (otwarcie, wysłanie, sprawdzanie statusu, zamknięcie)
+- Autoryzacja tokenem z podpisami XAdES i auto-odświeżaniem
+- Obsługa limitów żądań, ponawiania prób i kodów błędów z API KSeF
 
-**KSeF Gateway handles all of this.** You send a simple JSON, get back a KSeF number.
+**KSeF Gateway zajmuje się tym wszystkim.** Wysyłasz prosty JSON, dostajesz numer KSeF.
 
-### Without KSeF Gateway
+### Bez KSeF Gateway
 
 ```
-Your app → build XML → encrypt AES-256 → exchange RSA keys → open session
-→ send encrypted invoice → poll status → parse response → close session
-→ handle errors, retries, token refresh...
+Twoja aplikacja → zbuduj XML → zaszyfruj AES-256 → wymień klucze RSA → otwórz sesję
+→ wyślij zaszyfrowaną fakturę → sprawdzaj status → sparsuj odpowiedź → zamknij sesję
+→ obsłuż błędy, ponów próby, odśwież token...
 ```
 
-### With KSeF Gateway
+### Z KSeF Gateway
 
 ```bash
-curl -X POST https://your-gateway/ksef/invoice \
+curl -X POST https://twoja-brama/ksef/invoice \
   -H "Content-Type: application/json" \
-  -d '{"seller":{"nip":"..."},"buyer":{"nip":"..."},"items":[{"name":"Service","unitPrice":100,"vatRate":23}]}'
+  -d '{"seller":{"nip":"..."},"buyer":{"nip":"..."},"items":[{"name":"Usługa","unitPrice":100,"vatRate":23}]}'
 
 # → {"success":true,"data":{"ksefNumber":"1234567890-20260326-..."}}
 ```
 
 ---
 
-## Why KSeF Gateway?
+## Dlaczego KSeF Gateway?
 
-- **One HTTP call** - send JSON, get KSeF number. Gateway handles encryption, sessions, polling
-- **Simple JSON input** - `{seller, buyer, items}` with auto VAT calculation. No XML knowledge needed
-- **Receive without knowing the number** - KSeF has no email/webhook notifications; [browse or poll for invoices issued to you](#receiving-invoices) by date instead
-- **PDF with QR** - download verified invoice PDF by KSeF number, one call
-- **Official SDK inside** - wraps [CIRFMF/ksef-client-csharp](https://github.com/CIRFMF/ksef-client-csharp), maintained by the Polish Ministry of Finance
-- **60+ auto-discovered endpoints** from the SDK via .NET reflection
-- **Deploy anywhere** - Docker, Render (one click), AWS Lambda, Azure
-- **No .NET required locally** - everything builds and runs inside Docker
+- **Jedno wywołanie HTTP** - wysyłasz JSON, dostajesz numer KSeF. Brama obsługuje szyfrowanie, sesje, odpytywanie statusu
+- **Proste dane wejściowe JSON** - `{seller, buyer, items}` z automatycznym liczeniem VAT. Nie musisz znać XML
+- **Odbieranie bez znajomości numeru** - KSeF nie wysyła powiadomień e-mail/webhook; zamiast tego [przeglądaj lub odpytuj o faktury wystawione na Ciebie](#odbieranie-faktur) po dacie
+- **PDF z kodem QR** - pobierz zweryfikowany PDF faktury po numerze KSeF, jednym wywołaniem
+- **Oficjalne SDK w środku** - opakowuje [CIRFMF/ksef-client-csharp](https://github.com/CIRFMF/ksef-client-csharp), utrzymywane przez Ministerstwo Finansów
+- **60+ automatycznie odkrytych endpointów** z SDK przez refleksję .NET
+- **Wdrażaj gdziekolwiek** - Docker, Render (jednym kliknięciem), AWS Lambda, Azure
+- **Nie potrzebujesz .NET lokalnie** - wszystko buduje się i działa w Dockerze
 
 ---
 
-## Security
+## Bezpieczeństwo
 
-The gateway authenticates *itself* to KSeF (token or certificate - see below), but on its own has **no way to authenticate whoever is calling it**. Deploy it on a reachable URL without protecting it, and anyone who finds that URL can send or read real invoices for whichever NIP it's configured with.
+Brama uwierzytelnia *samą siebie* w KSeF (token lub certyfikat - patrz niżej), ale sama z siebie **nie ma żadnego sposobu, żeby uwierzytelnić tego, kto ją wywołuje**. Wdróż ją pod publicznym adresem bez zabezpieczenia, a każdy, kto znajdzie ten adres, może wysyłać lub czytać prawdziwe faktury dla NIP-u, na który jest skonfigurowana.
 
-**`GATEWAY_API_KEY` closes that gap.** Every request except `GET /health` (used by health checks/monitoring) must include it as an `X-Api-Key` header, or the gateway rejects it - including `/scalar/v1` and the OpenAPI JSON, so the API surface itself isn't exposed either:
+**`GATEWAY_API_KEY` zamyka tę lukę.** Każde żądanie oprócz `GET /health` (używanego przez health checki/monitoring) musi zawierać ten klucz jako nagłówek `X-Api-Key`, inaczej brama je odrzuci - łącznie z `/scalar/v1` i JSON-em OpenAPI, więc sama powierzchnia API też nie jest wystawiona:
 
-| Situation | Response |
+| Sytuacja | Odpowiedź |
 |---|---|
-| `GATEWAY_API_KEY` not set on the gateway | `503` - fails **closed**: refuses everything rather than silently staying open |
-| Missing or wrong `X-Api-Key` header | `401` |
-| Correct `X-Api-Key` header | Request proceeds normally |
+| `GATEWAY_API_KEY` nie ustawiony na bramie | `503` - zawodzi **domknięte**: odmawia wszystkiego zamiast po cichu zostać otwarta |
+| Brakujący lub zły nagłówek `X-Api-Key` | `401` |
+| Poprawny nagłówek `X-Api-Key` | Żądanie przechodzi normalnie |
 
-Generate a strong key once, keep it secret - same handling as `KSEF_TOKEN`:
+Wygeneruj silny klucz raz, trzymaj w tajemnicy - tak samo jak `KSEF_TOKEN`:
 
 ```bash
 openssl rand -hex 32
 ```
 
-> This is separate from `KSEF_TOKEN`/certificate auth, which protects the gateway's own connection *to* KSeF. You need both: one so the gateway can talk to KSeF, one so only you can talk to the gateway.
+> To jest osobne od autoryzacji `KSEF_TOKEN`/certyfikatem, która chroni własne połączenie bramy *do* KSeF. Potrzebujesz obu: jednego żeby brama mogła rozmawiać z KSeF, drugiego żeby tylko Ty mógł rozmawiać z bramą.
 
-**Defense in depth for production:** the API key is the one thing standing between a public URL and the entire internet, so for a real deployment also restrict network access where the platform allows it - an IP allowlist (Render, Azure), a VPN/private network, or a reverse proxy in front of the gateway. Don't rely on the key as the only layer.
+**Obrona w głąb dla produkcji:** klucz API to jedyna rzecz stojąca między publicznym adresem a całym internetem, więc dla prawdziwego wdrożenia ogranicz też dostęp sieciowy tam, gdzie platforma na to pozwala - allowlista IP (Render, Azure), VPN/sieć prywatna, albo reverse proxy przed bramą. Nie polegaj na kluczu jako jedynej warstwie.
 
 ---
 
-## Try the Live Demo
+## Wypróbuj Live Demo
 
-No setup required. A public demo instance runs on Render's free tier, authenticated to a disposable KSeF **TEST** company (not a real business) via certificate. Self-invoicing is enabled, so you can send an invoice and immediately look yourself up as the buyer:
+Bez konfiguracji. Publiczna instancja demo działa na darmowym tierze Render, uwierzytelniona certyfikatem do jednorazowej firmy **TEST** KSeF (nie prawdziwy biznes). Samofakturowanie jest włączone, więc możesz wysłać fakturę i od razu odnaleźć siebie jako nabywcę:
 
 ```bash
 DEMO_URL="https://ksef-api-rfm0.onrender.com"
@@ -126,50 +126,50 @@ curl "$DEMO_URL/ksef/invoices/received?from=2026-01-01&to=2026-12-31" \
 # → {"success":true,"data":{"invoices":[{"ksefNumber":"...","invoiceNumber":"DEMO/...",...}],"hasMore":false}}
 ```
 
-Or import the [Bruno collection](#testing-with-bruno) and switch to the `demo` environment - every request works immediately, no credentials to find.
+Albo zaimportuj [kolekcję Bruno](#testowanie-z-bruno) i przełącz na środowisko `demo` - każde żądanie działa od razu, żadnych danych do szukania.
 
-> **This demo is public and shared** - don't send anything sensitive. It's a disposable TEST-environment NIP, not connected to any real business, and the API key may be rotated without notice if abused.
+> **To demo jest publiczne i współdzielone** - nie wysyłaj niczego wrażliwego. To jednorazowy NIP środowiska TEST, niepowiązany z żadnym prawdziwym biznesem, a klucz API może zostać rotowany bez ostrzeżenia w razie nadużycia.
 
 ---
 
-## Quick Start
+## Szybki Start
 
-### Prerequisites
+### Wymagania wstępne
 - Docker & Docker Compose
-- GitHub PAT with `read:packages` scope ([create here](https://github.com/settings/tokens/new?scopes=read:packages))
+- GitHub PAT z uprawnieniem `read:packages` ([utwórz tutaj](https://github.com/settings/tokens/new?scopes=read:packages))
 
-> **Why is a GitHub PAT needed?** The official KSeF SDK ([CIRFMF/ksef-client-csharp](https://github.com/CIRFMF/ksef-client-csharp)) is published as NuGet packages on GitHub Packages, not on nuget.org. GitHub Packages requires authentication even for packages from public repositories - this is a [known GitHub limitation](https://github.com/orgs/community/discussions/26634). A PAT with `read:packages` scope is the only way to download them during build. It takes 30 seconds to generate one.
+> **Dlaczego potrzebny jest GitHub PAT?** Oficjalne SDK KSeF ([CIRFMF/ksef-client-csharp](https://github.com/CIRFMF/ksef-client-csharp)) jest publikowane jako pakiety NuGet na GitHub Packages, nie na nuget.org. GitHub Packages wymaga uwierzytelnienia nawet dla pakietów z publicznych repozytoriów - to [znane ograniczenie GitHub](https://github.com/orgs/community/discussions/26634). PAT z uprawnieniem `read:packages` to jedyny sposób na ich pobranie podczas budowania. Wygenerowanie zajmuje 30 sekund.
 
-### 1. Clone and configure
+### 1. Sklonuj i skonfiguruj
 
 ```bash
 git clone --recurse-submodules https://github.com/jurczykpawel/ksef-gateway.git
 cd ksef-gateway
 cp .env.example .env
-# Edit .env: set GITHUB_PAT and GATEWAY_API_KEY (e.g. `openssl rand -hex 32`)
+# Edytuj .env: ustaw GITHUB_PAT i GATEWAY_API_KEY (np. `openssl rand -hex 32`)
 ```
 
-> **Why does `.env` need a `GATEWAY_API_KEY`?** The gateway has no other caller-facing auth - see [Security](#security) below. Every request except `GET /health` needs it back as the `X-Api-Key` header, or the gateway rejects it.
+> **Dlaczego `.env` potrzebuje `GATEWAY_API_KEY`?** Brama nie ma żadnej innej autoryzacji dla wywołujących - patrz [Bezpieczeństwo](#bezpieczeństwo) niżej. Każde żądanie oprócz `GET /health` potrzebuje go z powrotem jako nagłówek `X-Api-Key`, inaczej brama je odrzuci.
 
-### 2. Generate a KSeF test token
+### 2. Wygeneruj testowy token KSeF
 
 ```bash
 docker compose --profile tools run --rm token-generator
 ```
 
-Copy the output (`KSEF_TOKEN`, `KSEF_NIP`, `KSEF_ENV`) into your `.env` file.
+Skopiuj wynik (`KSEF_TOKEN`, `KSEF_NIP`, `KSEF_ENV`) do pliku `.env`.
 
-> **What does this do?** See [How Token Generator Works](#how-token-generator-works) below. Prefer testing the [certificate-based auth path](#certificate-based-auth-alternative-to-tokens) instead? `docker compose --profile tools run --rm cert-generator` does the same for certificates - see [How Cert Generator Works](#how-cert-generator-works).
+> **Co to robi?** Patrz [Jak Działa Generator Tokenów](#jak-działa-generator-tokenów) niżej. Wolisz przetestować [ścieżkę autoryzacji certyfikatem](#autoryzacja-certyfikatem-alternatywa-dla-tokenów)? `docker compose --profile tools run --rm cert-generator` robi to samo dla certyfikatów - patrz [Jak Działa Generator Certyfikatów](#jak-działa-generator-certyfikatów).
 
-### 3. Run the gateway
+### 3. Uruchom bramę
 
 ```bash
 docker compose up --build
 ```
 
-API: `http://localhost:8080` | Docs: `http://localhost:8080/scalar/v1`
+API: `http://localhost:8080` | Dokumentacja: `http://localhost:8080/scalar/v1`
 
-### 4. Send your first invoice
+### 4. Wyślij pierwszą fakturę
 
 ```bash
 curl -X POST http://localhost:8080/ksef/invoice \
@@ -180,77 +180,77 @@ curl -X POST http://localhost:8080/ksef/invoice \
     "issueDate": "2026-03-26",
     "saleDate": "2026-03-26",
     "seller": {
-      "nip": "YOUR_NIP",
-      "name": "Your Company sp. z o.o.",
+      "nip": "TWOJ_NIP",
+      "name": "Twoja Firma sp. z o.o.",
       "address": { "street": "ul. Testowa 1", "city": "00-001 Warszawa" }
     },
     "buyer": {
       "nip": "5265877635",
-      "name": "Buyer sp. z o.o.",
+      "name": "Nabywca sp. z o.o.",
       "address": { "street": "ul. Kupiecka 5", "city": "30-001 Krakow" }
     },
     "items": [
-      { "name": "Consulting service", "quantity": 10, "unitPrice": 150, "vatRate": 23 }
+      { "name": "Usługa konsultingowa", "quantity": 10, "unitPrice": 150, "vatRate": 23 }
     ],
     "payment": { "paid": true, "date": "2026-03-26", "method": "transfer" }
   }'
 
-# Response: {"success":true,"data":{"ksefNumber":"1234567890-20260326-..."}}
+# Odpowiedź: {"success":true,"data":{"ksefNumber":"1234567890-20260326-..."}}
 
-# Download PDF with QR code
+# Pobierz PDF z kodem QR
 curl -H "X-Api-Key: $GATEWAY_API_KEY" -o faktura.pdf http://localhost:8080/ksef/invoice/{ksefNumber}/pdf
 ```
 
-> **Also supports raw XML** (`POST /ksef/send`) and xml-js JSON format (`POST /ksef/send/json`) - see [Sending Invoices](#sending-invoices) below.
+> **Wspiera też surowy XML** (`POST /ksef/send`) i format JSON xml-js (`POST /ksef/send/json`) - patrz [Wysyłanie Faktur](#wysyłanie-faktur) niżej.
 
-### 5. Find an invoice sent to you
+### 5. Znajdź fakturę wysłaną do Ciebie
 
-On TEST/DEMO you can try this immediately without a second company: set `buyer.nip` to the **same** NIP you used as `seller.nip` above (KSeF supports self-invoicing), then look yourself up as the buyer:
+Na TEST/DEMO możesz spróbować od razu bez drugiej firmy: ustaw `buyer.nip` na **ten sam** NIP, którego użyłeś jako `seller.nip` powyżej (KSeF wspiera samofakturowanie), potem odnajdź siebie jako nabywcę:
 
 ```bash
 curl "http://localhost:8080/ksef/invoices/received?from=2026-03-01&to=2026-04-01" \
   -H "X-Api-Key: $GATEWAY_API_KEY" \
-  -H "X-KSeF-NIP: YOUR_NIP"
+  -H "X-KSeF-NIP: TWOJ_NIP"
 
-# Response: {"success":true,"data":{"invoices":[{"ksefNumber":"...","invoiceNumber":"FV/2026/001",...}],"hasMore":false}}
+# Odpowiedź: {"success":true,"data":{"invoices":[{"ksefNumber":"...","invoiceNumber":"FV/2026/001",...}],"hasMore":false}}
 ```
 
-No need to already know the KSeF number - see [Receiving Invoices](#receiving-invoices) below for the full picture, including polling for new invoices.
+Nie musisz znać numeru KSeF wcześniej - patrz [Odbieranie Faktur](#odbieranie-faktur) niżej po pełny obraz, łącznie z odpytywaniem o nowe faktury.
 
 ---
 
-## Testing with Bruno
+## Testowanie z Bruno
 
-A [Bruno](https://www.usebruno.com/) collection is included in the `bruno/` directory - all endpoints with assertions.
+W katalogu `bruno/` znajduje się kolekcja [Bruno](https://www.usebruno.com/) - wszystkie endpointy z asercjami.
 
-**Setup:**
-1. Install Bruno (desktop app or CLI: `npm install -g @usebruno/cli`)
-2. Open collection in Bruno desktop: **Open Collection** → select `bruno/`
-3. Select environment `local`, `render` (your own Render deploy), or `demo` (the [live demo](#try-the-live-demo) - no credentials to set, already filled in)
-4. For `local`/`render`: set `apiKey` to your `GATEWAY_API_KEY` and `sellerNip` to your NIP - the collection-level header (`collection.bru`) sends `apiKey` as `X-Api-Key` on every request automatically
+**Konfiguracja:**
+1. Zainstaluj Bruno (aplikacja desktopowa albo CLI: `npm install -g @usebruno/cli`)
+2. Otwórz kolekcję w Bruno desktop: **Open Collection** → wybierz `bruno/`
+3. Wybierz środowisko `local`, `render` (Twój własny deploy na Render) albo `demo` ([live demo](#wypróbuj-live-demo) - żadnych danych do ustawiania, już wypełnione)
+4. Dla `local`/`render`: ustaw `apiKey` na Twój `GATEWAY_API_KEY` i `sellerNip` na Twój NIP - nagłówek na poziomie kolekcji (`collection.bru`) automatycznie wysyła `apiKey` jako `X-Api-Key` w każdym żądaniu
 
-**Run with CLI:**
+**Uruchamianie z CLI:**
 ```bash
-# Health check (the only endpoint that doesn't need an API key)
+# Health check (jedyny endpoint, który nie potrzebuje klucza API)
 cd bruno && bru run health.bru --env local
 
-# Full collection (requires GATEWAY_API_KEY, KSEF_TOKEN + KSEF_NIP in .env)
+# Cała kolekcja (wymaga GATEWAY_API_KEY, KSEF_TOKEN + KSEF_NIP w .env)
 bru run --env local
 ```
 
-`send-xml.bru` and `send-invoice.bru` automatically save the returned `ksefNumber` as a variable - after sending, `get-invoice-xml` and `get-invoice-pdf` work immediately.
+`send-xml.bru` i `send-invoice.bru` automatycznie zapisują zwrócony `ksefNumber` jako zmienną - po wysłaniu `get-invoice-xml` i `get-invoice-pdf` działają od razu.
 
-**What's in the collection:**
+**Co jest w kolekcji:**
 
-| Request | Endpoint |
+| Żądanie | Endpoint |
 |---|---|
 | `health.bru` | `GET /health` |
 | `status.bru` | `GET /ksef/status` |
 | `contexts.bru` | `GET /ksef/contexts` |
-| `send-invoice.bru` | `POST /ksef/invoice` (friendly JSON) |
-| `send-xml.bru` | `POST /ksef/send` (raw FA(3) XML) |
-| `send-xml-explicit-nip.bru` | `POST /ksef/send` with `X-KSeF-NIP` header (multi-NIP) |
-| `send-json.bru` | `POST /ksef/send/json` (xml-js format) |
+| `send-invoice.bru` | `POST /ksef/invoice` (przyjazny JSON) |
+| `send-xml.bru` | `POST /ksef/send` (surowy XML FA(3)) |
+| `send-xml-explicit-nip.bru` | `POST /ksef/send` z nagłówkiem `X-KSeF-NIP` (multi-NIP) |
+| `send-json.bru` | `POST /ksef/send/json` (format xml-js) |
 | `get-invoice-xml.bru` | `GET /ksef/invoice/{ksefNumber}` |
 | `get-invoice-pdf.bru` | `GET /ksef/invoice/{ksefNumber}/pdf` |
 | `list-received-invoices.bru` | `GET /ksef/invoices/received` |
@@ -259,50 +259,50 @@ bru run --env local
 
 ---
 
-## API Endpoints
+## Endpointy API
 
-> **Every endpoint below except `GET /health` requires an `X-Api-Key` header** (see [Security](#security)). Examples further down omit it for brevity - assume it's there.
+> **Każdy endpoint poniżej oprócz `GET /health` wymaga nagłówka `X-Api-Key`** (patrz [Bezpieczeństwo](#bezpieczeństwo)). Przykłady poniżej pomijają go dla zwięzłości - zakładaj, że tam jest.
 
-### Workflow Endpoints (high-level)
+### Endpointy Workflow (wysokopoziomowe)
 
-| Method | Endpoint | Input | Output |
+| Metoda | Endpoint | Wejście | Wyjście |
 |--------|----------|-------|--------|
-| `POST` | `/ksef/invoice` | Friendly JSON `{seller, buyer, items}` | KSeF number |
-| `POST` | `/ksef/send` | FA(3) XML body | KSeF number |
-| `POST` | `/ksef/send/json` | JSON (xml-js format, 1:1 with XML) | KSeF number |
-| `GET` | `/ksef/invoice/{ksefNumber}` | - | Invoice XML |
-| `GET` | `/ksef/invoice/{ksefNumber}/pdf` | - | PDF with QR code |
-| `GET` | `/ksef/invoices/received` | `?from=&to=&page=&pageSize=` | List of invoices you received (buyer role) |
-| `GET` | `/ksef/invoices/received/new` | `?since=` | New invoices since a checkpoint, for polling/sync |
-| `GET` | `/ksef/invoices/issued` | `?from=&to=&page=&pageSize=` | List of invoices you issued (seller role) |
-| `GET` | `/ksef/status` | - | Gateway + KSeF status |
+| `POST` | `/ksef/invoice` | Przyjazny JSON `{seller, buyer, items}` | Numer KSeF |
+| `POST` | `/ksef/send` | Ciało XML FA(3) | Numer KSeF |
+| `POST` | `/ksef/send/json` | JSON (format xml-js, 1:1 z XML) | Numer KSeF |
+| `GET` | `/ksef/invoice/{ksefNumber}` | - | XML faktury |
+| `GET` | `/ksef/invoice/{ksefNumber}/pdf` | - | PDF z kodem QR |
+| `GET` | `/ksef/invoices/received` | `?from=&to=&page=&pageSize=` | Lista faktur, które odebrałeś (rola nabywcy) |
+| `GET` | `/ksef/invoices/received/new` | `?since=` | Nowe faktury od checkpointu, do odpytywania/synchronizacji |
+| `GET` | `/ksef/invoices/issued` | `?from=&to=&page=&pageSize=` | Lista faktur, które wystawiłeś (rola sprzedawcy) |
+| `GET` | `/ksef/status` | - | Status bramy + KSeF |
 | `GET` | `/health` | - | Health check |
 
-### Auto-discovered SDK Endpoints (low-level)
+### Automatycznie odkryte endpointy SDK (niskopoziomowe)
 
-All 60+ methods from the official `IKSeFClient` are exposed as `POST /ksef/{group}/{method}`:
+Wszystkie 60+ metod z oficjalnego `IKSeFClient` są wystawione jako `POST /ksef/{grupa}/{metoda}`:
 
-| Group | Endpoints | Description |
+| Grupa | Endpointy | Opis |
 |-------|-----------|-------------|
-| `online-session` | 3 | Interactive invoice sending |
-| `batch-session` | 4 | Batch sending (ZIP packages) |
-| `invoice-download` | 4 | Download, query, export invoices |
-| `session-status` | 9 | Session/invoice status, UPO |
-| `authorization` | 5 | Auth challenge, token auth |
-| `ksef-token` | 4 | Generate, query, revoke tokens |
-| `certificate` | 7 | KSeF certificate management |
-| `permissions` | 17 | Grant, revoke, search permissions |
-| `lighthouse` | 2 | KSeF system status |
+| `online-session` | 3 | Interaktywne wysyłanie faktur |
+| `batch-session` | 4 | Wysyłanie wsadowe (pakiety ZIP) |
+| `invoice-download` | 4 | Pobieranie, zapytania, eksport faktur |
+| `session-status` | 9 | Status sesji/faktury, UPO |
+| `authorization` | 5 | Wyzwanie autoryzacji, autoryzacja tokenem |
+| `ksef-token` | 4 | Generowanie, sprawdzanie, unieważnianie tokenów |
+| `certificate` | 7 | Zarządzanie certyfikatami KSeF |
+| `permissions` | 17 | Nadawanie, cofanie, szukanie uprawnień |
+| `lighthouse` | 2 | Status systemu KSeF |
 
-Full interactive docs at `/scalar/v1`.
+Pełna interaktywna dokumentacja pod `/scalar/v1`.
 
 ---
 
-## Sending Invoices
+## Wysyłanie Faktur
 
-### Option 1: Friendly JSON (recommended)
+### Opcja 1: Przyjazny JSON (zalecane)
 
-Simple JSON with human-readable fields. Gateway builds FA(3) XML, calculates VAT totals, handles all KSeF fields automatically.
+Prosty JSON z czytelnymi polami. Brama buduje XML FA(3), liczy sumy VAT, obsługuje wszystkie pola KSeF automatycznie.
 
 ```bash
 curl -X POST http://localhost:8080/ksef/invoice \
@@ -313,25 +313,25 @@ curl -X POST http://localhost:8080/ksef/invoice \
     "saleDate": "2026-03-26",
     "seller": {
       "nip": "1234567890",
-      "name": "Seller sp. z o.o.",
+      "name": "Sprzedawca sp. z o.o.",
       "address": { "street": "ul. Testowa 1", "city": "00-001 Warszawa" }
     },
     "buyer": {
       "nip": "0987654321",
-      "name": "Buyer sp. z o.o.",
+      "name": "Nabywca sp. z o.o.",
       "address": { "street": "ul. Kupiecka 2", "city": "00-002 Warszawa" }
     },
     "items": [
-      { "name": "Consulting service", "quantity": 10, "unitPrice": 150, "vatRate": 23 },
-      { "name": "Server hosting", "quantity": 1, "unitPrice": 50, "vatRate": 23 }
+      { "name": "Usługa konsultingowa", "quantity": 10, "unitPrice": 150, "vatRate": 23 },
+      { "name": "Hosting serwera", "quantity": 1, "unitPrice": 50, "vatRate": 23 }
     ],
     "payment": { "paid": true, "date": "2026-03-26", "method": "transfer" }
   }'
 ```
 
-### Option 2: Raw FA(3) XML
+### Opcja 2: Surowy XML FA(3)
 
-For systems that already generate KSeF XML (accounting software, ERP):
+Dla systemów, które już generują XML KSeF (oprogramowanie księgowe, ERP):
 
 ```bash
 curl -X POST http://localhost:8080/ksef/send \
@@ -339,9 +339,9 @@ curl -X POST http://localhost:8080/ksef/send \
   -d @invoice.xml
 ```
 
-### Option 3: JSON mirroring XML (xml-js format)
+### Opcja 3: JSON odzwierciedlający XML (format xml-js)
 
-1:1 JSON representation of FA(3) XML using [xml-js compact format](https://www.npmjs.com/package/xml-js#compact-notation). Zero-maintenance - when XSD changes, JSON structure changes automatically. See [`examples/invoice.json`](examples/invoice.json) for full example.
+Reprezentacja JSON 1:1 XML-a FA(3) w [formacie compact xml-js](https://www.npmjs.com/package/xml-js#compact-notation). Zero utrzymania - gdy zmienia się XSD, struktura JSON zmienia się automatycznie. Pełny przykład w [`examples/invoice.json`](examples/invoice.json).
 
 ```bash
 curl -X POST http://localhost:8080/ksef/send/json \
@@ -349,7 +349,7 @@ curl -X POST http://localhost:8080/ksef/send/json \
   -d @examples/invoice.json
 ```
 
-### Response (all options)
+### Odpowiedź (wszystkie opcje)
 
 ```json
 {
@@ -362,55 +362,55 @@ curl -X POST http://localhost:8080/ksef/send/json \
 }
 ```
 
-### Error responses
+### Odpowiedzi błędów
 
-Every endpoint returns the same shape on failure: `{"success": false, "data": null, "error": "..."}`. The HTTP status code tells you whether to retry and how:
+Każdy endpoint zwraca ten sam kształt przy błędzie: `{"success": false, "data": null, "error": "..."}`. Kod statusu HTTP mówi, czy ponowić próbę i jak:
 
-| Status | Meaning | What to do |
+| Status | Znaczenie | Co zrobić |
 |--------|---------|------------|
-| `400` | Bad input (missing NIP, invalid XML, malformed body) | Fix the request, don't retry as-is |
-| `401` | Missing or wrong `X-Api-Key` header - see [Security](#security) | Send the correct gateway API key |
-| `429` | You're about to hit (or hit) a KSeF rate limit | Wait the `Retry-After` header (seconds), then retry |
-| `502` | KSeF's own API rejected or failed the request | Check `error` for the KSeF error code/message; not always safe to retry blindly |
-| `503` | One of: `GATEWAY_API_KEY` isn't configured on the gateway at all, KSeF's SDK circuit breaker is open (has `Retry-After` header - wait then retry), or the gateway isn't authenticated for that NIP yet (`TokenPool` still starting up - no `Retry-After`, retry shortly) | See `error` message to tell which one |
-| `500` | Unexpected error in the gateway itself | Check gateway logs; please open an issue |
+| `400` | Złe dane wejściowe (brak NIP, nieprawidłowy XML, źle sformowane ciało) | Popraw żądanie, nie ponawiaj bez zmian |
+| `401` | Brakujący lub zły nagłówek `X-Api-Key` - patrz [Bezpieczeństwo](#bezpieczeństwo) | Wyślij poprawny klucz API bramy |
+| `429` | Zaraz przekroczysz (albo przekroczyłeś) limit żądań KSeF | Poczekaj tyle, ile mówi nagłówek `Retry-After` (sekundy), potem ponów |
+| `502` | Własne API KSeF odrzuciło lub nie powiodło się żądanie | Sprawdź `error` po kod/wiadomość błędu KSeF; nie zawsze bezpiecznie ponowić bez zastanowienia |
+| `503` | Jedno z: `GATEWAY_API_KEY` w ogóle nie skonfigurowany na bramie, wyłącznik obwodu SDK KSeF jest otwarty (ma nagłówek `Retry-After` - poczekaj i ponów), albo brama nie jest jeszcze uwierzytelniona dla tego NIP-u (`TokenPool` wciąż startuje - brak `Retry-After`, ponów wkrótce) | Sprawdź wiadomość `error`, żeby wiedzieć który przypadek |
+| `500` | Nieoczekiwany błąd w samej bramie | Sprawdź logi bramy; proszę zgłoś issue |
 
-`429` and circuit-breaker `503` responses include a `Retry-After` header (seconds) - respect it instead of retrying immediately, especially for the [rate-limited receiving endpoints](#receiving-invoices).
+Odpowiedzi `429` i wyłącznika obwodu `503` zawierają nagłówek `Retry-After` (sekundy) - uszanuj go zamiast ponawiać natychmiast, szczególnie przy [endpointach odbierania z limitem żądań](#odbieranie-faktur).
 
 ---
 
-## PDF Generation
+## Generowanie PDF
 
 ```bash
-# Get PDF with QR code by KSeF number (one call - downloads XML from KSeF internally)
+# Pobierz PDF z kodem QR po numerze KSeF (jedno wywołanie - wewnętrznie pobiera XML z KSeF)
 curl -o faktura.pdf http://localhost:8080/ksef/invoice/{ksefNumber}/pdf
 
-# Generate PDF from XML directly
+# Wygeneruj PDF bezpośrednio z XML
 curl -X POST http://localhost:8080/pdf/invoice \
   -H "Content-Type: application/xml" \
   -d @invoice.xml -o faktura.pdf
 
-# Generate PDF with QR code
+# Wygeneruj PDF z kodem QR
 curl -X POST "http://localhost:8080/pdf/invoice?nrKSeF={ksefNumber}" \
   -H "Content-Type: application/xml" \
   -d @invoice.xml -o faktura.pdf
 ```
 
-PDFs are generated using the official [CIRFMF/ksef-pdf-generator](https://github.com/CIRFMF/ksef-pdf-generator) library. QR codes contain the KSeF verification URL with SHA-256 hash - scannable and verified by KSeF.
+PDF-y są generowane przy użyciu oficjalnej biblioteki [CIRFMF/ksef-pdf-generator](https://github.com/CIRFMF/ksef-pdf-generator). Kody QR zawierają URL weryfikacyjny KSeF z hashem SHA-256 - skanowalny i weryfikowany przez KSeF.
 
 ---
 
-## Receiving Invoices
+## Odbieranie Faktur
 
-KSeF has no email/webhook notifications - invoices issued to you just sit in the system. These endpoints let you find them without already knowing their KSeF number.
+KSeF nie wysyła powiadomień e-mail/webhook - faktury wystawione na Ciebie po prostu leżą w systemie. Te endpointy pozwalają je znaleźć bez wcześniejszej znajomości ich numeru KSeF.
 
-Both endpoints search for invoices where **your NIP is the buyer** (`Podmiot2`), matching however KSeF resolves the caller's context - see [Multi-NIP Mode](#multi-nip-mode) if you run the gateway for more than one company: pass `X-KSeF-NIP` to pick which NIP's inbox to search. Requires a token with the `InvoiceRead` permission - see the note in [Production Token](#production-token-step-by-step).
+Oba endpointy szukają faktur, gdzie **Twój NIP jest nabywcą** (`Podmiot2`), zgodnie z tym, jak KSeF rozwiązuje kontekst wywołującego - patrz [Tryb Multi-NIP](#tryb-multi-nip), jeśli prowadzisz bramę dla więcej niż jednej firmy: przekaż `X-KSeF-NIP`, żeby wybrać, w skrzynce którego NIP-u szukać. Wymaga tokenu z uprawnieniem `InvoiceRead` - patrz uwaga w [Token Produkcyjny](#token-produkcyjny-krok-po-kroku).
 
-### Browse what you've received
+### Przeglądaj to, co odebrałeś
 
 ```bash
 curl "http://localhost:8080/ksef/invoices/received?from=2026-06-01&to=2026-07-01" \
-  -H "X-KSeF-NIP: YOUR_NIP"
+  -H "X-KSeF-NIP: TWOJ_NIP"
 ```
 
 ```json
@@ -435,42 +435,42 @@ curl "http://localhost:8080/ksef/invoices/received?from=2026-06-01&to=2026-07-01
 }
 ```
 
-Download the PDF the same way you would for an invoice you sent - `GET /ksef/invoice/{ksefNumber}/pdf` works for both roles, no extra endpoint needed.
+Pobierz PDF tak samo, jak dla faktury, którą wysłałeś - `GET /ksef/invoice/{ksefNumber}/pdf` działa dla obu ról, żaden dodatkowy endpoint nie jest potrzebny.
 
-| Query param | Default | Notes |
+| Parametr zapytania | Domyślnie | Uwagi |
 |---|---|---|
-| `from` | 30 days ago | ISO 8601 date/date-time |
-| `to` | now | ISO 8601 date/date-time. **KSeF caps the `from`-`to` span at 3 months per call** - page through older history with several calls |
-| `page` | `0` | Zero-based page offset |
-| `pageSize` | `50` | Max invoices per page |
+| `from` | 30 dni temu | Data/data-czas ISO 8601 |
+| `to` | teraz | Data/data-czas ISO 8601. **KSeF ogranicza zakres `from`-`to` do 3 miesięcy na wywołanie** - przechodź przez starszą historię kilkoma wywołaniami |
+| `page` | `0` | Offset strony liczony od zera |
+| `pageSize` | `50` | Max faktur na stronę |
 
-### Poll for new invoices (sync / notifications)
+### Odpytuj o nowe faktury (synchronizacja / powiadomienia)
 
 ```bash
-# First call - no checkpoint yet
-curl "http://localhost:8080/ksef/invoices/received/new" -H "X-KSeF-NIP: YOUR_NIP"
+# Pierwsze wywołanie - jeszcze bez checkpointu
+curl "http://localhost:8080/ksef/invoices/received/new" -H "X-KSeF-NIP: TWOJ_NIP"
 # → {"invoices": [...], "nextSince": "2026-07-01T07:00:00Z"}
 
-# Persist nextSince yourself, pass it back next time - only genuinely new invoices come back
-curl "http://localhost:8080/ksef/invoices/received/new?since=2026-07-01T07:00:00Z" -H "X-KSeF-NIP: YOUR_NIP"
+# Zapisz nextSince samodzielnie, przekaż z powrotem następnym razem - wrócą tylko naprawdę nowe faktury
+curl "http://localhost:8080/ksef/invoices/received/new?since=2026-07-01T07:00:00Z" -H "X-KSeF-NIP: TWOJ_NIP"
 ```
 
-Wire this into a cron/n8n workflow polling every 15-30 minutes to get notified (email/Slack/webhook) when something new lands - the gateway itself stays stateless, your workflow owns the checkpoint.
+Podłącz to do workflow cron/n8n odpytującego co 15-30 minut, żeby dostawać powiadomienia (e-mail/Slack/webhook), gdy coś nowego się pojawi - sama brama pozostaje bezstanowa, Twój workflow trzyma checkpoint.
 
-KSeF's `query/metadata` endpoint (which this wraps) is capped at **20 requests/hour** - the gateway's own rate limiter enforces this proactively (429 with `Retry-After` before it ever reaches KSeF). Don't poll more often than every 15 minutes per KSeF's own guidance. For very high invoice volume, use the raw `invoice-download/export-invoices` endpoint (async batch export) instead - not yet wrapped in a friendly endpoint here.
+Endpoint `query/metadata` KSeF (który to opakowuje) jest ograniczony do **20 żądań/godzinę** - własny limiter żądań bramy egzekwuje to proaktywnie (429 z `Retry-After`, zanim żądanie w ogóle dotrze do KSeF). Nie odpytuj częściej niż co 15 minut, zgodnie z zaleceniem samego KSeF. Przy bardzo dużym wolumenie faktur użyj zamiast tego surowego endpointu `invoice-download/export-invoices` (asynchroniczny eksport wsadowy) - jeszcze nie opakowanego tutaj w przyjazny endpoint.
 
-**Ready-to-import n8n example:** [`examples/n8n/receive-invoices.json`](examples/n8n/receive-invoices.json) ([polska wersja](examples/n8n/receive-invoices-PL.json)) - polls `/ksef/invoices/received/new` every 20 minutes, keeps the checkpoint in the workflow's own static data, downloads each new invoice's PDF to disk, and leaves a `Notify (TODO)` node to wire up Slack/email/Discord.
+**Gotowy do zaimportowania przykład n8n:** [`examples/n8n/receive-invoices.json`](examples/n8n/receive-invoices.json) ([wersja polska](examples/n8n/receive-invoices-PL.json)) - odpytuje `/ksef/invoices/received/new` co 20 minut, trzyma checkpoint we własnych danych statycznych workflow, pobiera PDF każdej nowej faktury na dysk i zostawia węzeł `Notify (TODO)` do podłączenia Slacka/e-maila/Discorda.
 
 ---
 
-## Invoices You Issued
+## Faktury, Które Wystawiłeś
 
-`GET /ksef/invoices/issued` browses invoices where **your NIP is the seller** (`Podmiot1`) - the mirror of [Receiving Invoices](#receiving-invoices) above, for when you already know you sent something but don't have its KSeF number handy (e.g. you lost the response, or you're building a "my invoices" screen). Same auth, same rate limits, same `X-KSeF-NIP` multi-NIP selection.
+`GET /ksef/invoices/issued` przegląda faktury, gdzie **Twój NIP jest sprzedawcą** (`Podmiot1`) - lustrzane odbicie [Odbierania Faktur](#odbieranie-faktur) powyżej, na sytuację gdy już wiesz, że coś wysłałeś, ale nie masz pod ręką numeru KSeF (np. zgubiłeś odpowiedź, albo budujesz ekran "moje faktury"). Ta sama autoryzacja, te same limity żądań, ten sam wybór multi-NIP przez `X-KSeF-NIP`.
 
 ```bash
 curl "http://localhost:8080/ksef/invoices/issued?from=2026-06-01&to=2026-07-01" \
   -H "X-Api-Key: $GATEWAY_API_KEY" \
-  -H "X-KSeF-NIP: YOUR_NIP"
+  -H "X-KSeF-NIP: TWOJ_NIP"
 ```
 
 ```json
@@ -496,286 +496,288 @@ curl "http://localhost:8080/ksef/invoices/issued?from=2026-06-01&to=2026-07-01" 
 }
 ```
 
-Buyer identity is `buyerIdentifierType`/`buyerIdentifierValue` rather than a flat NIP field - KSeF allows buyers identified by something other than NIP (e.g. `VatUe` for EU VAT numbers), unlike sellers who are always NIP-identified.
+Tożsamość nabywcy to `buyerIdentifierType`/`buyerIdentifierValue` zamiast płaskiego pola NIP - KSeF dopuszcza nabywców identyfikowanych czymś innym niż NIP (np. `VatUe` dla numerów VAT UE), w przeciwieństwie do sprzedawców, którzy zawsze są identyfikowani przez NIP.
 
-Same `from`/`to`/`page`/`pageSize` query params and 3-month span cap as [Receiving Invoices](#receiving-invoices). Download the PDF with the same `GET /ksef/invoice/{ksefNumber}/pdf` endpoint used everywhere else. There's no polling/`new` variant here - unlike invoices received from someone else, you already know when you sent something, so there's nothing to be notified about.
+Te same parametry zapytania `from`/`to`/`page`/`pageSize` i limit 3-miesięcznego zakresu co w [Odbieraniu Faktur](#odbieranie-faktur). Pobierz PDF tym samym endpointem `GET /ksef/invoice/{ksefNumber}/pdf` używanym wszędzie indziej. Nie ma tu wariantu odpytywania/`new` - w przeciwieństwie do faktur odebranych od kogoś innego, już wiesz, kiedy coś wysłałeś, więc nie ma o czym być powiadamianym.
 
 ---
 
-## Integration with E-Commerce (Sellf, WooCommerce, etc.)
+## Integracja z E-Commerce (Sellf, WooCommerce itd.)
 
-KSeF Gateway is a standalone service - deploy it separately and call its API from your e-commerce platform. No plugins, no SDK, just HTTP.
+KSeF Gateway to samodzielna usługa - wdróż ją osobno i wywołuj jej API ze swojej platformy e-commerce. Żadnych wtyczek, żadnego SDK, tylko HTTP.
 
-### Flow
+### Przepływ
 
 ```
-Customer pays → Platform webhook → (optional: n8n transform) → POST /ksef/invoice → KSeF number
+Klient płaci → Webhook platformy → (opcjonalnie: transformacja n8n) → POST /ksef/invoice → numer KSeF
 ```
 
-### Option 1: Direct integration
+### Opcja 1: Integracja bezpośrednia
 
-Add a `POST /ksef/invoice` call in your payment success handler:
+Dodaj wywołanie `POST /ksef/invoice` w handlerze udanej płatności:
 
 ```bash
-curl -X POST https://your-ksef-gateway.onrender.com/ksef/invoice \
+curl -X POST https://twoja-brama-ksef.onrender.com/ksef/invoice \
   -H "Content-Type: application/json" \
   -d '{
     "invoiceNumber": "FV/2026/001",
     "issueDate": "2026-03-26",
     "saleDate": "2026-03-26",
-    "seller": { "nip": "YOUR_NIP", "name": "Your Company", "address": { "street": "...", "city": "..." } },
-    "buyer": { "nip": "BUYER_NIP", "name": "Customer", "address": { "street": "...", "city": "..." } },
-    "items": [{ "name": "Product name", "quantity": 1, "unitPrice": 100, "vatRate": 23 }],
+    "seller": { "nip": "TWOJ_NIP", "name": "Twoja Firma", "address": { "street": "...", "city": "..." } },
+    "buyer": { "nip": "NIP_NABYWCY", "name": "Klient", "address": { "street": "...", "city": "..." } },
+    "items": [{ "name": "Nazwa produktu", "quantity": 1, "unitPrice": 100, "vatRate": 23 }],
     "payment": { "paid": true, "date": "2026-03-26", "method": "transfer" }
   }'
 ```
 
-### Option 2: n8n as middleware (no-code, recommended)
+### Opcja 2: n8n jako pośrednik (no-code, zalecane)
 
-Most platforms send webhooks in their own format, not KSeF format. Use [n8n](https://n8n.io/) to translate:
+Większość platform wysyła webhooki we własnym formacie, nie w formacie KSeF. Użyj [n8n](https://n8n.io/), żeby to przetłumaczyć:
 
-1. **Webhook node** - receives payment webhook from your platform (Sellf, WooCommerce, Stripe, etc.)
-2. **Transform node** - maps platform's JSON to KSeF invoice format (seller, buyer, items)
-3. **HTTP Request node** - sends `POST /ksef/invoice` to your gateway
+1. **Węzeł Webhook** - odbiera webhook płatności z Twojej platformy (Sellf, WooCommerce, Stripe itd.)
+2. **Węzeł Transform** - mapuje JSON platformy na format faktury KSeF (sprzedawca, nabywca, pozycje)
+3. **Węzeł HTTP Request** - wysyła `POST /ksef/invoice` do Twojej bramy
 
-Zero code changes in your e-commerce platform. Configure the webhook URL in your platform's settings and n8n handles the rest.
+Zero zmian kodu w Twojej platformie e-commerce. Skonfiguruj URL webhooka w ustawieniach platformy, resztą zajmie się n8n.
 
-Ready-to-import workflows in [`examples/n8n/`](examples/n8n/):
-- **Sellf → KSeF** (`sellf-ksef.json`) - digital products, NIP check, seller data from n8n variables
-- **WooCommerce → KSeF** (`woocommerce-ksef.json`) - WooCommerce orders, VAT rate auto-detection, consumer skipping
-- **Receive & Download Invoices** (`receive-invoices.json`) - polls for invoices issued *to* you every 20 minutes, downloads PDFs, checkpointed so nothing gets skipped or re-scanned - see [Receiving Invoices](#receiving-invoices)
+Gotowe do zaimportowania workflow w [`examples/n8n/`](examples/n8n/):
+- **Sellf → KSeF** (`sellf-ksef.json`) - produkty cyfrowe, sprawdzanie NIP, dane sprzedawcy ze zmiennych n8n
+- **WooCommerce → KSeF** (`woocommerce-ksef.json`) - zamówienia WooCommerce, automatyczne wykrywanie stawki VAT, pomijanie konsumentów
+- **Odbieranie i Pobieranie Faktur** (`receive-invoices.json`) - odpytuje o faktury wystawione *na Ciebie* co 20 minut, pobiera PDF-y, z checkpointem, żeby nic nie zostało pominięte ani zeskanowane ponownie - patrz [Odbieranie Faktur](#odbieranie-faktur)
 
-### Deploy the gateway
+### Wdróż bramę
 
-You need a running KSeF Gateway instance. Pick one:
+Potrzebujesz działającej instancji KSeF Gateway. Wybierz jedną:
 
-- **[Deploy to Render](https://render.com/deploy?repo=https://github.com/jurczykpawel/ksef-gateway)** (one click, free tier)
+- **[Wdróż na Render](https://render.com/deploy?repo=https://github.com/jurczykpawel/ksef-gateway)** (jednym kliknięciem, darmowy tier)
 - **StackPilot**: `./local/deploy.sh ksef-gateway --ssh=vps` ([github.com/jurczykpawel/stackpilot](https://github.com/jurczykpawel/stackpilot))
 - **Docker Compose**: `docker compose up` (self-hosted)
 
 ---
 
-## How Token Generator Works
+## Jak Działa Generator Tokenów
 
-The token generator automates what normally requires a qualified e-signature. It works **only on the TEST environment** using a self-signed certificate.
-
-```
-Step 1: Generate random NIP with valid checksum
-Step 2: POST /auth/challenge → get one-time challenge from KSeF
-Step 3: Create self-signed X.509 certificate (accepted on TEST only)
-Step 4: Build AuthTokenRequest XML, sign with XAdES
-Step 5: POST /auth/xades-signature → submit signed auth request
-Step 6: Poll GET /auth/{ref} until status = 200 (auth complete)
-Step 7: POST /auth/token/redeem → get accessToken + refreshToken
-Step 8: POST /tokens → generate KSeF token with InvoiceRead + InvoiceWrite
-Step 9: Poll until token status = Active
-```
-
-Output: `KSEF_TOKEN`, `KSEF_NIP`, `KSEF_ENV` - paste into `.env`.
-
-The token lives until revoked. The gateway uses it daily: encrypts it with KSeF's public key, gets a JWT, auto-refreshes before expiry.
-
-### How Cert Generator Works
-
-`docker compose --profile tools run --rm cert-generator` does the certificate equivalent - also **TEST only**, using a disposable self-signed certificate:
+Generator tokenów automatyzuje to, co normalnie wymaga kwalifikowanego podpisu elektronicznego. Działa **tylko w środowisku TEST**, używając certyfikatu samopodpisanego.
 
 ```
-Step 1: Generate random NIP with valid checksum
-Step 2: Create self-signed X.509 certificate (accepted on TEST only)
-Step 3: POST /auth/challenge → get one-time challenge from KSeF
-Step 4: Build AuthTokenRequest XML, sign with XAdES
-Step 5: POST /auth/xades-signature → submit signed auth request
-Step 6: Poll GET /auth/{ref} until status = 200 (auth verified)
-Step 7: Export certificate + private key as PEM to ./output
+Krok 1: Wygeneruj losowy NIP z poprawną sumą kontrolną
+Krok 2: POST /auth/challenge → pobierz jednorazowe wyzwanie z KSeF
+Krok 3: Utwórz certyfikat X.509 samopodpisany (akceptowany tylko na TEST)
+Krok 4: Zbuduj XML AuthTokenRequest, podpisz XAdES
+Krok 5: POST /auth/xades-signature → wyślij podpisane żądanie autoryzacji
+Krok 6: Odpytuj GET /auth/{ref} aż status = 200 (autoryzacja zakończona)
+Krok 7: POST /auth/token/redeem → dostań accessToken + refreshToken
+Krok 8: POST /tokens → wygeneruj token KSeF z InvoiceRead + InvoiceWrite
+Krok 9: Odpytuj aż status tokenu = Active
 ```
 
-Output: `test-cert.crt`, `test-cert.key`, `test-cert.nip` in `./output` - the same files a production certificate download from the portal gives you, just self-signed instead of MF-issued. Unlike the token generator, it stops after verifying the auth succeeds - it's proving the gateway's certificate-loading code works, not minting a long-lived credential.
+Wynik: `KSEF_TOKEN`, `KSEF_NIP`, `KSEF_ENV` - wklej do `.env`.
 
-### KSeF is already mandatory
+Token żyje aż do unieważnienia. Brama używa go codziennie: szyfruje go kluczem publicznym KSeF, dostaje JWT, auto-odświeża przed wygaśnięciem.
 
-- **February 1, 2026** - large taxpayers (>200M PLN 2024 revenue) must issue invoices via KSeF. **Everyone**, regardless of size, must be able to **receive** purchase invoices via KSeF from this date.
-- **April 1, 2026** - the rest of the B2B market (JDG, SME, sp. z o.o., etc.) must issue via KSeF too.
-- **2027** - micro-businesses (≤10k PLN gross invoiced per month) join, closing the last exemption.
+### Jak Działa Generator Certyfikatów
 
-If you're reading this after those dates, production setup below isn't optional anymore for most businesses - it's the thing standing between you and a compliant invoice.
+`docker compose --profile tools run --rm cert-generator` robi certyfikatowy odpowiednik - też **tylko TEST**, używając jednorazowego certyfikatu samopodpisanego:
 
-### Test vs Production
+```
+Krok 1: Wygeneruj losowy NIP z poprawną sumą kontrolną
+Krok 2: Utwórz certyfikat X.509 samopodpisany (akceptowany tylko na TEST)
+Krok 3: POST /auth/challenge → pobierz jednorazowe wyzwanie z KSeF
+Krok 4: Zbuduj XML AuthTokenRequest, podpisz XAdES
+Krok 5: POST /auth/xades-signature → wyślij podpisane żądanie autoryzacji
+Krok 6: Odpytuj GET /auth/{ref} aż status = 200 (autoryzacja zweryfikowana)
+Krok 7: Wyeksportuj certyfikat + klucz prywatny jako PEM do ./output
+```
 
-| Step | TEST | PRODUCTION |
+Wynik: `test-cert.crt`, `test-cert.key`, `test-cert.nip` w `./output` - te same pliki, które dostajesz pobierając prawdziwy certyfikat produkcyjny z portalu, tylko samopodpisane zamiast wydanego przez MF. W przeciwieństwie do generatora tokenów, zatrzymuje się po zweryfikowaniu, że autoryzacja się powiodła - dowodzi, że kod ładowania certyfikatu w bramie działa, nie tworzy długo żyjących poświadczeń.
+
+### KSeF jest już obowiązkowy
+
+- **1 lutego 2026** - najwięksi podatnicy (>200 mln PLN przychodu w 2024) muszą wystawiać faktury przez KSeF. **Wszyscy**, niezależnie od wielkości, muszą umieć **odbierać** faktury zakupowe przez KSeF od tej daty.
+- **1 kwietnia 2026** - reszta rynku B2B (JDG, MŚP, sp. z o.o. itd.) też musi wystawiać przez KSeF.
+- **2027** - dołączają mikroprzedsiębiorcy (≤10 tys. PLN brutto faktur miesięcznie), zamykając ostatnie zwolnienie.
+
+Jeśli czytasz to po tych datach, konfiguracja produkcyjna poniżej nie jest już opcjonalna dla większości firm - to jest to, co stoi między Tobą a zgodną z prawem fakturą.
+
+### Test vs Produkcja
+
+| Krok | TEST | PRODUKCJA |
 |------|------|------------|
-| Identity proof | Self-signed certificate (automatic) | Profil Zaufany (free), qualified e-signature, or qualified electronic seal |
-| NIP | Random, any value | Real, registered with tax office |
-| Token generation | Same flow | Same flow |
-| Who does it | Script (one command) | Business owner or authorized representative (one time) |
+| Dowód tożsamości | Certyfikat samopodpisany (automatyczny) | Profil Zaufany (darmowy), kwalifikowany podpis elektroniczny, albo kwalifikowana pieczęć elektroniczna |
+| NIP | Losowy, dowolna wartość | Prawdziwy, zarejestrowany w urzędzie skarbowym |
+| Generowanie tokenu | Ten sam przepływ | Ten sam przepływ |
+| Kto to robi | Skrypt (jedna komenda) | Właściciel firmy albo upoważniony przedstawiciel (jednorazowo) |
 
-### Production Token (step by step)
+### Token Produkcyjny (krok po kroku)
 
-Getting a production token takes about 10 minutes and, for most businesses, **costs nothing**. **Profil Zaufany is free** (you likely already have it via your bank's login or mObywatel) and is enough to generate a token - you do **not** need to buy a qualified e-signature.
+Uzyskanie tokenu produkcyjnego zajmuje około 10 minut i dla większości firm **nic nie kosztuje**. **Profil Zaufany jest darmowy** (prawdopodobnie masz go już przez logowanie do banku albo mObywatel) i wystarcza do wygenerowania tokenu - **nie** musisz kupować kwalifikowanego podpisu elektronicznego.
 
-> **Sole proprietors (JDG):** Log in directly, no prior registration needed.
-> **Companies (sp. z o.o., SA, fundacje):** Before first login, submit the **ZAW-FA** form to your tax office - a one-time formality - unless the company already has a qualified electronic seal bound to its NIP, which replaces it.
+> **Jednoosobowa działalność gospodarcza (JDG):** Zaloguj się bezpośrednio, żadna wcześniejsza rejestracja nie jest potrzebna.
+> **Spółki (sp. z o.o., SA, fundacje):** Przed pierwszym logowaniem złóż formularz **ZAW-FA** w urzędzie skarbowym - jednorazowa formalność - chyba że firma ma już kwalifikowaną pieczęć elektroniczną przypisaną do swojego NIP-u, która to zastępuje.
 
-**Via Aplikacja Podatnika KSeF 2.0:**
+**Przez Aplikację Podatnika KSeF 2.0:**
 
-1. Go to [ap.ksef.mf.gov.pl](https://ap.ksef.mf.gov.pl/)
-2. Click **Zaloguj** and authenticate with one of:
-   - **Profil Zaufany** (ePUAP / mObywatel / your bank's login) - free, no prior setup, the easiest path for JDG
+1. Wejdź na [ap.ksef.mf.gov.pl](https://ap.ksef.mf.gov.pl/)
+2. Kliknij **Zaloguj** i uwierzytelnij się jednym z:
+   - **Profil Zaufany** (ePUAP / mObywatel / logowanie bankiem) - darmowe, bez wcześniejszej konfiguracji, najłatwiejsza ścieżka dla JDG
    - Podpis kwalifikowany (SimplySign, Certum, Szafir)
-   - Pieczęć kwalifikowana (companies only - also replaces the ZAW-FA requirement above)
-   - e-Dowod (electronic ID card with NFC)
-3. Enter your company **NIP** and click **Uwierzytelnij**
-4. Review and sign the authentication request
-5. Navigate to the **Tokeny** tab
-6. Click **Generuj token**
-7. Enter a descriptive **name** for the token (e.g. "ksef-gateway API")
-8. Select permissions:
-   - **Wystawianie faktur** (InvoiceWrite) - sending invoices
-   - **Odczyt faktur** / **Przeglądanie faktur** (InvoiceRead) - downloading invoices (**required** for [Receiving Invoices](#receiving-invoices) and [Invoices You Issued](#invoices-you-issued) too - `/ksef/invoices/received`, `/ksef/invoices/issued`, and `/ksef/invoice/{ksefNumber}` all need it, not just `/ksef/send`)
-9. Confirm with your authentication method
-10. **Copy the token immediately** - it is displayed only once
-11. Set in your `.env`:
+   - Pieczęć kwalifikowana (tylko firmy - też zastępuje wymóg ZAW-FA powyżej)
+   - e-Dowód (elektroniczny dowód osobisty z NFC)
+3. Wpisz **NIP** swojej firmy i kliknij **Uwierzytelnij**
+4. Przejrzyj i podpisz żądanie uwierzytelnienia
+5. Przejdź do zakładki **Tokeny**
+6. Kliknij **Generuj token**
+7. Wpisz opisową **nazwę** tokenu (np. "ksef-gateway API")
+8. Wybierz uprawnienia:
+   - **Wystawianie faktur** (InvoiceWrite) - wysyłanie faktur
+   - **Odczyt faktur** / **Przeglądanie faktur** (InvoiceRead) - pobieranie faktur (**wymagane** też dla [Odbierania Faktur](#odbieranie-faktur) i [Faktur, Które Wystawiłeś](#faktury-które-wystawiłeś) - `/ksef/invoices/received`, `/ksef/invoices/issued` i `/ksef/invoice/{ksefNumber}` wszystkie tego potrzebują, nie tylko `/ksef/send`)
+9. Potwierdź swoją metodą uwierzytelniania
+10. **Skopiuj token natychmiast** - jest wyświetlany tylko raz
+11. Ustaw w swoim `.env`:
     ```
-    KSEF_TOKEN=<the token you just copied>
-    KSEF_NIP=<your company NIP>
+    KSEF_TOKEN=<token, który właśnie skopiowałeś>
+    KSEF_NIP=<NIP Twojej firmy>
     KSEF_ENV=PRODUCTION
     ```
-12. Restart the gateway. No code changes, no rebuild - just the env vars above.
+12. Zrestartuj bramę. Żadnych zmian kodu, żadnego przebudowywania - tylko zmienne środowiskowe powyżej.
 
-You only need to do this once. If you lose the token, revoke it in the portal and generate a new one.
+Musisz to zrobić tylko raz. Jeśli zgubisz token, unieważnij go w portalu i wygeneruj nowy.
 
-> **Who can generate a token?** Only a person authorized to represent the company (owner, board member listed in KRS, or someone with a KSeF authorization granted by them).
+> **Kto może wygenerować token?** Tylko osoba upoważniona do reprezentowania firmy (właściciel, członek zarządu wpisany w KRS, albo ktoś z uprawnieniem KSeF nadanym przez nich).
 
-### Certificate-Based Auth (Alternative to Tokens)
+### Autoryzacja Certyfikatem (Alternatywa dla Tokenów)
 
-Instead of a token, the gateway can authenticate with a **KSeF certificate** - a certificate + private key pair issued by the KSeF portal. Every (re-)login gets signed with the certificate (XAdES) instead of presenting a static secret. This is the officially supported, ongoing authentication path - not a token workaround.
+Zamiast tokenu, brama może uwierzytelniać się **certyfikatem KSeF** - parą certyfikat + klucz prywatny wydaną przez portal KSeF. Każde (ponowne) logowanie jest podpisywane certyfikatem (XAdES) zamiast prezentowania statycznego sekretu. To oficjalnie wspierana, docelowa ścieżka autoryzacji - nie obejście tokenu.
 
-**Try it on TEST first:**
+**Wypróbuj najpierw na TEST:**
 
 ```bash
 docker compose --profile tools run --rm cert-generator
 ```
 
-One command generates a disposable self-signed certificate, verifies it actually authenticates against the live KSeF TEST API, and writes `test-cert.crt` + `test-cert.key` to `./output`, plus the random NIP it registered with. Point `KSEF_CERT_PATH`/`KSEF_KEY_PATH`/`KSEF_NIP` at those files with `KSEF_ENV=TEST` to try the whole flow before touching a real certificate. Self-signed certificates only work on TEST - production needs a real one from the portal, below.
+Jedna komenda generuje jednorazowy certyfikat samopodpisany, weryfikuje że faktycznie uwierzytelnia się w żywym API KSeF TEST i zapisuje `test-cert.crt` + `test-cert.key` do `./output`, plus losowy NIP, którym się zarejestrował. Wskaż `KSEF_CERT_PATH`/`KSEF_KEY_PATH`/`KSEF_NIP` na te pliki z `KSEF_ENV=TEST`, żeby wypróbować cały przepływ przed dotknięciem prawdziwego certyfikatu. Certyfikaty samopodpisane działają tylko na TEST - produkcja potrzebuje prawdziwego z portalu, poniżej.
 
-**Getting a production certificate:**
+**Uzyskanie certyfikatu produkcyjnego:**
 
-1. Log in to [ap.ksef.mf.gov.pl](https://ap.ksef.mf.gov.pl/) the same way as for a token (Profil Zaufany, podpis kwalifikowany, etc.)
-2. Go to **Certyfikaty** → **Wnioskuj o certyfikat**
-3. Name the certificate and set a password protecting the private key (the portal enforces its own rules for both - follow whatever the form currently asks)
-4. Download the two files it generates: a certificate (`.crt`) and a private key (`.key`), both in PEM format
+1. Zaloguj się na [ap.ksef.mf.gov.pl](https://ap.ksef.mf.gov.pl/) tak samo jak dla tokenu (Profil Zaufany, podpis kwalifikowany itd.)
+2. Przejdź do **Certyfikaty** → **Wnioskuj o certyfikat**
+3. Nazwij certyfikat i ustaw hasło chroniące klucz prywatny (portal egzekwuje własne zasady dla obu - postępuj zgodnie z tym, o co aktualnie pyta formularz)
+4. Pobierz dwa wygenerowane pliki: certyfikat (`.crt`) i klucz prywatny (`.key`), oba w formacie PEM
 
-**Using it in the gateway:**
+**Używanie go w bramie:**
 
 ```
 KSEF_CERT_PATH=/app/certs/company.crt
 KSEF_KEY_PATH=/app/certs/company.key
-KSEF_KEY_PASSWORD=<only if the private key is password-protected>
-KSEF_NIP=<your company NIP>
+KSEF_KEY_PASSWORD=<tylko jeśli klucz prywatny jest chroniony hasłem>
+KSEF_NIP=<NIP Twojej firmy>
 KSEF_ENV=PRODUCTION
 ```
 
-Or per-context in `contexts.json`:
+Albo per-kontekst w `contexts.json`:
 
 ```json
 {
   "nip": "1234567890",
   "certificatePath": "/app/certs/company.crt",
   "privateKeyPath": "/app/certs/company.key",
-  "privateKeyPassword": "only-if-encrypted",
-  "label": "Company A (certificate)"
+  "privateKeyPassword": "tylko-jesli-zaszyfrowany",
+  "label": "Firma A (certyfikat)"
 }
 ```
 
-Mount the cert/key files read-only, same idea as `contexts.json`:
+Zamontuj pliki cert/klucz tylko do odczytu, tak samo jak `contexts.json`:
 
 ```yaml
 volumes:
   - ./certs:/app/certs:ro
 ```
 
-A context needs exactly one of: `token`, `certificatePath` + `privateKeyPath`, or `certificateContent` + `privateKeyContent`. Everything else (endpoints, rate limits, multi-NIP) works identically no matter which one a context uses.
+Kontekst potrzebuje dokładnie jednego z: `token`, `certificatePath` + `privateKeyPath`, albo `certificateContent` + `privateKeyContent`. Wszystko inne (endpointy, limity żądań, multi-NIP) działa identycznie niezależnie od tego, którego używa kontekst.
 
-**No file mounts available (Lambda, Container Apps)?** Use `certificateContent`/`privateKeyContent` (or `KSEF_CERT_CONTENT`/`KSEF_KEY_CONTENT`) instead - the raw PEM text rather than a path. Prefer the path-based form wherever mounting a file is practical (Docker Compose bind mount, Render Secret Files) - a file stays out of plain env var dumps (`docker inspect`, process env listings) in a way a content-based secret can't. See [Cloud Deployment](#cloud-deployment) for how each platform wires this.
+**Brak dostępnych montowań plików (Lambda, Container Apps)?** Użyj zamiast tego `certificateContent`/`privateKeyContent` (albo `KSEF_CERT_CONTENT`/`KSEF_KEY_CONTENT`) - surowego tekstu PEM zamiast ścieżki. Preferuj formę opartą na ścieżce wszędzie, gdzie montowanie pliku jest praktyczne (bind mount Docker Compose, Render Secret Files) - plik pozostaje poza zwykłymi zrzutami zmiennych środowiskowych (`docker inspect`, listy procesów) w sposób, w jaki sekret oparty na treści nie może. Patrz [Wdrożenie w Chmurze](#wdrożenie-w-chmurze), jak to jest podłączone na każdej platformie.
 
 ---
 
-## Configuration
+## Konfiguracja
 
-| Variable | Required | Default | Description |
+| Zmienna | Wymagana | Domyślnie | Opis |
 |----------|----------|---------|-------------|
-| `GATEWAY_API_KEY` | Yes | - | Shared secret callers must send as `X-Api-Key` - see [Security](#security). Gateway fails closed (503) if unset |
-| `KSEF_TOKEN` | Yes* | - | KSeF authentication token |
-| `KSEF_CERT_PATH` | Yes* | - | Path to KSeF certificate (PEM) - alternative to `KSEF_TOKEN`, see [Certificate-Based Auth](#certificate-based-auth-alternative-to-tokens) |
-| `KSEF_KEY_PATH` | Yes* | - | Path to the certificate's private key (PEM) - required alongside `KSEF_CERT_PATH` |
-| `KSEF_CERT_CONTENT` | Yes* | - | KSeF certificate as raw PEM content - alternative to `KSEF_CERT_PATH` for platforms without file mounts |
-| `KSEF_KEY_CONTENT` | Yes* | - | Private key as raw PEM content - required alongside `KSEF_CERT_CONTENT` |
-| `KSEF_KEY_PASSWORD` | No | - | Password for the private key, if it's encrypted (works with either path or content form) |
-| `KSEF_NIP` | Yes | - | NIP for authentication context |
-| `KSEF_ENV` | No | `TEST` | Environment: `TEST`, `DEMO`, `PRODUCTION` |
-| `KSEF_API_PORT` | No | `8080` | Gateway API port |
-| `KSEF_QR_URL` | No | `https://qr-test.ksef.mf.gov.pl` | QR verification base URL |
-| `GITHUB_PAT` | Build | - | GitHub PAT with `read:packages` for CIRFMF SDK |
-| `KSEF_CONTEXTS_FILE` | No | `/app/contexts.json` | Path to multi-NIP config file |
-| `GATEWAY_LICENSE` | No | - | Multi-NIP license key - only needed for more than 1 NIP, see [Multi-NIP Licensing](#multi-nip-licensing) |
+| `GATEWAY_API_KEY` | Tak | - | Współdzielony sekret, który wywołujący muszą wysyłać jako `X-Api-Key` - patrz [Bezpieczeństwo](#bezpieczeństwo). Brama zawodzi domknięta (503), jeśli nieustawiona |
+| `KSEF_TOKEN` | Tak* | - | Token autoryzacji KSeF |
+| `KSEF_CERT_PATH` | Tak* | - | Ścieżka do certyfikatu KSeF (PEM) - alternatywa dla `KSEF_TOKEN`, patrz [Autoryzacja Certyfikatem](#autoryzacja-certyfikatem-alternatywa-dla-tokenów) |
+| `KSEF_KEY_PATH` | Tak* | - | Ścieżka do klucza prywatnego certyfikatu (PEM) - wymagana razem z `KSEF_CERT_PATH` |
+| `KSEF_CERT_CONTENT` | Tak* | - | Certyfikat KSeF jako surowa treść PEM - alternatywa dla `KSEF_CERT_PATH` na platformach bez montowania plików |
+| `KSEF_KEY_CONTENT` | Tak* | - | Klucz prywatny jako surowa treść PEM - wymagany razem z `KSEF_CERT_CONTENT` |
+| `KSEF_KEY_PASSWORD` | Nie | - | Hasło do klucza prywatnego, jeśli jest zaszyfrowany (działa z formą ścieżki albo treści) |
+| `KSEF_NIP` | Tak | - | NIP dla kontekstu autoryzacji |
+| `KSEF_ENV` | Nie | `TEST` | Środowisko: `TEST`, `DEMO`, `PRODUCTION` |
+| `KSEF_API_PORT` | Nie | `8080` | Port API bramy |
+| `KSEF_QR_URL` | Nie | `https://qr-test.ksef.mf.gov.pl` | Bazowy URL weryfikacji QR |
+| `GITHUB_PAT` | Build | - | GitHub PAT z `read:packages` dla SDK CIRFMF |
+| `KSEF_CONTEXTS_FILE` | Nie | `/app/contexts.json` | Ścieżka do pliku konfiguracji multi-NIP |
+| `GATEWAY_LICENSE` | Nie | - | Klucz licencji multi-NIP - potrzebny tylko dla więcej niż 1 NIP, patrz [Licencjonowanie Multi-NIP](#licencjonowanie-multi-nip) |
 
-\* Provide exactly one: `KSEF_TOKEN`, `KSEF_CERT_PATH` + `KSEF_KEY_PATH`, or `KSEF_CERT_CONTENT` + `KSEF_KEY_CONTENT`.
+\* Podaj dokładnie jedno: `KSEF_TOKEN`, `KSEF_CERT_PATH` + `KSEF_KEY_PATH`, albo `KSEF_CERT_CONTENT` + `KSEF_KEY_CONTENT`.
 
-### Multi-NIP Mode
+### Tryb Multi-NIP
 
-To handle invoices for multiple companies, create a `contexts.json` file:
+Żeby obsługiwać faktury dla wielu firm, stwórz plik `contexts.json`:
 
 ```json
 [
   {
     "nip": "1234567890",
-    "token": "ksef-token-for-company-A",
-    "label": "Company A"
+    "token": "token-ksef-dla-firmy-a",
+    "label": "Firma A"
   },
   {
     "nip": "0987654321",
-    "certificatePath": "/app/certs/company-b.crt",
-    "privateKeyPath": "/app/certs/company-b.key",
-    "label": "Company B (certificate)"
+    "certificatePath": "/app/certs/firma-b.crt",
+    "privateKeyPath": "/app/certs/firma-b.key",
+    "label": "Firma B (certyfikat)"
   }
 ]
 ```
 
-Contexts can mix tokens and certificates freely - see [Certificate-Based Auth](#certificate-based-auth-alternative-to-tokens) above. Each context authenticates independently, so this also covers an accounting-office style setup - **one certificate representing several client NIPs** (list the same `certificatePath`/`certificateContent` under multiple contexts, one per NIP). The gateway itself is NIP-agnostic about which certificate backs which context; whether a given certificate can actually authenticate into a NIP it doesn't belong to depends on KSeF's own authorization on that NIP's side (granting the certificate holder's identity representation/`ProxyEntity` rights) - a real KSeF-portal step per company, outside the gateway's control, and not something this project's own TEST tooling exercises (`CertGenerator` always mints a certificate scoped to the one NIP it registers).
+Konteksty mogą dowolnie mieszać tokeny i certyfikaty - patrz [Autoryzacja Certyfikatem](#autoryzacja-certyfikatem-alternatywa-dla-tokenów) powyżej. Każdy kontekst autoryzuje się niezależnie, więc to pokrywa też konfigurację w stylu biura rachunkowego - **jeden certyfikat reprezentujący kilka NIP-ów klientów** (wypisz ten sam `certificatePath`/`certificateContent` pod wieloma kontekstami, po jednym na NIP). Sama brama jest niezależna od NIP-u co do tego, który certyfikat stoi za którym kontekstem; to, czy dany certyfikat faktycznie może uwierzytelnić się w NIP-ie, do którego formalnie nie należy, zależy od autoryzacji samego KSeF po stronie tego NIP-u (nadanie praw reprezentacji/`ProxyEntity` posiadaczowi certyfikatu) - to prawdziwy krok w portalu KSeF, wykonywany per firma, poza kontrolą bramy, i coś, czego własne narzędzia TEST tego projektu nie sprawdzają (`CertGenerator` zawsze tworzy certyfikat ograniczony do jednego NIP-u, którym się rejestruje).
 
-Mount it in Docker Compose (already configured in `docker-compose.yml`):
+Zamontuj go w Docker Compose (już skonfigurowane w `docker-compose.yml`):
 
 ```yaml
 volumes:
   - ./contexts.json:/app/contexts.json:ro
 ```
 
-The gateway auto-detects which NIP to use based on:
-1. `X-KSeF-NIP` header (explicit)
-2. Seller NIP from the invoice body
-3. Default context (first in list or from `KSEF_NIP` env var)
+Brama automatycznie wykrywa, którego NIP-u użyć, na podstawie:
+1. Nagłówka `X-KSeF-NIP` (jawny)
+2. NIP-u sprzedawcy z ciała faktury
+3. Kontekstu domyślnego (pierwszy na liście albo ze zmiennej środowiskowej `KSEF_NIP`)
 
-Check authenticated contexts: `GET /ksef/contexts`
+Sprawdź uwierzytelnione konteksty: `GET /ksef/contexts`
 
-> **Note:** `KSEF_TOKEN` + `KSEF_NIP` env vars still work for single-NIP mode. If both env vars and `contexts.json` are present, the env var context is added to the list.
+> **Uwaga:** Zmienne środowiskowe `KSEF_TOKEN` + `KSEF_NIP` nadal działają w trybie single-NIP. Jeśli obecne są jednocześnie zmienne środowiskowe i `contexts.json`, kontekst ze zmiennych środowiskowych jest dodawany do listy.
 
-### Multi-NIP Licensing
+### Licencjonowanie Multi-NIP
 
-A single NIP is free, always - no license needed, no time limit. Running **more than one NIP** (accounting offices, holding groups, agencies serving several clients) requires a [multi-NIP license](https://sellf.techskills.academy/p/ksef-gateway-multi-nip) - one-time payment, unlocks unlimited NIPs on that instance forever.
+Jeden NIP jest darmowy, zawsze - żadnej licencji, żadnego limitu czasowego. Prowadzenie **więcej niż jednego NIP-u** (biura rachunkowe, grupy holdingowe, agencje obsługujące kilku klientów) wymaga licencji multi-NIP - jednorazowa opłata, odblokowuje nielimitowane NIP-y na tej instancji na zawsze.
 
-Set the license key as `GATEWAY_LICENSE`. Verification is fully offline (ECDSA signature check against a cached public key) - your license token never leaves your server, and a temporary network blip doesn't lock you out (see below).
+**[👉 Kup licencję multi-NIP](https://sellf.techskills.academy/p/ksef-gateway-multi-nip)**
 
-If `contexts.json` configures more NIPs than your license allows, the gateway doesn't refuse to start - it activates the first `N` (your default NIP is always kept, even if it wasn't first in the file) and logs a clear warning naming which ones were skipped. Check `GET /ksef/status` for `license: {licensed, maxNips, activeNips, email, expiresAt}` (`email` is just for your own visibility - which purchase this license belongs to - it's not checked against anything).
+Ustaw klucz licencji jako `GATEWAY_LICENSE`. Weryfikacja jest w pełni offline (sprawdzenie podpisu ECDSA wobec zbuforowanego klucza publicznego) - token licencji nigdy nie opuszcza Twojego serwera, a chwilowa awaria sieci nie blokuje Ci dostępu (patrz niżej).
 
-| Situation | Behavior |
+Jeśli `contexts.json` konfiguruje więcej NIP-ów niż pozwala Twoja licencja, brama nie odmawia startu - aktywuje pierwsze `N` (Twój domyślny NIP jest zawsze zachowany, nawet jeśli nie był pierwszy w pliku) i loguje wyraźne ostrzeżenie, wymieniając które zostały pominięte. Sprawdź `GET /ksef/status` po `license: {licensed, maxNips, activeNips, email, expiresAt}` (`email` jest tylko dla Twojej własnej informacji - do jakiego zakupu należy ta licencja - nie jest sprawdzane wobec niczego).
+
+| Sytuacja | Zachowanie |
 |---|---|
-| No `GATEWAY_LICENSE` set | Free tier - first configured NIP only |
-| Valid license | Unlimited NIPs |
-| License expired/revoked/malformed | Falls back to free tier (1 NIP) - never crashes the gateway |
-| Sellf's license server temporarily unreachable | Serves the last verified result for up to 7 days (cached), then falls back to free tier - an outage doesn't retroactively lock you out, but doesn't extend forever either |
+| `GATEWAY_LICENSE` nieustawiony | Darmowy tier - tylko pierwszy skonfigurowany NIP |
+| Ważna licencja | Nielimitowane NIP-y |
+| Licencja wygasła/unieważniona/źle sformowana | Powrót do darmowego tieru (1 NIP) - nigdy nie crashuje bramy |
+| Serwer licencji Sellf chwilowo nieosiągalny | Serwuje ostatni zweryfikowany wynik przez do 7 dni (zbuforowany), potem powraca do darmowego tieru - awaria nie blokuje Cię wstecznie, ale też nie przedłuża się w nieskończoność |
 
 ---
 
-## Architecture
+## Architektura
 
 ```
 docker compose up
@@ -784,75 +786,75 @@ docker compose up
   (ASP.NET 9)              (Node.js + tsx)
        |                        |
   CIRFMF C# SDK           CIRFMF ksef-pdf-generator
-  (NuGet, GitHub Pkgs)     (git submodule)
+  (NuGet, GitHub Pkgs)     (submoduł git)
        |
-  KSeF API (MF)
+  API KSeF (MF)
   TEST / DEMO / PROD
 ```
 
-Two containers, no database, no Redis. Auth state in memory (restart = re-auth in seconds).
+Dwa kontenery, bez bazy danych, bez Redis. Stan autoryzacji w pamięci (restart = ponowna autoryzacja w sekundy).
 
-### Key Components
+### Kluczowe Komponenty
 
-| Component | Role |
+| Komponent | Rola |
 |-----------|------|
-| **SdkReflector** | Discovers SDK interfaces via .NET reflection at startup |
-| **EndpointMapper** | Registers each method as `POST /ksef/{group}/{method}` |
-| **TokenPool** | Background service: per-NIP KSeF auth (token or certificate/XAdES) + auto-refresh |
-| **WorkflowEndpoints** | High-level: `/ksef/send`, `/ksef/send/json`, `/ksef/invoice/{nr}/pdf` |
-| **InvoiceDownloadEndpoints** | High-level: `/ksef/invoices/received`, `/ksef/invoices/received/new`, `/ksef/invoices/issued` |
-| **EndpointErrorHandling** | Shared `Guard()` - lets KSeF rate-limit/circuit-breaker/API errors surface as proper 429/503/502 (with `Retry-After`) instead of a flat 500 |
-| **PDF Service** | XML to PDF via CIRFMF library + QR code generation |
-| **JSON-to-XML** | `js2xml()` - zero-maintenance JSON/XML conversion |
+| **SdkReflector** | Odkrywa interfejsy SDK przez refleksję .NET przy starcie |
+| **EndpointMapper** | Rejestruje każdą metodę jako `POST /ksef/{grupa}/{metoda}` |
+| **TokenPool** | Usługa w tle: autoryzacja KSeF per-NIP (token albo certyfikat/XAdES) + auto-odświeżanie |
+| **WorkflowEndpoints** | Wysokopoziomowe: `/ksef/send`, `/ksef/send/json`, `/ksef/invoice/{nr}/pdf` |
+| **InvoiceDownloadEndpoints** | Wysokopoziomowe: `/ksef/invoices/received`, `/ksef/invoices/received/new`, `/ksef/invoices/issued` |
+| **EndpointErrorHandling** | Współdzielony `Guard()` - pozwala błędom limitu żądań/wyłącznika obwodu/API KSeF wypłynąć jako poprawne 429/503/502 (z `Retry-After`) zamiast płaskiego 500 |
+| **Usługa PDF** | XML do PDF przez bibliotekę CIRFMF + generowanie kodu QR |
+| **JSON-do-XML** | `js2xml()` - konwersja JSON/XML zero-utrzymania |
 
-### Design Principles
-- **Thin wrapper** - zero business logic, HTTP-to-SDK translation
-- **Auto-adaptive** - SDK changes propagate on rebuild (reflection)
-- **Transparent crypto** - callers send plaintext, gateway encrypts
-- **Zero-maintenance JSON** - mirrors XML 1:1, no mapping code
-- **Resilient** - auth failures don't crash, retry automatically
+### Zasady Projektowe
+- **Cienki wrapper** - zero logiki biznesowej, tłumaczenie HTTP-na-SDK
+- **Auto-adaptacyjny** - zmiany SDK propagują się przy przebudowie (refleksja)
+- **Przejrzysta kryptografia** - wywołujący wysyłają plaintext, brama szyfruje
+- **JSON zero-utrzymania** - odzwierciedla XML 1:1, brak kodu mapującego
+- **Odporny** - błędy autoryzacji nie crashują, ponawiają automatycznie
 
 ---
 
-## Tech Stack
+## Stack Technologiczny
 
-| Technology | Role |
+| Technologia | Rola |
 |------------|------|
-| [ASP.NET 9 Minimal API](https://learn.microsoft.com/en-us/aspnet/core/fundamentals/minimal-apis) | Gateway HTTP layer |
-| [CIRFMF KSeF.Client](https://github.com/CIRFMF/ksef-client-csharp) | Official KSeF SDK (Ministry of Finance) |
-| [CIRFMF ksef-pdf-generator](https://github.com/CIRFMF/ksef-pdf-generator) | Official PDF generation from FA(3) XML |
-| [xml-js](https://www.npmjs.com/package/xml-js) | JSON/XML bidirectional conversion |
-| [pdfmake](http://pdfmake.org/) | PDF rendering with native QR support |
-| [Scalar](https://scalar.com/) | API documentation UI |
-| [Docker Compose](https://docs.docker.com/compose/) | Orchestration |
+| [ASP.NET 9 Minimal API](https://learn.microsoft.com/en-us/aspnet/core/fundamentals/minimal-apis) | Warstwa HTTP bramy |
+| [CIRFMF KSeF.Client](https://github.com/CIRFMF/ksef-client-csharp) | Oficjalne SDK KSeF (Ministerstwo Finansów) |
+| [CIRFMF ksef-pdf-generator](https://github.com/CIRFMF/ksef-pdf-generator) | Oficjalne generowanie PDF z XML FA(3) |
+| [xml-js](https://www.npmjs.com/package/xml-js) | Dwukierunkowa konwersja JSON/XML |
+| [pdfmake](http://pdfmake.org/) | Renderowanie PDF z natywnym wsparciem QR |
+| [Scalar](https://scalar.com/) | UI dokumentacji API |
+| [Docker Compose](https://docs.docker.com/compose/) | Orkiestracja |
 
 ---
 
-## Cloud Deployment
+## Wdrożenie w Chmurze
 
-### Render (one-click)
+### Render (jednym kliknięciem)
 
 [![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com/deploy?repo=https://github.com/jurczykpawel/ksef-gateway)
 
-Click the button, set three env vars (`GITHUB_PAT`, `KSEF_TOKEN`, `KSEF_NIP`), done. Both services (API + PDF) deploy automatically from `render.yaml`. Prefer a certificate? Leave `KSEF_TOKEN` blank, upload the cert/key as [Secret Files](https://render.com/docs/configure-environment-variables) in the dashboard, and set `KSEF_CERT_PATH`/`KSEF_KEY_PATH` to `/etc/secrets/<filename>` instead.
+Kliknij przycisk, ustaw trzy zmienne środowiskowe (`GITHUB_PAT`, `KSEF_TOKEN`, `KSEF_NIP`), gotowe. Obie usługi (API + PDF) wdrażają się automatycznie z `render.yaml`. Wolisz certyfikat? Zostaw `KSEF_TOKEN` puste, wgraj cert/klucz jako [Secret Files](https://render.com/docs/configure-environment-variables) w dashboardzie i ustaw `KSEF_CERT_PATH`/`KSEF_KEY_PATH` na `/etc/secrets/<nazwapliku>` zamiast tego.
 
-**Multi-NIP with several certificates on Render:** Secret Files aren't limited to one pair - upload as many cert/key files as you have companies (e.g. `company-a.crt`/`company-a.key`, `company-b.crt`/`company-b.key`, ...), *plus* your `contexts.json` itself as another Secret File, with each entry's `certificatePath`/`privateKeyPath` pointing at the matching `/etc/secrets/<filename>`. Then set `KSEF_CONTEXTS_FILE=/etc/secrets/contexts.json` (env var) instead of `KSEF_TOKEN`/`KSEF_CERT_PATH`. Requires a [multi-NIP license](#multi-nip-licensing) for more than one NIP.
+**Multi-NIP z kilkoma certyfikatami na Render:** Secret Files nie są ograniczone do jednej pary - wgraj tyle plików cert/klucz, ile masz firm (np. `firma-a.crt`/`firma-a.key`, `firma-b.crt`/`firma-b.key`, ...), *plus* sam `contexts.json` jako kolejny Secret File, gdzie `certificatePath`/`privateKeyPath` każdego wpisu wskazuje na odpowiedni `/etc/secrets/<nazwapliku>`. Potem ustaw `KSEF_CONTEXTS_FILE=/etc/secrets/contexts.json` (zmienna środowiskowa) zamiast `KSEF_TOKEN`/`KSEF_CERT_PATH`. Wymaga [licencji multi-NIP](#licencjonowanie-multi-nip) dla więcej niż jednego NIP-u.
 
 ### AWS Lambda
 
-Deploy as a serverless Lambda function with Function URL (no API Gateway - avoids 29s timeout).
+Wdróż jako funkcję serverless Lambda z Function URL (bez API Gateway - unika timeoutu 29s).
 
 ```bash
 cd deploy/aws
-sam build --build-arg GITHUB_PAT=<your-pat>
+sam build --build-arg GITHUB_PAT=<twój-pat>
 sam deploy --guided
 ```
 
-See [`deploy/aws/README.md`](deploy/aws/README.md) for details.
+Szczegóły w [`deploy/aws/README.md`](deploy/aws/README.md).
 
 ### Azure Container Apps
 
-Deploy as managed containers - mirrors Docker Compose, zero code changes.
+Wdróż jako zarządzane kontenery - odzwierciedla Docker Compose, zero zmian kodu.
 
 ```bash
 az deployment group create \
@@ -861,57 +863,57 @@ az deployment group create \
   --parameters ksefToken=<token> ksefNip=<nip>
 ```
 
-See [`deploy/azure/README.md`](deploy/azure/README.md) for details.
+Szczegóły w [`deploy/azure/README.md`](deploy/azure/README.md).
 
 | | Docker Compose | Render | AWS Lambda | Azure Container Apps |
 |---|---|---|---|---|
-| Setup | `docker compose up` | One-click button | SAM CLI | Azure CLI + Bicep |
-| Cold start | None | ~30s (free tier) | ~3-5s | ~5-10s (or 0 with minReplicas=1) |
-| Cost (low traffic) | Server cost | Free tier available | Near-zero | ~$10-15/month |
-| PDF service | Included | Included | Separate deployment | Included (internal container) |
-| Multi-NIP | `contexts.json` mount | Env vars | Env vars (single NIP) | Env vars or Azure Files |
-| Certificate auth | File mount (`certificatePath`) | Secret Files (`certificatePath`) | Content (`certificateContent`, no file mounts) | Content (`certificateContent`, no file mounts) |
+| Konfiguracja | `docker compose up` | Przycisk jednym kliknięciem | SAM CLI | Azure CLI + Bicep |
+| Cold start | Brak | ~30s (darmowy tier) | ~3-5s | ~5-10s (albo 0 z minReplicas=1) |
+| Koszt (mały ruch) | Koszt serwera | Dostępny darmowy tier | Prawie zero | ~40-60 zł/miesiąc |
+| Usługa PDF | Wliczona | Wliczona | Osobne wdrożenie | Wliczona (kontener wewnętrzny) |
+| Multi-NIP | Montowanie `contexts.json` | Zmienne środowiskowe | Zmienne środowiskowe (single-NIP) | Zmienne środowiskowe albo Azure Files |
+| Autoryzacja certyfikatem | Montowanie pliku (`certificatePath`) | Secret Files (`certificatePath`) | Treść (`certificateContent`, bez montowania plików) | Treść (`certificateContent`, bez montowania plików) |
 
 ---
 
-## Roadmap
+## Plan Rozwoju
 
-- [x] Auto-discovery of 60+ SDK endpoints via reflection
-- [x] Token-based authentication with background refresh
-- [x] `POST /ksef/send` - one-call invoice sending (XML)
-- [x] `POST /ksef/send/json` - JSON invoice sending (zero-maintenance format)
-- [x] `GET /ksef/invoice/{nr}/pdf` - PDF with verified QR code
-- [x] PDF generation with official CIRFMF library
-- [x] Token generator for TEST environment
-- [x] Scalar API documentation
-- [x] Docker one-command setup
-- [x] Client-side rate limiting (proactive, per official MF limits)
-- [x] `POST /ksef/invoice` - friendly JSON with auto VAT calculation
-- [x] 81 unit/integration tests (SdkReflector, RateLimiter, InvoiceXmlBuilder, XSD validation, KSeF E2E)
-- [x] GitHub Actions CI + TruffleHog secret scanning
-- [x] Multi-NIP / multi-tenant mode
-- [x] Bruno collection for manual and automated testing
-- [x] AWS Lambda deployment support
-- [x] Azure Container Apps deployment support
-
----
-
-## Contributing
-
-Contributions are welcome! See [CONTRIBUTING.md](CONTRIBUTING.md) for details.
+- [x] Automatyczne odkrywanie 60+ endpointów SDK przez refleksję
+- [x] Autoryzacja tokenem z odświeżaniem w tle
+- [x] `POST /ksef/send` - wysyłanie faktury jednym wywołaniem (XML)
+- [x] `POST /ksef/send/json` - wysyłanie faktury w JSON (format zero-utrzymania)
+- [x] `GET /ksef/invoice/{nr}/pdf` - PDF ze zweryfikowanym kodem QR
+- [x] Generowanie PDF oficjalną biblioteką CIRFMF
+- [x] Generator tokenów dla środowiska TEST
+- [x] Dokumentacja API Scalar
+- [x] Konfiguracja jedną komendą Docker
+- [x] Limitowanie żądań po stronie klienta (proaktywne, zgodnie z oficjalnymi limitami MF)
+- [x] `POST /ksef/invoice` - przyjazny JSON z automatycznym liczeniem VAT
+- [x] 81 testów jednostkowych/integracyjnych (SdkReflector, RateLimiter, InvoiceXmlBuilder, walidacja XSD, KSeF E2E)
+- [x] GitHub Actions CI + skanowanie sekretów TruffleHog
+- [x] Tryb multi-NIP / multi-tenant
+- [x] Kolekcja Bruno do testowania ręcznego i automatycznego
+- [x] Wsparcie wdrożenia na AWS Lambda
+- [x] Wsparcie wdrożenia na Azure Container Apps
 
 ---
 
-## License
+## Współpraca
 
-AGPL-3.0 - see [LICENSE](LICENSE)
-
-If you modify KSeF Gateway and offer it as a service, AGPL-3.0 requires you to make the modified source available to your users.
+Wkład mile widziany! Zobacz [CONTRIBUTING.md](CONTRIBUTING.md) po szczegóły.
 
 ---
 
-## Acknowledgments
+## Licencja
 
-- **[CIRFMF](https://github.com/CIRFMF)** (Centrum Informatyki Resortu Finansów) - official KSeF SDK, PDF generator, and documentation
-- **[KSeF Documentation](https://github.com/CIRFMF/ksef-docs)** - integration guide for KSeF 2.0
-- **[Scalar](https://scalar.com/)** - API documentation UI
+AGPL-3.0 - zobacz [LICENSE](LICENSE)
+
+Jeśli modyfikujesz KSeF Gateway i oferujesz go jako usługę, AGPL-3.0 wymaga, żebyś udostępnił zmodyfikowany kod źródłowy swoim użytkownikom.
+
+---
+
+## Podziękowania
+
+- **[CIRFMF](https://github.com/CIRFMF)** (Centrum Informatyki Resortu Finansów) - oficjalne SDK KSeF, generator PDF i dokumentacja
+- **[Dokumentacja KSeF](https://github.com/CIRFMF/ksef-docs)** - przewodnik integracji z KSeF 2.0
+- **[Scalar](https://scalar.com/)** - UI dokumentacji API

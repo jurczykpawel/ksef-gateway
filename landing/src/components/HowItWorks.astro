@@ -1,8 +1,8 @@
 ---
 const steps = [
-  { n: "01", title: "Wdróż bramę", desc: "Jedno polecenie — wszystko buduje się w Dockerze. Bez lokalnego .NET.", code: `docker compose up --build\n# API gotowe na http://localhost:8080`, or: 'Lub kliknij „Wdróż na Render" dla natychmiastowego startu w chmurze.' },
-  { n: "02", title: "Wygeneruj token KSeF", desc: "Jedno polecenie tworzy token testowy (certyfikat self-signed, losowy NIP). Na produkcji: zaloguj się Profilem Zaufanym (JDG, za darmo) lub złóż ZAW-FA (spółki) — bez podpisu kwalifikowanego.", code: `docker compose --profile tools run \\\n  --rm token-generator\n# wyświetla KSEF_TOKEN + KSEF_NIP`, or: null },
-  { n: "03", title: "Wyślij pierwszą fakturę", desc: "POST JSON ze sprzedawcą, nabywcą i pozycjami. Odbierz numer KSeF. Gotowe.", code: `curl -X POST http://localhost:8080/ksef/invoice \\\n  -d '{"sprzedawca":{...},"nabywca":{...},"pozycje":[...]}'\n# → {"numerKSeF":"1234567890-20260326-..."}`, or: null },
+  { n: "01", title: "Uruchom bramę", desc: "Jedno polecenie na dowolnym komputerze z Dockerem — niczego więcej nie instalujesz.", code: `docker compose up --build\n# API gotowe na http://localhost:8080`, or: 'Wolisz bez terminala? Kliknij „Wdróż na Render" — brama stawia się sama w chmurze.' },
+  { n: "02", title: "Zdobądź certyfikat KSeF", desc: "Do testów: jedno polecenie i masz gotowy certyfikat na środowisku testowym KSeF. Na produkcji: logujesz się Profilem Zaufanym (masz go z bankowości, za darmo) na ap.ksef.mf.gov.pl i wyklikujesz certyfikat w kilka chwil — bez podpisu kwalifikowanego.", code: `docker compose --profile tools run \\\n  --rm cert-generator\n# zapisuje certyfikat, klucz i NIP do ./output`, or: null },
+  { n: "03", title: "Wyślij pierwszą fakturę", desc: "Dane sprzedawcy, nabywcy i pozycje — w odpowiedzi dostajesz numer KSeF. Twoja pierwsza faktura właśnie jest w systemie.", code: `curl -X POST http://localhost:8080/ksef/invoice \\\n  -d '{"sprzedawca":{...},"nabywca":{...},"pozycje":[...]}'\n# → {"numerKSeF":"1234567890-20260326-..."}`, or: null },
 ];
 ---
 <section id="how-it-works" class="section-gap" aria-labelledby="how-heading">
@@ -13,11 +13,12 @@ const steps = [
     </div>
     <h2 id="how-heading" class="text-3xl sm:text-4xl font-bold text-[var(--color-ink)] mb-3" data-hiw>Gotowy w trzech krokach</h2>
     <p class="text-[var(--color-muted)] mb-14 max-w-lg" data-hiw>Od zera do działającej integracji z KSeF w mniej niż pięć minut.</p>
-    <div class="flex flex-col gap-8">
+    <div class="relative flex flex-col gap-8">
+      <div class="hiw-line hidden md:block" data-hiw-line aria-hidden="true"></div>
       {steps.map((step) => (
         <div class="flex flex-col md:flex-row gap-6 md:gap-10 items-start" data-hiw>
-          <div class="shrink-0 flex items-center justify-center w-12 h-12 rounded-xl bg-[var(--color-accent-soft)] border border-[var(--color-accent)]/20">
-            <span class="text-sm font-bold font-mono text-[var(--color-accent)]">{step.n}</span>
+          <div class="relative z-10 shrink-0 flex items-center justify-center w-12 h-12 rounded-xl bg-[var(--color-elevated)] border border-[var(--color-accent)]/20">
+            <span class="text-sm font-bold font-mono text-[var(--color-accent-bright)]">{step.n}</span>
           </div>
           <div class="flex-1 min-w-0">
             <h3 class="text-lg font-semibold text-[var(--color-ink)] mb-1.5">{step.title}</h3>
@@ -35,9 +36,15 @@ const steps = [
   </div>
 </section>
 <script>
-  import { animate, inView } from "motion";
-  document.querySelectorAll("[data-hiw]").forEach((el, i) => {
-    el.style.opacity = "0"; el.style.transform = "translateY(14px)";
-    inView(el, () => { animate(el, { opacity: 1, transform: "translateY(0px)" }, { duration: 0.5, delay: i * 0.07, easing: [0.22, 1, 0.36, 1] }); }, { margin: "0px 0px -40px 0px" });
-  });
+  import { inView } from "motion";
+  import { reveal } from "../scripts/reveal";
+
+  reveal("[data-hiw]", { duration: 0.5, delayStep: 0.07, margin: "0px 0px -40px 0px", distance: 14 });
+
+  // Linia postępu rysuje się, gdy sekcja wchodzi w viewport (CSS transition robi resztę;
+  // przy prefers-reduced-motion CSS pokazuje ją od razu w pełnej długości)
+  const line = document.querySelector("[data-hiw-line]");
+  if (line) {
+    inView(line, () => line.classList.add("drawn"), { margin: "0px 0px -35% 0px" });
+  }
 </script>

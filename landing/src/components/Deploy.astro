@@ -2,13 +2,13 @@
 const RENDER_URL = "https://render.com/deploy?repo=https://github.com/jurczykpawel/ksef-gateway";
 const GITHUB_URL = "https://github.com/jurczykpawel/ksef-gateway";
 const options = [
-  { name: "Docker Compose", badge: "Lokalnie / VPS", badgeColor: "blue", desc: "Dwa polecenia i brama działa. Bez konta w chmurze. Działa na każdym VPS.", code: `docker compose up --build`, link: { href: `${GITHUB_URL}#quick-start`, label: "Dokumentacja" }, highlight: false },
+  { name: "Docker Compose", badge: "Lokalnie / VPS", badgeColor: "blue", desc: "Dwa polecenia i brama działa. Bez konta w chmurze. Działa na każdym VPS.", code: `docker compose up --build`, link: { href: `${GITHUB_URL}#szybki-start`, label: "Dokumentacja" }, highlight: false },
   { name: "Render", badge: "Polecane", badgeColor: "accent", desc: "Wdrożenie jednym kliknięciem. Ustaw trzy zmienne środowiskowe. Darmowy tier. Oba kontenery (API + PDF) wdrażają się automatycznie.", code: `# Kliknij przycisk poniżej`, link: { href: RENDER_URL, label: "Wdróż na Render" }, highlight: true },
   { name: "AWS Lambda", badge: "Serverless", badgeColor: "yellow", desc: "Deploy jako Lambda z Function URL. SAM CLI obsługuje build. Bliskie zeru koszty przy małym ruchu.", code: `sam deploy --guided`, link: { href: `${GITHUB_URL}/tree/main/deploy/aws`, label: "Konfiguracja SAM" }, highlight: false },
   { name: "Azure Container Apps", badge: "Cloud", badgeColor: "blue", desc: "Zarządzane kontenery odzwierciedlające Docker Compose. Szablon Bicep w zestawie, zero zmian w kodzie.", code: `az deployment group create \\\n  --template-file deploy/azure/main.bicep`, link: { href: `${GITHUB_URL}/tree/main/deploy/azure`, label: "Szablon Bicep" }, highlight: false },
 ];
 const badgeStyles = {
-  accent: "bg-[var(--color-accent-soft)] text-[var(--color-accent)] border-[var(--color-accent)]/20",
+  accent: "bg-[var(--color-accent-soft)] text-[var(--color-accent-bright)] border-[var(--color-accent)]/20",
   blue: "bg-blue-500/10 text-blue-400 border-blue-500/20",
   yellow: "bg-yellow-500/10 text-yellow-400 border-yellow-500/20",
 };
@@ -23,7 +23,7 @@ const badgeStyles = {
     <p class="text-[var(--color-muted)] mb-12 max-w-lg" data-dep>Docker, serverless czy zarządzana chmura — wszystkie konfiguracje są w repozytorium.</p>
     <div class="grid sm:grid-cols-2 gap-5">
       {options.map((opt) => (
-        <article class:list={["card-floating p-6 flex flex-col gap-5", opt.highlight ? "border-[var(--color-accent)]/30 bg-gradient-to-br from-indigo-500/5 to-transparent" : ""]} data-dep>
+        <article class:list={["card-floating card-lift p-6 flex flex-col gap-5", opt.highlight ? "border-[var(--color-accent)]/30 bg-gradient-to-br from-indigo-500/5 to-transparent" : ""]} data-dep>
           <div class="flex items-start justify-between gap-3">
             <h3 class="text-base font-semibold text-[var(--color-ink)]">{opt.name}</h3>
             <span class:list={["text-xs font-medium px-2 py-0.5 rounded-full border", badgeStyles[opt.badgeColor]]}>{opt.badge}</span>
@@ -32,7 +32,7 @@ const badgeStyles = {
           <div class="code-block">
             <div class="p-3.5 text-xs font-mono whitespace-pre text-[var(--color-muted)]">{opt.code}</div>
           </div>
-          <a href={opt.link.href} target="_blank" rel="noopener noreferrer" class:list={["inline-flex items-center gap-1.5 text-sm font-medium transition-colors", opt.highlight ? "text-[var(--color-accent)] hover:text-[var(--color-accent-bright)]" : "text-[var(--color-muted)] hover:text-[var(--color-ink)]"]}>
+          <a href={opt.link.href} target="_blank" rel="noopener noreferrer" class:list={["link-arrow inline-flex items-center gap-1.5 text-sm font-medium transition-colors", opt.highlight ? "text-[var(--color-accent-bright)] hover:text-[#a5b4fc]" : "text-[var(--color-muted)] hover:text-[var(--color-ink)]"]}>
             {opt.link.label}
             <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 8h10M9 4l4 4-4 4"/></svg>
           </a>
@@ -51,9 +51,6 @@ const badgeStyles = {
   </div>
 </section>
 <script>
-  import { animate, inView } from "motion";
-  document.querySelectorAll("[data-dep]").forEach((el, i) => {
-    el.style.opacity = "0"; el.style.transform = "translateY(14px)";
-    inView(el, () => { animate(el, { opacity: 1, transform: "translateY(0px)" }, { duration: 0.5, delay: i * 0.06, easing: [0.22, 1, 0.36, 1] }); }, { margin: "0px 0px -30px 0px" });
-  });
+  import { reveal } from "../scripts/reveal";
+  reveal("[data-dep]", { duration: 0.5, delayStep: 0.06, margin: "0px 0px -30px 0px", distance: 14 });
 </script>

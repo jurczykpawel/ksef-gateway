@@ -6,7 +6,7 @@ Example n8n workflows for connecting e-commerce platforms to KSeF Gateway - both
 
 **File:** `receive-invoices.json`
 
-For finding out what's been issued *to* you - KSeF has no email/webhook notifications, so this polls instead. See [Receiving Invoices](../../README.md#receiving-invoices) in the main README for the underlying endpoints.
+For finding out what's been issued *to* you - KSeF has no email/webhook notifications, so this polls instead. See [Receiving Invoices](../../README.en.md#receiving-invoices) in the main README for the underlying endpoints.
 
 ### What it does
 

@@ -1,10 +1,12 @@
 ---
 const GITHUB_URL = "https://github.com/jurczykpawel/ksef-gateway";
 const RENDER_URL = "https://render.com/deploy?repo=https://github.com/jurczykpawel/ksef-gateway";
-const DEMO_URL = "https://github.com/jurczykpawel/ksef-gateway#try-the-live-demo";
+const DEMO_URL = "https://github.com/jurczykpawel/ksef-gateway#wypróbuj-live-demo";
 ---
-<section class="section-gap pt-20 md:pt-28 overflow-hidden" aria-label="Hero">
-  <div class="container-kg">
+<section class="section-gap pt-20 md:pt-28 overflow-hidden relative" aria-label="Hero">
+  <div class="blob w-[420px] h-[420px] -top-32 -left-24 bg-[rgba(99,102,241,0.13)]" aria-hidden="true"></div>
+  <div class="blob w-[340px] h-[340px] top-1/3 -right-28 bg-[rgba(96,165,250,0.09)]" style="animation-delay: -13s" aria-hidden="true"></div>
+  <div class="container-kg relative">
     <div class="flex flex-col lg:flex-row items-start lg:items-center gap-14 lg:gap-10">
 
       <div class="flex-1 min-w-0">
@@ -13,18 +15,19 @@ const DEMO_URL = "https://github.com/jurczykpawel/ksef-gateway#try-the-live-demo
             <circle cx="6" cy="6" r="5" stroke="currentColor" stroke-width="1.5"/>
             <circle cx="6" cy="6" r="2" fill="currentColor"/>
           </svg>
-          Open Source · AGPL-3.0 · Oficjalny SDK MF
+          Open source · Oficjalny SDK Ministerstwa Finansów
         </div>
 
         <h1 class="text-4xl sm:text-5xl lg:text-6xl font-bold leading-[1.08] tracking-tight text-[var(--color-ink)] mb-5" data-reveal>
-          Jedno wywołanie HTTP.<br/>
-          Jeden numer KSeF.
+          KSeF podłączony w 5 minut.<br/>
+          Faktury robią się same.
         </h1>
 
         <p class="text-lg text-[var(--color-muted)] leading-relaxed max-w-xl mb-8" data-reveal>
-          KSeF Gateway opakowuje oficjalny SDK e-Faktur Ministerstwa Finansów.
-          Wysyłasz i odbierasz faktury jednym wywołaniem HTTP &mdash; bez znajomości numeru KSeF,
-          XML FA(3), szyfrowania AES-256 czy zarządzania sesjami.
+          KSeF Gateway to gotowa brama do rządowego systemu e-Faktur. Podłączasz ją raz
+          &mdash; do sklepu, systemu księgowego albo automatyzacji n8n &mdash; i od tej pory
+          wystawianie oraz odbieranie faktur dzieje się automatycznie. Cała techniczna
+          złożoność KSeF zostaje w środku.
         </p>
 
         <div class="flex flex-wrap items-center gap-3" data-reveal>
@@ -51,7 +54,7 @@ const DEMO_URL = "https://github.com/jurczykpawel/ksef-gateway#try-the-live-demo
         </div>
 
         <div class="flex flex-wrap items-center gap-x-5 gap-y-2 mt-8 text-xs text-[var(--color-faint)]" data-reveal>
-          {[".NET 9 w Dockerze", "Bez lokalnego .NET", "81 testów przechodzi", "Darmowy tier na Render"].map(t => (
+          {["Działa w 5 minut", "Bez abonamentu — open source", "Dane zostają na Twoim serwerze", "Gotowe workflow n8n"].map(t => (
             <span class="flex items-center gap-1.5">
               <svg width="12" height="12" viewBox="0 0 16 16" fill="var(--color-accent)" aria-hidden="true">
                 <path d="M8 .5a7.5 7.5 0 1 0 0 15A7.5 7.5 0 0 0 8 .5Zm3.28 5.72-4 4a.75.75 0 0 1-1.06 0l-2-2a.75.75 0 0 1 1.06-1.06L6.75 8.69l3.47-3.47a.75.75 0 1 1 1.06 1.06Z"/>
@@ -80,7 +83,7 @@ const DEMO_URL = "https://github.com/jurczykpawel/ksef-gateway#try-the-live-demo
           <svg width="12" height="12" viewBox="0 0 16 16" fill="var(--color-accent)" aria-hidden="true">
             <path d="M8 .5a7.5 7.5 0 1 0 0 15A7.5 7.5 0 0 0 8 .5Zm3.28 5.72-4 4a.75.75 0 0 1-1.06 0l-2-2a.75.75 0 0 1 1.06-1.06L6.75 8.69l3.47-3.47a.75.75 0 1 1 1.06 1.06Z"/>
           </svg>
-          Brama obsługuje XML FA(3) &middot; szyfrowanie AES-256 &middot; sesje KSeF &middot; auto-refresh
+          Formaty, szyfrowanie i sesje KSeF brama bierze na siebie &mdash; Ty widzisz tylko odpowiedź
         </div>
       </div>
 
@@ -89,7 +92,7 @@ const DEMO_URL = "https://github.com/jurczykpawel/ksef-gateway#try-the-live-demo
 </section>
 
 <script>
-  import { animate, inView } from "motion";
+  import { reveal } from "../scripts/reveal";
 
   function hl(text, cls) { return `<span class="${cls}">${text}</span>`; }
   const k = t => hl(t, "text-[#93c5fd]");
@@ -98,37 +101,45 @@ const DEMO_URL = "https://github.com/jurczykpawel/ksef-gateway#try-the-live-demo
   const c = t => hl(t, "text-[var(--color-blue)]");
   const a = t => hl(t, "text-[var(--color-accent-bright)]");
 
+  // Linie terminala pojawiają się sekwencyjnie (CSS keyframes + delay per linia) -
+  // animacja tematycznie związana z produktem: "wpisujesz polecenie, wraca numer KSeF".
+  // Przy prefers-reduced-motion globalny wyłącznik CSS pokazuje wszystko od razu.
+  const LINE_STEP = 0.18;
+  const REQUEST_START = 0.4; // po fade-inie karty terminala
+  const tline = (i, inner, extra = "") =>
+    `<div class="tline${extra ? " " + extra : ""}" style="animation-delay: ${(REQUEST_START + i * LINE_STEP).toFixed(2)}s">${inner}</div>`;
+
+  const requestLines = [
+    [`<span class="text-[var(--color-faint)] select-none">$</span>`, "mb-1"],
+    [`${c("curl")} ${m("-X POST https://twoja-brama/ksef/invoice \\")}`],
+    [`${m("-H ")}${v('"Content-Type: application/json"')} ${m("\\")}`, "pl-4"],
+    [`${m("-d '")}${m("{")}${k('"sprzedawca"')}${m(":")}${m("{")}${k('"nip"')}${m(":")}${v('"1234567890"')}${m("...}")}${m(",")}`, "pl-4"],
+    [`${k('"nabywca"')}${m(":")}${m("{")}${k('"nip"')}${m(":")}${v('"0987654321"')}${m("...}")}${m(",")}`, "pl-8"],
+    [`${k('"pozycje"')}${m(": [")}${m("{")}${k('"nazwa"')}${m(":")}${v('"Usługa"')}${m(",")}${k('"cenaNetto"')}${m(":")}${a("150")}${m("...}]'")}`, "pl-8"],
+  ];
+
   const req = document.getElementById("hero-request");
   if (req) {
-    req.innerHTML = [
-      `<div class="text-[var(--color-faint)] select-none mb-1">$</div>`,
-      `<div>${c("curl")} ${m("-X POST https://twoja-brama/ksef/invoice \\")}</div>`,
-      `<div class="pl-4">${m("-H ")}${v('"Content-Type: application/json"')} ${m("\\")}</div>`,
-      `<div class="pl-4">${m("-d '")}${m("{")}${k('"sprzedawca"')}${m(":")}${m("{")}${k('"nip"')}${m(":")}${v('"1234567890"')}${m("...}")}${m(",")}</div>`,
-      `<div class="pl-8">${k('"nabywca"')}${m(":")}${m("{")}${k('"nip"')}${m(":")}${v('"0987654321"')}${m("...}")}${m(",")}</div>`,
-      `<div class="pl-8">${k('"pozycje"')}${m(": [")}${m("{")}${k('"nazwa"')}${m(":")}${v('"Usługa"')}${m(",")}${k('"cenaNetto"')}${m(":")}${a("150")}${m("...}]'")}</div>`,
-    ].join("\n");
+    req.innerHTML = requestLines.map(([inner, extra], i) => tline(i, inner, extra)).join("\n");
   }
+
+  const RESPONSE_START = REQUEST_START + requestLines.length * LINE_STEP + 0.25;
+  const responseLines = [
+    [`${m("{")}`],
+    [`${k('"sukces"')}${m(": ")}${a("true")}${m(",")}`, "pl-4"],
+    [`${k('"dane"')}${m(": {")}`, "pl-4"],
+    [`${k('"numerKSeF"')}${m(": ")}<span class="ksef-flash" style="animation-delay: 2.75s">${v('"1234567890-20260326-5EC118-05"')}</span>`, "pl-8"],
+    [`${m("}")}`, "pl-4"],
+    [`${m("}")}<span class="cursor-blink" aria-hidden="true"></span>`],
+  ];
 
   const res = document.getElementById("hero-response");
   if (res) {
-    res.innerHTML = [
-      `<div>${m("{")}</div>`,
-      `<div class="pl-4">${k('"sukces"')}${m(": ")}${a("true")}${m(",")}</div>`,
-      `<div class="pl-4">${k('"dane"')}${m(": {")}`,
-      `<div class="pl-8">${k('"numerKSeF"')}${m(": ")}${v('"1234567890-20260326-5EC118-05"')}</div>`,
-      `<div class="pl-4">${m("}")}</div>`,
-      `<div>${m("}")}</div>`,
-    ].join("\n");
+    res.innerHTML = responseLines
+      .map(([inner, extra], i) =>
+        `<div class="tline${extra ? " " + extra : ""}" style="animation-delay: ${(RESPONSE_START + i * LINE_STEP).toFixed(2)}s">${inner}</div>`)
+      .join("\n");
   }
 
-  document.querySelectorAll("[data-reveal]").forEach((el, i) => {
-    el.style.opacity = "0";
-    el.style.transform = "translateY(18px)";
-    inView(el, () => {
-      animate(el, { opacity: 1, transform: "translateY(0px)" }, {
-        duration: 0.55, delay: i * 0.07, easing: [0.22, 1, 0.36, 1],
-      });
-    }, { margin: "0px 0px -60px 0px" });
-  });
+  reveal("[data-reveal]", { duration: 0.55, delayStep: 0.07, margin: "0px 0px -60px 0px", distance: 18 });
 </script>

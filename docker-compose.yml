@@ -14,7 +14,7 @@ services:
       - KSEF_ENV=${KSEF_ENV:-TEST}
       - PDF_SERVICE_URL=http://ksef-pdf:3000
       - KSEF_CONTEXTS_FILE=/app/contexts.json
-      # Certificate-based auth (alternative to KSEF_TOKEN) - see README "Certificate-Based Auth"
+      # Certificate-based auth (alternative to KSEF_TOKEN) - see README "Autoryzacja Certyfikatem"
       - KSEF_CERT_PATH=${KSEF_CERT_PATH:-}
       - KSEF_KEY_PATH=${KSEF_KEY_PATH:-}
       - KSEF_KEY_PASSWORD=${KSEF_KEY_PASSWORD:-}

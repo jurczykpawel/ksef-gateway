@@ -1,12 +1,16 @@
 ---
 const items = [
   {
-    q: "Czy muszę mieć podpis kwalifikowany?",
-    a: "Nie. Do wygenerowania tokenu produkcyjnego wystarczy Profil Zaufany — darmowy, masz go zwykle z bankowości. Spółki dodatkowo składają jednorazowo formularz ZAW-FA w urzędzie skarbowym (chyba że mają pieczęć kwalifikowaną).",
+    q: "Nie jestem programistą — czy sobie poradzę?",
+    a: "Tak, jeśli nie boisz się skopiować kilku poleceń. Gotowe workflow n8n obsługują całość bez pisania kodu, wdrożenie na Render to jedno kliknięcie, a publiczne demo możesz przetestować od razu, bez instalowania czegokolwiek. Instrukcje prowadzą krok po kroku.",
   },
   {
-    q: "Gdzie trzyma się mój token KSeF? Czy to bezpieczne?",
-    a: "Wyłącznie na Twoim serwerze, w zmiennej środowiskowej. Gateway nie ma bazy danych ani zewnętrznego serwisu pośredniczącego — token nigdzie nie wypływa poza oficjalne API KSeF, do którego się nim uwierzytelnia.",
+    q: "Czy muszę mieć podpis kwalifikowany?",
+    a: "Nie. Do wygenerowania certyfikatu KSeF wystarczy Profil Zaufany — darmowy, masz go zwykle z bankowości. Logujesz się na ap.ksef.mf.gov.pl i wyklikujesz certyfikat w kilka chwil. Spółki dodatkowo składają jednorazowo formularz ZAW-FA w urzędzie skarbowym (chyba że mają pieczęć kwalifikowaną).",
+  },
+  {
+    q: "Gdzie trzyma się mój certyfikat KSeF? Czy to bezpieczne?",
+    a: "Wyłącznie na Twoim serwerze. Gateway nie ma bazy danych ani zewnętrznego serwisu pośredniczącego — certyfikat i klucz nigdzie nie wypływają poza oficjalne API KSeF, do którego brama się nimi uwierzytelnia.",
   },
   {
     q: "Czy ktokolwiek, kto znajdzie mój URL, może wysłać fakturę w moim imieniu?",
@@ -18,15 +22,15 @@ const items = [
   },
   {
     q: "Czy przejście z testu na produkcję wymaga zmian w kodzie?",
-    a: "Nie. Podmieniasz KSEF_TOKEN, KSEF_NIP i ustawiasz KSEF_ENV=PRODUCTION w konfiguracji, restartujesz bramę. Endpointy, format JSON i cała reszta integracji zostają identyczne.",
+    a: "Nie. Podmieniasz certyfikat testowy na produkcyjny w konfiguracji i restartujesz bramę. Wszystko inne — adresy, format danych, podpięte automatyzacje — zostaje bez zmian.",
   },
   {
     q: "Co się stanie, jeśli przekroczę limit zapytań KSeF?",
     a: "Gateway pilnuje oficjalnych limitów po swojej stronie i odda Ci 429 z nagłówkiem Retry-After, zanim jeszcze uderzy w limit KSeF — nie musisz sam implementować throttlingu.",
   },
   {
-    q: "Obsługuję kilka firm/NIP-ów — da się to zrobić z jednej instancji?",
-    a: "Tak, przez tryb multi-NIP: plik contexts.json z tokenem per firma, auto-routing po nagłówku X-KSeF-NIP albo NIP sprzedawcy z faktury.",
+    q: "Obsługuję kilka firm/NIP-ów — da się to zrobić z jednej bramy?",
+    a: "Tak, przez tryb multi-NIP: każda firma ze swoim certyfikatem w jednym pliku konfiguracyjnym, a brama sama rozpoznaje, w imieniu której firmy działa — po NIP sprzedawcy z faktury albo jawnym nagłówku.",
   },
 ];
 ---
@@ -59,9 +63,6 @@ const items = [
   </div>
 </section>
 <script>
-  import { animate, inView } from "motion";
-  document.querySelectorAll("[data-faq]").forEach((el, i) => {
-    el.style.opacity = "0"; el.style.transform = "translateY(14px)";
-    inView(el, () => { animate(el, { opacity: 1, transform: "translateY(0px)" }, { duration: 0.5, delay: i * 0.05, easing: [0.22, 1, 0.36, 1] }); }, { margin: "0px 0px -30px 0px" });
-  });
+  import { reveal } from "../scripts/reveal";
+  reveal("[data-faq]", { duration: 0.5, delayStep: 0.05, margin: "0px 0px -30px 0px", distance: 14 });
 </script>

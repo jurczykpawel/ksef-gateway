@@ -1,6 +1,9 @@
 ---
 import "../styles/global.css";
+// Polish diacritics (ą, ć, ę, ł, ń, ó, ś, ź, ż) live in the latin-ext subset -
+// preloading only latin would leave visible Polish text swapping late.
 import interLatinUrl from "@fontsource-variable/inter/files/inter-latin-wght-normal.woff2?url";
+import interLatinExtUrl from "@fontsource-variable/inter/files/inter-latin-ext-wght-normal.woff2?url";
 import monoLatinUrl from "@fontsource-variable/jetbrains-mono/files/jetbrains-mono-latin-wght-normal.woff2?url";
 
 interface Props {
@@ -9,20 +12,43 @@ interface Props {
   ogImage?: string;
 }
 const {
-  title = "KSeF Gateway — Jedno wywołanie HTTP. Jeden numer KSeF.",
-  description = "Brama REST API do KSeF (Krajowy System e-Faktur). Wysyłaj i odbieraj faktury jednym wywołaniem HTTP. Oficjalny SDK CIRFMF. Gotowe na produkcję. Docker, Render, Lambda, Azure.",
+  title = "KSeF Gateway — podłącz firmę do KSeF w 5 minut",
+  description = "Gotowa brama do KSeF (Krajowy System e-Faktur): wystawianie i odbieranie faktur dzieje się automatycznie. Oficjalny SDK Ministerstwa Finansów, open source, bez abonamentu. REST API, n8n, Docker, Render.",
   ogImage = "/og.png",
 } = Astro.props;
 const canonicalURL = new URL(Astro.url.pathname, Astro.site);
+
+const jsonLd = {
+  "@context": "https://schema.org",
+  "@type": "SoftwareApplication",
+  name: "KSeF Gateway",
+  description,
+  url: Astro.site?.toString(),
+  applicationCategory: "DeveloperApplication",
+  operatingSystem: "Docker, Linux, AWS Lambda, Azure",
+  inLanguage: "pl",
+  offers: {
+    "@type": "Offer",
+    price: "0",
+    priceCurrency: "PLN",
+  },
+  license: "https://www.gnu.org/licenses/agpl-3.0.html",
+  codeRepository: "https://github.com/jurczykpawel/ksef-gateway",
+};
 ---
 <!doctype html>
-<html lang="en">
+<html lang="pl">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="color-scheme" content="dark" />
+    <meta name="theme-color" content="#0a0f1e" />
+    <meta name="robots" content="index, follow" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
     <link rel="canonical" href={canonicalURL} />
 
+    <link rel="preload" href={interLatinExtUrl} as="font" type="font/woff2" crossorigin="anonymous" />
     <link rel="preload" href={interLatinUrl} as="font" type="font/woff2" crossorigin="anonymous" />
     <link rel="preload" href={monoLatinUrl} as="font" type="font/woff2" crossorigin="anonymous" />
 
@@ -34,6 +60,9 @@ const canonicalURL = new URL(Astro.url.pathname, Astro.site);
     <meta property="og:title" content={title} />
     <meta property="og:description" content={description} />
     <meta property="og:image" content={new URL(ogImage, Astro.site)} />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:locale" content="pl_PL" />
 
     <meta name="twitter:card" content="summary_large_image" />
     <meta name="twitter:title" content={title} />
@@ -41,8 +70,24 @@ const canonicalURL = new URL(Astro.url.pathname, Astro.site);
     <meta name="twitter:image" content={new URL(ogImage, Astro.site)} />
 
     <link rel="sitemap" href="/sitemap-index.xml" />
+
+    <script type="application/ld+json" set:html={JSON.stringify(jsonLd)} is:inline />
   </head>
   <body>
+    <a href="#main" class="skip-link">Przejdź do treści</a>
     <slot />
+    <script src="https://sellf.techskills.academy/embed/v1/checkout.js" defer is:inline></script>
+    <script>
+      import Lenis from "lenis";
+      // Smooth scroll - pomijany przy prefers-reduced-motion (natywny scroll zostaje)
+      if (!window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+        const lenis = new Lenis({ lerp: 0.12, syncTouch: true });
+        const raf = (time: number) => {
+          lenis.raf(time);
+          requestAnimationFrame(raf);
+        };
+        requestAnimationFrame(raf);
+      }
+    </script>
   </body>
 </html>

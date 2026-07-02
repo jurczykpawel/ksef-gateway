@@ -97,6 +97,21 @@ openssl rand -hex 32
 
 **Obrona w głąb dla produkcji:** klucz API to jedyna rzecz stojąca między publicznym adresem a całym internetem, więc dla prawdziwego wdrożenia ogranicz też dostęp sieciowy tam, gdzie platforma na to pozwala - allowlista IP (Render, Azure), VPN/sieć prywatna, albo reverse proxy przed usługą. Nie polegaj na kluczu jako jedynej warstwie.
 
+### Gdzie hostować i jak traktowany jest certyfikat
+
+Żeby usługa mogła sama podpisywać żądania do KSeF (i wstawać bez Ciebie po restarcie), klucz prywatny - a jeśli jest zaszyfrowany, to i jego hasło - musi być dla niej dostępny w czasie działania. Wynika z tego kilka rzeczy, które warto rozumieć, zanim wybierzesz hosting:
+
+- **Sekrety nie trafiają do repozytorium ani do obrazu.** Certyfikat, klucz i `contexts.json` podajesz w runtime (zmienne środowiskowe, Secret Files albo zamontowany plik) - nigdy nie commitujesz ich i nie wbudowujesz w obraz Dockera.
+- **Klucz może leżeć zaszyfrowany na dysku** (`PrivateKeyPassword` / `KSEF_KEY_PASSWORD`), a usługa odszyfrowuje go dopiero w pamięci przy starcie. To chroni przed *częściowym* wyciekiem - ktoś, kto dostanie sam plik klucza bez hasła, ma coś bezużytecznego. Nie chroni przed pełnym przejęciem hosta, bo hasło i tak jest na tym samym hoście. Sam klucz nigdy nie opuszcza serwera - do KSeF lecą wyłącznie podpisy, nie klucz.
+- **Każdy host to „zaufana strona".** Managed PaaS (Render, Fly, Railway…) odszyfrowuje Twoje sekrety i wstrzykuje je do kontenera, więc platforma technicznie ma do nich dostęp. Ale to samo dotyczy własnego VPS-a: dostawca ma dostęp do pamięci i dysku Twojej maszyny (warstwa hypervisora). **Self-hosting nie eliminuje tego problemu - zmienia tylko, komu ufasz.**
+- **Współdzielony serwer = większy promień rażenia.** Jeśli postawisz usługę na maszynie, na której działa też kilka innych rzeczy, luka w *którejkolwiek* z nich może sięgnąć po certyfikat KSeF. Odizolowana, minimalna instancja jest pod tym względem czystsza niż zatłoczony własny serwer.
+
+**Co realnie chroni - niezależnie od hosta:**
+
+1. Największe ryzyko to nie kradzież certyfikatu, tylko **ktoś wywołuje usługę i wystawia fałszywe faktury na Twój NIP**. Dlatego mocny `GATEWAY_API_KEY` + ograniczenie, kto może wołać usługę (allowlista IP / reverse proxy), znaczą więcej niż to, gdzie fizycznie leży certyfikat.
+2. Certyfikat jest **odwoływalny** - przy podejrzeniu kompromitacji generujesz nowy na portalu KSeF, a stary przestaje działać.
+3. Dla większości wdrożeń **reputowany managed host to rozsądny i bezpieczny wybór** - jego izolacja bywa lepsza niż zatłoczonego własnego serwera. Jeśli zależy Ci na maksymalnej izolacji, użyj dedykowanej, minimalnej maszyny tylko na tę usługę.
+
 ---
 
 ## Wypróbuj Live Demo

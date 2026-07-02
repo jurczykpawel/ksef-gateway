@@ -97,6 +97,24 @@ openssl rand -hex 32
 
 **Obrona w głąb dla produkcji - allowlista IP:** klucz API to jedyna rzecz stojąca między publicznym adresem a całym internetem, więc dla prawdziwego wdrożenia dołóż warstwę sieciową: postaw usługę za Cloudflare albo reverse proxy i **przepuszczaj tylko adres(y), z których faktycznie ją wołasz** - zwykle egress IP Twojego serwera automatyzacji (n8n) czy backendu. Dzięki temu nawet gdyby klucz wyciekł, użyje go wyłącznie zaufany adres. Działa to najlepiej, gdy caller to stały serwer ze stabilnym IP; adresy domowe/mobilne bywają zmienne, a wewnętrzne adresy VPN (np. Tailscale `100.x`) nie są widoczne dla publicznej usługi - wtedy kieruj ruch przez stały host i to jego IP dodaj do allowlisty. Nie polegaj na kluczu jako jedynej warstwie.
 
+### Wymuś ruch tylko przez proxy (`TRUSTED_PROXY_SECRET`)
+
+Jest haczyk: allowlista IP na Cloudflare/proxy chroni tylko ruch, który *przez nie przechodzi*. Jeśli platforma daje usłudze publiczny adres origin (np. `*.onrender.com`), ktoś może uderzyć w niego **bezpośrednio, z pominięciem proxy** - i wtedy cała allowlista IP jest do obejścia (zostaje sam klucz API).
+
+Domknij to opcjonalnym sekretem proxy. Ustaw `TRUSTED_PROXY_SECRET`, a w proxy wstrzykuj ten sam sekret jako nagłówek (Cloudflare: Transform Rule → *Set static header*; domyślna nazwa `X-Trusted-Proxy-Secret`, zmienisz przez `TRUSTED_PROXY_HEADER`). Od tej chwili każde żądanie poza `GET /health` musi nieść ten nagłówek:
+
+- ruch przez Twój Cloudflare/proxy → nagłówek jest → przechodzi (i podlega allowliście IP na proxy),
+- strzał wprost w origin z pominięciem proxy → brak nagłówka → `403`.
+
+Opcja jest **domyślnie wyłączona**: bez `TRUSTED_PROXY_SECRET` nic się nie zmienia (chroni tylko klucz API). `GET /health` zawsze pomija ten check, żeby health-check platformy (uderzający w origin bezpośrednio) działał.
+
+| Zmienna | Rola |
+|---|---|
+| `TRUSTED_PROXY_SECRET` | Ustaw, by włączyć. Sekret wspólny między proxy a usługą (`openssl rand -hex 32`). |
+| `TRUSTED_PROXY_HEADER` | Opcjonalna nazwa nagłówka (domyślnie `X-Trusted-Proxy-Secret`). |
+
+> **Przy konfiguracji uważaj na dwie rzeczy:** (1) w proxy ustaw nagłówek trybem **overwrite** (Cloudflare: *Set static header*, nie *Add*) — inaczej ewentualna kopia od klienta doklei się do sekretu (`wartość-klienta, sekret`) i odrzuci **cały** legalny ruch; (2) origin nie może logować ani odbijać nagłówków żądań — wyciek sekretu = ktoś powtórzy go wprost w origin i obejdzie zabezpieczenie. Gdy włączysz opcję, a proxy nie wstrzykuje nagłówka, wszystko poza `/health` zwróci `403` (a `/health` dalej świeci zielono) — usługa loguje wtedy przy starcie, że enforcement jest ON.
+
 ### Gdzie hostować i jak traktowany jest certyfikat
 
 Żeby usługa mogła sama podpisywać żądania do KSeF (i wstawać bez Ciebie po restarcie), klucz prywatny - a jeśli jest zaszyfrowany, to i jego hasło - musi być dla niej dostępny w czasie działania. Wynika z tego kilka rzeczy, które warto rozumieć, zanim wybierzesz hosting:

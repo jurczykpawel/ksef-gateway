@@ -1,5 +1,3 @@
-using System.Security.Cryptography;
-using System.Text;
 using KSeFGateway.Api.Models;
 
 namespace KSeFGateway.Api.Middleware;
@@ -44,26 +42,13 @@ public class ApiKeyMiddleware
         }
 
         var provided = context.Request.Headers[HeaderName].ToString();
-        if (string.IsNullOrEmpty(provided) || !ConstantTimeEquals(provided, _apiKey))
+        if (string.IsNullOrEmpty(provided) || !SecretComparison.ConstantTimeEquals(provided, _apiKey))
         {
             await Reject(context, 401, $"Missing or invalid {HeaderName} header.");
             return;
         }
 
         await _next(context);
-    }
-
-    private static bool ConstantTimeEquals(string a, string b)
-    {
-        var bytesA = Encoding.UTF8.GetBytes(a);
-        var bytesB = Encoding.UTF8.GetBytes(b);
-
-        // Comparing length up front leaks the length itself via timing, not the content -
-        // an accepted trade-off since CryptographicOperations.FixedTimeEquals requires equal-length inputs.
-        if (bytesA.Length != bytesB.Length)
-            return false;
-
-        return CryptographicOperations.FixedTimeEquals(bytesA, bytesB);
     }
 
     private static async Task Reject(HttpContext context, int statusCode, string error)

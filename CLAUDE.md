@@ -28,6 +28,7 @@ docker compose up --build
 - `src/KSeFGateway.Api/Endpoints/InvoiceDownloadEndpoints.cs` - /ksef/invoices/received, /ksef/invoices/received/new, /ksef/invoices/issued
 - `src/KSeFGateway.Api/Endpoints/HealthEndpoints.cs` - /health, /ksef/status
 - `src/KSeFGateway.Api/Middleware/ApiKeyMiddleware.cs` - fail-closed X-Api-Key check on every request except /health (gateway has no other caller-facing auth)
+- `src/KSeFGateway.Api/Middleware/TrustedProxyMiddleware.cs` - opt-in (TRUSTED_PROXY_SECRET): require a proxy-injected secret header so direct-to-origin hits bypassing a CF/reverse-proxy IP allowlist get 403; no-op when unset; shares constant-time compare via Middleware/SecretComparison.cs
 - `src/KSeFGateway.Api/Middleware/ErrorHandlingMiddleware.cs` - KsefApiException/KsefRateLimitException/KsefCircuitBreakerOpenException → HTTP responses
 - `src/KSeFGateway.Api/Middleware/EndpointErrorHandling.cs` - shared `Guard()` helper so every endpoint handler rethrows KSeF errors to the middleware instead of flattening them into 500
 - `pdf-service/src/server.ts` - PDF generation, JSON→XML conversion, QR codes

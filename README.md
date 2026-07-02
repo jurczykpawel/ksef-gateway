@@ -155,10 +155,10 @@ Opcja jest **domyślnie wyłączona**: bez `TRUSTED_PROXY_SECRET` nic się nie z
 
 ## Wypróbuj Live Demo
 
-Bez konfiguracji. Publiczna instancja demo działa na darmowym tierze Render, uwierzytelniona certyfikatem do jednorazowej firmy **TEST** KSeF (nie prawdziwy biznes). Samofakturowanie jest włączone, więc możesz wysłać fakturę i od razu odnaleźć siebie jako nabywcę:
+Bez konfiguracji. Publiczna instancja demo działa non-stop (bez usypiania), uwierzytelniona certyfikatem do jednorazowej firmy **TEST** KSeF (nie prawdziwy biznes). Samofakturowanie jest włączone, więc możesz wysłać fakturę i od razu odnaleźć siebie jako nabywcę:
 
 ```bash
-DEMO_URL="https://ksef-api-rfm0.onrender.com"
+DEMO_URL="https://ksef-demo.techskills.academy"
 DEMO_KEY="0679d36400bfdedcaf1f7d1f5774d0d94ffae5a9f6bc7596cbf24de94d42a8ee"
 DEMO_NIP="3202004132"
 

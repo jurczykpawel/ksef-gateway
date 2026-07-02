@@ -103,10 +103,10 @@ openssl rand -hex 32
 
 ## Try the Live Demo
 
-No setup required. A public demo instance runs on Render's free tier, authenticated to a disposable KSeF **TEST** company (not a real business) via certificate. Self-invoicing is enabled, so you can send an invoice and immediately look yourself up as the buyer:
+No setup required. A public demo instance runs around the clock (no cold starts), authenticated to a disposable KSeF **TEST** company (not a real business) via certificate. Self-invoicing is enabled, so you can send an invoice and immediately look yourself up as the buyer:
 
 ```bash
-DEMO_URL="https://ksef-api-rfm0.onrender.com"
+DEMO_URL="https://ksef-demo.techskills.academy"
 DEMO_KEY="0679d36400bfdedcaf1f7d1f5774d0d94ffae5a9f6bc7596cbf24de94d42a8ee"
 DEMO_NIP="3202004132"
 

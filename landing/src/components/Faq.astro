@@ -22,7 +22,7 @@ const items = [
   },
   {
     q: "Jak dołożyć dodatkową warstwę zabezpieczeń poza kluczem API?",
-    a: "Ustaw allowlistę IP przed usługą. Postaw ją za Cloudflare albo reverse proxy i przepuszczaj tylko adres(y), z których naprawdę ją wołasz — zwykle egress IP Twojego serwera automatyzacji (np. n8n) albo backendu. Wtedy nawet gdyby klucz API wyciekł, użyje go wyłącznie zaufany adres. Działa to najlepiej, gdy caller ma stałe IP; adresy domowe/mobilne bywają zmienne, a wewnętrzne adresy VPN (np. Tailscale) nie są widoczne dla publicznej usługi — w takim wypadku kieruj ruch przez stały host i to jego IP allowlistuj.",
+    a: "Ustaw allowlistę IP przed usługą. Konkretnie: przepuść domenę przez Cloudflare (rekord DNS z włączonym proxy), sprawdź publiczny egress IP swojego callera — osobno IPv4 i IPv6 — i dodaj w Cloudflare regułę WAF, która blokuje wszystko poza tymi adresami. Wtedy nawet gdyby klucz API wyciekł, użyje go wyłącznie zaufany adres. Działa to najlepiej, gdy caller ma stałe IP; adresy domowe/mobilne bywają zmienne, a wewnętrzne adresy VPN (np. Tailscale) nie są widoczne dla publicznej usługi — w takim wypadku kieruj ruch przez stały host i to jego IP allowlistuj. Pełna instrukcja krok po kroku — łącznie z domknięciem obejścia przez publiczny origin — jest w README projektu.",
   },
   {
     q: "Ile to kosztuje?",

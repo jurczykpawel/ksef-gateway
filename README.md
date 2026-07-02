@@ -97,6 +97,27 @@ openssl rand -hex 32
 
 **Obrona w głąb dla produkcji - allowlista IP:** klucz API to jedyna rzecz stojąca między publicznym adresem a całym internetem, więc dla prawdziwego wdrożenia dołóż warstwę sieciową: postaw usługę za Cloudflare albo reverse proxy i **przepuszczaj tylko adres(y), z których faktycznie ją wołasz** - zwykle egress IP Twojego serwera automatyzacji (n8n) czy backendu. Dzięki temu nawet gdyby klucz wyciekł, użyje go wyłącznie zaufany adres. Działa to najlepiej, gdy caller to stały serwer ze stabilnym IP; adresy domowe/mobilne bywają zmienne, a wewnętrzne adresy VPN (np. Tailscale `100.x`) nie są widoczne dla publicznej usługi - wtedy kieruj ruch przez stały host i to jego IP dodaj do allowlisty. Nie polegaj na kluczu jako jedynej warstwie.
 
+#### Allowlista IP krok po kroku (przykład: Cloudflare WAF)
+
+Konkretny przepis, gdy caller to stały serwer (np. n8n) - dokładnie tak stoi produkcyjne wdrożenie tego repo:
+
+1. **Przepuść domenę przez Cloudflare (proxied).** Skieruj swoją domenę (np. `ksef.twojafirma.pl`) na usługę rekordem DNS w Cloudflare z **włączonym proxy (pomarańczowa chmurka)** - tylko wtedy WAF Cloudflare widzi ruch. Na Renderze: dodaj domenę w *Settings → Custom Domains*, utwórz proxied CNAME na adres `…onrender.com`, a tryb SSL w Cloudflare ustaw na **Full (strict)**.
+2. **Poznaj egress IP swojego callera - IPv4 i IPv6.** Z hosta, który wywołuje usługę:
+   ```bash
+   curl -4 ifconfig.co    # np. 203.0.113.10
+   curl -6 ifconfig.co    # np. 2001:db8::1   (jeśli host ma IPv6)
+   ```
+   Dodaj **oba** - jeśli pominiesz IPv6, ruch po IPv6 obejdzie regułę.
+3. **Dodaj regułę WAF „blokuj wszystko poza moim IP".** Cloudflare → *Security → WAF → Custom rules → Create rule*:
+   - Expression: `(not ip.src in {203.0.113.10 2001:db8::1})`
+   - Action: **Block**
+
+   Kilku callerów (np. serwer n8n + Twój stały adres)? Dopisz ich IP do tego samego zbioru `{…}`.
+4. **Sprawdź.** Z dozwolonego hosta `curl https://ksef.twojafirma.pl/health` → `200`. Z dowolnego innego adresu → `403` (ubite przez WAF, zanim dojdzie do usługi).
+5. **Domknij obejście origin.** Sama allowlista chroni tylko ruch *przez* Cloudflare - publiczny origin (`*.onrender.com`) wciąż da się uderzyć wprost. Włącz też [`TRUSTED_PROXY_SECRET`](#wymuś-ruch-tylko-przez-proxy-trusted_proxy_secret) (niżej), żeby strzał z pominięciem proxy dostawał `403`.
+
+Nie na Cloudflare? Ta sama zasada działa reverse-proxy (nginx `allow 203.0.113.10; deny all;`), regułą firewalla albo listą dozwolonych na load-balancerze - chodzi o to, żeby tylko znane IP dobiło do usługi.
+
 ### Wymuś ruch tylko przez proxy (`TRUSTED_PROXY_SECRET`)
 
 Jest haczyk: allowlista IP na Cloudflare/proxy chroni tylko ruch, który *przez nie przechodzi*. Jeśli platforma daje usłudze publiczny adres origin (np. `*.onrender.com`), ktoś może uderzyć w niego **bezpośrednio, z pominięciem proxy** - i wtedy cała allowlista IP jest do obejścia (zostaje sam klucz API).

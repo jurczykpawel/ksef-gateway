@@ -1,12 +1,10 @@
 ---
 const withoutSteps = [
-  "Budowanie XML FA(3) od zera — złożony schemat, polskie nazwy pól jak P_13_1",
-  "Szyfrowanie faktury kluczem RSA KSeF przy użyciu AES-256-CBC",
-  "Zarządzanie sesjami uwierzytelniającymi — challenge, podpis XAdES, JWT",
-  "Otwarcie sesji → wysłanie zaszyfrowanej faktury → odpytywanie statusu",
-  "Parsowanie kodów odpowiedzi KSeF i obsługa ponownych prób",
-  "Auto-odświeżanie tokenów przed wygaśnięciem",
-  "Zamknięcie sesji po każdej partii",
+  "Tygodnie przedzierania się przez dokumentację i schemat faktury z polami typu P_13_1",
+  "Samodzielne szyfrowanie każdej faktury, zanim KSeF w ogóle ją przyjmie",
+  "Sesje, klucze i podpisy — plus pilnowanie, żeby nic nie wygasło w środku nocy",
+  "Po każdej wysyłce: odpytywanie o status i obsługa błędów, które trzeba umieć czytać",
+  "A gdy Ministerstwo coś zmieni — cała zabawa od nowa",
 ];
 ---
 <section class="section-gap" aria-labelledby="problem-heading">
@@ -19,10 +17,10 @@ const withoutSteps = [
       Problem
     </div>
     <h2 id="problem-heading" class="text-3xl sm:text-4xl font-bold text-[var(--color-ink)] mb-4 max-w-2xl" data-animate-in>
-      Bezpośrednia integracja z KSeF jest bolesna
+      Integracja z KSeF na własną rękę to projekt na tygodnie
     </h2>
     <p class="text-[var(--color-muted)] mb-12 max-w-xl" data-animate-in>
-      Oficjalne API KSeF jest potężne, ale złożone. Każda integracja wymaga tego samego kotłowni — i łatwo ją zepsuć.
+      Rządowe API jest potężne, ale wymaga od Ciebie rzeczy, którymi nie powinieneś musieć się zajmować. Każdy, kto się z nim integruje, przechodzi dokładnie tę samą drogę — i na każdym kroku łatwo o błąd.
     </p>
 
     <div class="grid md:grid-cols-2 gap-6" data-animate-in>
@@ -87,7 +85,7 @@ const withoutSteps = [
         </div>
 
         <ul class="space-y-2.5">
-          {["Brama automatycznie buduje XML FA(3)", "Szyfrowanie AES-256 przezroczyste dla Ciebie", "Zarządza sesjami, tokenami i auto-odświeżaniem", "Zwraca numer KSeF — nic więcej nie potrzebujesz"].map((step) => (
+          {["Ty wysyłasz prosty JSON — resztą zajmuje się usługa", "Numer KSeF wraca od razu — dowód, że faktura jest w systemie", "Sesje, szyfrowanie i uwierzytelnianie obsłużone automatycznie", "Zmiany po stronie KSeF? Aktualizujesz usługę jednym poleceniem"].map((step) => (
             <li class="flex items-center gap-3 text-sm text-[var(--color-muted)]">
               <svg class="shrink-0" width="14" height="14" viewBox="0 0 16 16" fill="var(--color-accent)" aria-hidden="true">
                 <path d="M8 .5a7.5 7.5 0 1 0 0 15A7.5 7.5 0 0 0 8 .5Zm3.28 5.72-4 4a.75.75 0 0 1-1.06 0l-2-2a.75.75 0 0 1 1.06-1.06L6.75 8.69l3.47-3.47a.75.75 0 1 1 1.06 1.06Z"/>
@@ -102,12 +100,9 @@ const withoutSteps = [
 </section>
 
 <script>
-  import { animate, inView } from "motion";
-  document.querySelectorAll("[data-animate-in]").forEach((el, i) => {
-    el.style.opacity = "0";
-    el.style.transform = "translateY(16px)";
-    inView(el, () => {
-      animate(el, { opacity: 1, transform: "translateY(0px)" }, { duration: 0.5, delay: i * 0.06, easing: [0.22, 1, 0.36, 1] });
-    }, { margin: "0px 0px -40px 0px" });
-  });
+  import { reveal, cascade } from "../scripts/reveal";
+  reveal("[data-animate-in]", { duration: 0.5, delayStep: 0.06, margin: "0px 0px -40px 0px", distance: 16 });
+  // Punkty porównania Bez/Z wjeżdżają kaskadą - kontrast chaosu (długa lista bólów)
+  // z prostotą (krótka lista) czytelny w samym rytmie animacji
+  cascade("[data-animate-in]", "li", { stagger: 0.09 });
 </script>

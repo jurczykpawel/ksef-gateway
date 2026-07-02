@@ -1,0 +1,10 @@
+/*
+  Strict-Transport-Security: max-age=31536000; includeSubDomains
+  X-Content-Type-Options: nosniff
+  X-Frame-Options: DENY
+  Referrer-Policy: strict-origin-when-cross-origin
+  Permissions-Policy: camera=(), microphone=(), geolocation=(), payment=(self "https://js.stripe.com")
+  Content-Security-Policy-Report-Only: default-src 'self'; script-src 'self' https://sellf.techskills.academy https://js.stripe.com; connect-src 'self' https://sellf.techskills.academy https://api.stripe.com https://m.stripe.network; frame-src https://js.stripe.com https://hooks.stripe.com https://sellf.techskills.academy; img-src 'self' data: https:; style-src 'self' 'unsafe-inline'; font-src 'self'; base-uri 'self'; form-action 'self' https://sellf.techskills.academy
+
+/_astro/*
+  Cache-Control: public, max-age=31536000, immutable

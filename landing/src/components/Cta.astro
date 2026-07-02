@@ -13,11 +13,11 @@ const RENDER_URL = "https://render.com/deploy?repo=https://github.com/jurczykpaw
           Zacznij dziś
         </div>
         <h2 class="text-3xl sm:text-4xl font-bold text-[var(--color-ink)] mb-4 leading-tight">
-          Jedno wywołanie HTTP.<br class="hidden sm:block"/>
-          Twój numer KSeF.
+          KSeF odhaczony.<br class="hidden sm:block"/>
+          Dziś, nie za miesiąc.
         </h2>
         <p class="text-[var(--color-muted)] mb-8 max-w-md mx-auto">
-          Open source, self-hosted, zero vendor lock-in. Docker Compose lub jednym kliknięciem na Render. Dokumentacja i kolekcja Bruno w zestawie.
+          Open source, na Twoim serwerze, bez abonamentu i bez uzależnienia od dostawcy. Jedno kliknięcie w chmurze albo dwa polecenia u siebie — dokumentacja prowadzi krok po kroku.
         </p>
         <div class="flex flex-wrap items-center justify-center gap-3 mb-10">
           <a href={RENDER_URL} target="_blank" rel="noopener noreferrer" class="btn-primary text-base px-6 h-11">
@@ -48,10 +48,6 @@ const RENDER_URL = "https://render.com/deploy?repo=https://github.com/jurczykpaw
   </div>
 </section>
 <script>
-  import { animate, inView } from "motion";
-  const el = document.querySelector("[data-cta]");
-  if (el) {
-    el.style.opacity = "0"; el.style.transform = "translateY(16px)";
-    inView(el, () => { animate(el, { opacity: 1, transform: "translateY(0px)" }, { duration: 0.6, easing: [0.22, 1, 0.36, 1] }); }, { margin: "0px 0px -40px 0px" });
-  }
+  import { reveal } from "../scripts/reveal";
+  reveal("[data-cta]", { duration: 0.6, margin: "0px 0px -40px 0px", distance: 16 });
 </script>

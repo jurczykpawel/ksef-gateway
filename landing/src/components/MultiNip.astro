@@ -1,0 +1,78 @@
+---
+const SELLF_ORIGIN = "https://sellf.techskills.academy";
+const PRODUCT_URL = `${SELLF_ORIGIN}/p/ksef-gateway-multi-nip`;
+const README_MULTI_NIP_URL = "https://github.com/jurczykpawel/ksef-gateway#tryb-multi-nip";
+const RENDER_URL = "https://render.com/deploy?repo=https://github.com/jurczykpawel/ksef-gateway";
+---
+<section id="multi-nip" class="section-gap" aria-labelledby="multi-nip-heading">
+  <div class="container-kg">
+    <div class="section-label" data-multinip>
+      <svg width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden="true">
+        <rect x="1" y="1" width="4.2" height="4.2" rx="0.8" stroke="currentColor" stroke-width="1.2"/>
+        <rect x="6.8" y="1" width="4.2" height="4.2" rx="0.8" stroke="currentColor" stroke-width="1.2"/>
+        <rect x="1" y="6.8" width="4.2" height="4.2" rx="0.8" stroke="currentColor" stroke-width="1.2"/>
+      </svg>
+      Biura rachunkowe, agencje, grupy kapitałowe
+    </div>
+    <h2 id="multi-nip-heading" class="text-3xl sm:text-4xl font-bold text-[var(--color-ink)] mb-4 max-w-2xl" data-multinip>
+      Jedna firma — za darmo, zawsze.<br class="hidden sm:block"/>
+      Więcej — jedna opłata, na zawsze.
+    </h2>
+    <p class="text-[var(--color-muted)] mb-10 max-w-xl" data-multinip>
+      Obsługujesz faktury dla więcej niż jednego NIP-u (klienci biura rachunkowego, spółki w grupie)? Jedna usługa, dowolna liczba firm — każda ze swoim certyfikatem.
+    </p>
+
+    <div class="grid md:grid-cols-2 gap-6" data-multinip>
+      <div class="card-floating p-6 flex flex-col">
+        <div class="text-sm font-semibold text-[var(--color-ink)] mb-1">1 NIP</div>
+        <div class="text-3xl font-bold text-[var(--color-ink)] mb-3">Za darmo</div>
+        <p class="text-sm text-[var(--color-muted)] mb-2">Bez limitu czasowego, bez karty kredytowej — pełna moc usługi dla jednej firmy.</p>
+        <p class="text-sm text-[var(--color-muted)] mb-6">To domyślny tryb: uruchamiasz u siebie i od razu wystawiasz faktury. Bez kont, bez haczyków.</p>
+        <div class="mt-auto flex flex-col sm:flex-row gap-3">
+          <a href={RENDER_URL} target="_blank" rel="noopener noreferrer" class="btn-primary justify-center">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <polyline points="16 16 12 12 8 16"/>
+              <line x1="12" y1="12" x2="12" y2="21"/>
+              <path d="M20.39 18.39A5 5 0 0 0 18 9h-1.26A8 8 0 1 0 3 16.3"/>
+            </svg>
+            Wdróż na Render
+          </a>
+          <a href="#how-it-works" class="btn-ghost justify-center">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M12 5v14M19 12l-7 7-7-7"/>
+            </svg>
+            Jak to wdrożyć
+          </a>
+        </div>
+      </div>
+
+      <div class="card-floating p-6 relative overflow-hidden">
+        <div class="absolute top-0 right-0 w-24 h-24 bg-gradient-to-br from-[var(--color-accent)]/10 to-transparent pointer-events-none" aria-hidden="true"></div>
+        <div class="relative">
+          <div class="text-sm font-semibold text-[var(--color-ink)] mb-1">Nielimitowane NIP-y</div>
+          <div class="text-3xl font-bold text-[var(--color-ink)] mb-3">Jednorazowa opłata</div>
+          <p class="text-sm text-[var(--color-muted)] mb-5">Jedna płatność, licencja bezterminowa na tej instalacji. Weryfikacja w pełni offline — klucz licencji nigdy nie opuszcza Twojego serwera. Aktualna cena poniżej.</p>
+          <div data-sellf-embed data-product-slug="ksef-gateway-multi-nip" data-modal="true" data-button-label="Kup licencję multi-NIP" data-show-price="true"></div>
+          <a href={PRODUCT_URL} target="_blank" rel="noopener noreferrer" class="block mt-3 text-xs text-[var(--color-faint)] hover:text-[var(--color-muted)] transition-colors">
+            albo zobacz stronę produktu bezpośrednio →
+          </a>
+        </div>
+      </div>
+    </div>
+
+    <div class="mt-6 card-floating p-5 flex flex-col sm:flex-row items-start sm:items-center gap-4" data-multinip>
+      <div class="flex-1">
+        <p class="text-sm font-semibold text-[var(--color-ink)] mb-0.5">Jak to skonfigurować?</p>
+        <p class="text-sm text-[var(--color-muted)]">Plik contexts.json, certyfikat per firma, wiele certyfikatów na Render (Secret Files) — pełna instrukcja w dokumentacji.</p>
+      </div>
+      <a href={README_MULTI_NIP_URL} target="_blank" rel="noopener noreferrer" class="shrink-0 link-arrow inline-flex items-center gap-1.5 text-sm font-medium text-[var(--color-accent-bright)] hover:text-[#a5b4fc] transition-colors">
+        Tryb multi-NIP w dokumentacji
+        <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 8h10M9 4l4 4-4 4"/></svg>
+      </a>
+    </div>
+  </div>
+</section>
+<script>
+  import { reveal } from "../scripts/reveal";
+  reveal("[data-multinip]", { duration: 0.5, delayStep: 0.06, margin: "0px 0px -30px 0px", distance: 14 });
+</script>

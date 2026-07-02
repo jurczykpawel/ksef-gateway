@@ -1,0 +1,23 @@
+---
+import Base from "../layouts/Base.astro";
+import Nav from "../components/Nav.astro";
+import Footer from "../components/Footer.astro";
+---
+<Base title="404 — Nie znaleziono strony | KSeF Gateway" description="Ta strona nie istnieje. Wróć na stronę główną KSeF Gateway.">
+  <Nav />
+  <main id="main">
+    <section class="section-gap pt-24 md:pt-32" aria-labelledby="notfound-heading">
+      <div class="container-kg text-center">
+        <p class="font-mono text-sm text-[var(--color-faint)] mb-4">404</p>
+        <h1 id="notfound-heading" class="text-4xl sm:text-5xl font-bold text-[var(--color-ink)] mb-4">
+          Ta strona nie istnieje
+        </h1>
+        <p class="text-[var(--color-muted)] mb-8 max-w-md mx-auto">
+          Adres jest błędny albo strona została przeniesiona. Wszystko, czego szukasz, znajdziesz na stronie głównej.
+        </p>
+        <a href="/" class="btn-primary">Wróć na stronę główną</a>
+      </div>
+    </section>
+  </main>
+  <Footer />
+</Base>

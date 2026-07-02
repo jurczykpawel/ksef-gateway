@@ -176,3 +176,55 @@ describe("POST /json-to-xml", () => {
     expect(res.status).toBe(400);
   });
 });
+
+describe("PDF_SERVICE_SECRET gate (opt-in)", () => {
+  const SECRET = "test-pdf-secret-123";
+  // createApp() reads PDF_SERVICE_SECRET at construction, so build a gated instance with it set.
+  const gatedApp = (() => {
+    const prev = process.env.PDF_SERVICE_SECRET;
+    process.env.PDF_SERVICE_SECRET = SECRET;
+    const a = createApp();
+    process.env.PDF_SERVICE_SECRET = prev;
+    return a;
+  })();
+
+  it("lets /health through without the secret", async () => {
+    const res = await request(gatedApp).get("/health");
+    expect(res.status).toBe(200);
+  });
+
+  it("rejects a protected route with no secret (403)", async () => {
+    const res = await request(gatedApp)
+      .post("/pdf/invoice")
+      .set("Content-Type", "application/xml")
+      .send(fixtureXml);
+    expect(res.status).toBe(403);
+  });
+
+  it("rejects a wrong secret (403)", async () => {
+    const res = await request(gatedApp)
+      .post("/pdf/invoice")
+      .set("Content-Type", "application/xml")
+      .set("X-Pdf-Secret", "nope")
+      .send(fixtureXml);
+    expect(res.status).toBe(403);
+  });
+
+  it("accepts the correct secret", async () => {
+    const res = await request(gatedApp)
+      .post("/pdf/invoice")
+      .set("Content-Type", "application/xml")
+      .set("X-Pdf-Secret", SECRET)
+      .send(fixtureXml);
+    expect(res.status).toBe(200);
+    expect(res.headers["content-type"]).toContain("application/pdf");
+  });
+
+  it("stays open when no secret is configured (default app)", async () => {
+    const res = await request(app)
+      .post("/pdf/invoice")
+      .set("Content-Type", "application/xml")
+      .send(fixtureXml);
+    expect(res.status).toBe(200);
+  });
+});

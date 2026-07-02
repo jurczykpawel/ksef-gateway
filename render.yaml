@@ -33,11 +33,18 @@ services:
         sync: false
       - key: KSEF_ENV
         value: TEST
+      # PDF rendering: the gateway calls the ksef-pdf service. On PAID Render (private networking)
+      # or locally the private hostport below works. On FREE Render, free web services can't RECEIVE
+      # private traffic - instead set PDF_SERVICE_URL to ksef-pdf's PUBLIC https URL and set the SAME
+      # PDF_SERVICE_SECRET on both services (the gateway sends it as X-Pdf-Secret so the public PDF
+      # endpoint isn't left open). See README "Security".
       - key: PDF_SERVICE_URL
         fromService:
           name: ksef-pdf
           type: web
           property: hostport
+      - key: PDF_SERVICE_SECRET
+        sync: false
       - key: GITHUB_PAT
         sync: false
       - key: DOCKER_BUILDKIT
@@ -53,6 +60,11 @@ services:
     dockerContext: pdf-service
     plan: free
     healthCheckPath: /health
+    envVars:
+      # Set this (same value as on ksef-api) when ksef-pdf is reachable over the public internet
+      # (Render free tier) so it rejects unauthenticated requests. Leave unset on a private network.
+      - key: PDF_SERVICE_SECRET
+        sync: false
     buildFilter:
       paths:
         - pdf-service/**

@@ -21,12 +21,22 @@ public class TrustedProxyMiddleware
     private readonly string? _secret;
     private readonly string _headerName;
 
-    public TrustedProxyMiddleware(RequestDelegate next, IConfiguration config)
+    public TrustedProxyMiddleware(RequestDelegate next, IConfiguration config, ILogger<TrustedProxyMiddleware> logger)
     {
         _next = next;
-        _secret = config["TRUSTED_PROXY_SECRET"];
+        // A whitespace-only value disables the feature rather than arming it with a trivially
+        // guessable secret - otherwise a stray space in TRUSTED_PROXY_SECRET would look "on".
+        var secret = config["TRUSTED_PROXY_SECRET"];
+        _secret = string.IsNullOrWhiteSpace(secret) ? null : secret;
         var header = config["TRUSTED_PROXY_HEADER"];
         _headerName = string.IsNullOrWhiteSpace(header) ? DefaultHeaderName : header.Trim();
+
+        // Announce at startup so a misconfigured proxy (not injecting the header) is diagnosable:
+        // otherwise every non-health request 403s while /health stays green and the outage hides.
+        if (_secret is not null)
+            logger.LogInformation(
+                "Trusted-proxy enforcement ON: every request except GET /health must carry the '{Header}' " +
+                "header injected by your proxy, or it is rejected with 403.", _headerName);
     }
 
     public async Task InvokeAsync(HttpContext context)

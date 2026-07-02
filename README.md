@@ -113,6 +113,8 @@ Opcja jest **domyślnie wyłączona**: bez `TRUSTED_PROXY_SECRET` nic się nie z
 | `TRUSTED_PROXY_SECRET` | Ustaw, by włączyć. Sekret wspólny między proxy a usługą (`openssl rand -hex 32`). |
 | `TRUSTED_PROXY_HEADER` | Opcjonalna nazwa nagłówka (domyślnie `X-Trusted-Proxy-Secret`). |
 
+> **Przy konfiguracji uważaj na dwie rzeczy:** (1) w proxy ustaw nagłówek trybem **overwrite** (Cloudflare: *Set static header*, nie *Add*) — inaczej ewentualna kopia od klienta doklei się do sekretu (`wartość-klienta, sekret`) i odrzuci **cały** legalny ruch; (2) origin nie może logować ani odbijać nagłówków żądań — wyciek sekretu = ktoś powtórzy go wprost w origin i obejdzie zabezpieczenie. Gdy włączysz opcję, a proxy nie wstrzykuje nagłówka, wszystko poza `/health` zwróci `403` (a `/health` dalej świeci zielono) — usługa loguje wtedy przy starcie, że enforcement jest ON.
+
 ### Gdzie hostować i jak traktowany jest certyfikat
 
 Żeby usługa mogła sama podpisywać żądania do KSeF (i wstawać bez Ciebie po restarcie), klucz prywatny - a jeśli jest zaszyfrowany, to i jego hasło - musi być dla niej dostępny w czasie działania. Wynika z tego kilka rzeczy, które warto rozumieć, zanim wybierzesz hosting:

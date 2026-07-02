@@ -2,6 +2,7 @@ using System.Text.Json;
 using KSeFGateway.Api.Middleware;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Logging.Abstractions;
 
 namespace KSeFGateway.Api.Tests.Middleware;
 
@@ -25,7 +26,8 @@ public class TrustedProxyMiddlewareTests
         var nextCalled = false;
         RequestDelegate next = _ => { nextCalled = true; return Task.CompletedTask; };
 
-        var middleware = new TrustedProxyMiddleware(next, Config(configuredSecret, configuredHeader));
+        var middleware = new TrustedProxyMiddleware(
+            next, Config(configuredSecret, configuredHeader), NullLogger<TrustedProxyMiddleware>.Instance);
         var context = new DefaultHttpContext();
         context.Request.Path = path;
         context.Response.Body = new MemoryStream();
@@ -51,6 +53,16 @@ public class TrustedProxyMiddlewareTests
         var (statusCode, _, nextCalled) = await Invoke(configuredSecret: null);
 
         Assert.Equal(200, statusCode); // DefaultHttpContext defaults to 200; middleware never touched it
+        Assert.True(nextCalled);
+    }
+
+    [Fact]
+    public async Task WhitespaceOnlySecret_IsTreatedAsDisabled_PassesThrough()
+    {
+        // A stray-whitespace secret must NOT arm the feature with a trivially guessable value.
+        var (statusCode, _, nextCalled) = await Invoke(configuredSecret: "   ");
+
+        Assert.Equal(200, statusCode);
         Assert.True(nextCalled);
     }
 

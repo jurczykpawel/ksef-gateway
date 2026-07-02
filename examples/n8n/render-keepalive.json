@@ -1,0 +1,78 @@
+{
+  "name": "Render keep-alive (KSeF Gateway)",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "*/10 7-19 * * 1-5"
+            }
+          ]
+        }
+      },
+      "id": "b1a1c0de-0001-4a00-9000-000000000001",
+      "name": "Every 10 min (work hours)",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [240, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Configuration (EDIT ME)\n// One item per endpoint to keep warm. Point these at the PUBLIC health URLs of\n// the services you want to stop from spinning down (the gateway, and the PDF\n// service if you render PDFs). /health needs no API key and bypasses every gate.\n//\n// IMPORTANT - Render free tier: each workspace gets 750 instance-hours/MONTH,\n// shared across ALL your free services, and spun-down time does NOT count. One\n// service kept awake 24/7 is ~730h - already almost the whole budget. Keeping two\n// services awake around the clock (~1460h) blows past 750 and Render SUSPENDS them\n// until next month. That is why the schedule above is work-hours-only (Mon-Fri,\n// 07-19 in your n8n's timezone => ~290h/service/month). Widen it only if you know\n// you have the hours, or if these services are on a PAID plan (paid never sleeps,\n// so you don't need this workflow at all).\nreturn [\n  { json: { url: 'https://YOUR-GATEWAY.onrender.com/health' } },\n  // { json: { url: 'https://YOUR-PDF-SERVICE.onrender.com/health' } },\n];\n"
+      },
+      "id": "b1a1c0de-0002-4a00-9000-000000000002",
+      "name": "Configuration (EDIT ME)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [460, 300]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "={{ $json.url }}",
+        "options": {
+          "timeout": 60000
+        }
+      },
+      "id": "b1a1c0de-0003-4a00-9000-000000000003",
+      "name": "Ping /health",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [680, 300],
+      "onError": "continueRegularOutput"
+    }
+  ],
+  "connections": {
+    "Every 10 min (work hours)": {
+      "main": [
+        [
+          {
+            "node": "Configuration (EDIT ME)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Configuration (EDIT ME)": {
+      "main": [
+        [
+          {
+            "node": "Ping /health",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "tags": [],
+  "triggerCount": 0
+}

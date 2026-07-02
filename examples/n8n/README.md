@@ -124,3 +124,28 @@ For [Sellf](https://github.com/jurczykpawel/sellf) digital products platform.
 - **VAT rate** - hardcoded to 23%, edit in "Build KSeF Payload" node
 - **Invoice number format** - `FV/YYYY/MM/DD/XXXX` (XXXX = last 4 chars of Sellf sessionId)
 - **Error alerts** - connect "Log Error" node to Slack, email, or Supabase
+
+## Render keep-alive (stop free services spinning down)
+
+**File:** `render-keepalive.json`
+
+Only relevant if you deployed on **Render's free tier**. Free web services spin down after 15 minutes with no traffic and take ~1 minute to wake on the next request. This workflow pings `/health` on a schedule so the service stays warm - useful when a slow first response would hurt (e.g. a public demo).
+
+### What it does
+
+1. Runs on a schedule (default: every 10 minutes, **Mon-Fri 07:00-19:00** in your n8n's timezone)
+2. Reads the list of health URLs from the "Configuration (EDIT ME)" node
+3. Sends `GET <url>/health` to each (no API key needed - `/health` bypasses every gate), ignoring failures so a cold-start timeout doesn't fail the run
+
+### ⚠️ Read this before widening the schedule
+
+Render gives each **workspace** 750 free instance-hours **per month, shared across all your free services** - and spun-down time doesn't count. Keeping one service awake 24/7 is already ~730h (almost the whole budget). Keeping **two** services awake around the clock (~1460h) blows past 750, and Render **suspends** your free services until the next month. That's why the default schedule is work-hours-only (~290h/service/month). Widen it only if you've got the hours to spare - or put the service on a **paid** plan, which never sleeps (then you don't need this workflow at all).
+
+For a demo that must feel instant 24/7, free tier can't do it for two services no matter how you schedule it - host it on an always-on box (a small VPS you already run) or a paid instance instead.
+
+### Setup
+
+1. **Import workflow** - n8n → Workflows → Import from File → select `render-keepalive.json`
+2. **Edit the "Configuration (EDIT ME)" node** - set your gateway's public `…onrender.com/health` URL (and uncomment the PDF service line if you render PDFs)
+3. **Adjust the schedule** if needed - the trigger uses a cron expression (`*/10 7-19 * * 1-5`) in your n8n's timezone
+4. **Activate the workflow** in n8n

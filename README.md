@@ -95,7 +95,7 @@ openssl rand -hex 32
 
 > To jest osobne od autoryzacji `KSEF_TOKEN`/certyfikatem, która chroni własne połączenie usługi *do* KSeF. Potrzebujesz obu: jednego żeby usługa mogła rozmawiać z KSeF, drugiego żeby tylko Ty mógł rozmawiać z usługą.
 
-**Obrona w głąb dla produkcji:** klucz API to jedyna rzecz stojąca między publicznym adresem a całym internetem, więc dla prawdziwego wdrożenia ogranicz też dostęp sieciowy tam, gdzie platforma na to pozwala - allowlista IP (Render, Azure), VPN/sieć prywatna, albo reverse proxy przed usługą. Nie polegaj na kluczu jako jedynej warstwie.
+**Obrona w głąb dla produkcji - allowlista IP:** klucz API to jedyna rzecz stojąca między publicznym adresem a całym internetem, więc dla prawdziwego wdrożenia dołóż warstwę sieciową: postaw usługę za Cloudflare albo reverse proxy i **przepuszczaj tylko adres(y), z których faktycznie ją wołasz** - zwykle egress IP Twojego serwera automatyzacji (n8n) czy backendu. Dzięki temu nawet gdyby klucz wyciekł, użyje go wyłącznie zaufany adres. Działa to najlepiej, gdy caller to stały serwer ze stabilnym IP; adresy domowe/mobilne bywają zmienne, a wewnętrzne adresy VPN (np. Tailscale `100.x`) nie są widoczne dla publicznej usługi - wtedy kieruj ruch przez stały host i to jego IP dodaj do allowlisty. Nie polegaj na kluczu jako jedynej warstwie.
 
 ### Gdzie hostować i jak traktowany jest certyfikat
 

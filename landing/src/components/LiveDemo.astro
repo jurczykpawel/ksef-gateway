@@ -7,11 +7,12 @@ const KSEF_NR = "3202004132-20260702-9D77C0C00000-3D";
 
 // Numer faktury musi być unikalny (KSeF TEST odrzuca duplikaty), więc doklejamy
 // timestamp - dzięki temu polecenie działa za każdym razem, ile razy je odpalisz.
+// Odpowiedź ląduje w $RESP, a numer KSeF od razu w $KSEF - gotowy dla kroku 2.
 const sendCmd = `DEMO="${DEMO}"
 KEY="${KEY}"
 NR="DEMO/$(date +%s)"   # unikalny numer - KSeF odrzuca duplikaty
 
-curl -X POST "$DEMO/ksef/invoice" \\
+RESP=$(curl -s -X POST "$DEMO/ksef/invoice" \\
   -H "X-Api-Key: $KEY" \\
   -H "Content-Type: application/json" \\
   -d '{
@@ -23,12 +24,14 @@ curl -X POST "$DEMO/ksef/invoice" \\
     "buyer":  { "nip": "3202004132", "name": "Demo sp. z o.o.",
                 "address": { "street": "ul. Demo 1", "city": "00-001 Warszawa" } },
     "items":  [ { "name": "Usługa demo", "quantity": 1, "unitPrice": 100, "vatRate": 23 } ]
-  }'`;
+  }')
 
-// Podstaw numer KSeF z odpowiedzi wyżej (albo ten przykładowy, istniejący).
-const pdfCmd = `NR="${KSEF_NR}"   # <- numer z odpowiedzi wyzej
+echo "$RESP"                                                      # pełna odpowiedź
+KSEF=$(echo "$RESP" | grep -o '"ksefNumber":"[^"]*"' | cut -d'"' -f4)
+echo "→ numer KSeF: $KSEF"`;
 
-curl "$DEMO/ksef/invoice/$NR/pdf" \\
+// Krok 2 używa $KSEF ustawionego przez krok 1 (ten sam terminal) - zero kopiowania numeru.
+const pdfCmd = `curl "$DEMO/ksef/invoice/$KSEF/pdf" \\
   -H "X-Api-Key: $KEY" -o faktura.pdf`;
 ---
 <section id="live-demo" class="section-gap" aria-labelledby="live-demo-heading">
@@ -68,10 +71,12 @@ curl "$DEMO/ksef/invoice/$NR/pdf" \\
         </div>
         <pre data-copy-src class="m-0 p-4 text-xs leading-relaxed font-mono text-[var(--color-muted)] overflow-x-auto">{sendCmd}</pre>
         <div class="border-t border-[var(--color-line-strong)] px-4 py-3 mt-auto">
-          <div class="text-xs text-[var(--color-faint)] mb-1.5">Odpowiedź</div>
-          <pre class="m-0 text-xs leading-relaxed font-mono text-[var(--color-muted)] overflow-x-auto">{"{"} "success": true, "data": {"{"}
-  "ksefNumber": <span class="text-[var(--color-accent-bright)]">"{KSEF_NR}"</span>,
-  "status": <span class="text-[#fbbf24]">"accepted"</span> {"}"} {"}"}</pre>
+          <div class="text-xs text-[var(--color-faint)] mb-1.5">Odpowiedź (pełna, prosto z terminala)</div>
+          <pre class="m-0 text-xs leading-relaxed font-mono text-[var(--color-muted)] overflow-x-auto">{"{"}"success":true,"data":{"{"}
+  "ksefNumber":<span class="text-[var(--color-accent-bright)]">"{KSEF_NR}"</span>,
+  "status":<span class="text-[#fbbf24]">"accepted"</span>,"statusDescription":"Sukces",
+  "sessionReferenceNumber":"20260703-SO-...","invoiceReferenceNumber":"20260703-EE-..."{"}"},"error":null{"}"}
+<span class="text-[var(--color-accent)]">→ numer KSeF: {KSEF_NR}</span></pre>
         </div>
       </div>
 

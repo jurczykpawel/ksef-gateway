@@ -2,11 +2,18 @@
 
 Example n8n workflows for connecting e-commerce platforms to KSeF Gateway - both sending invoices out and pulling received ones in.
 
+Each workflow ships in two languages - the logic is byte-identical, only the sticky-note text differs:
+
+- `*.json` - English sticky notes
+- `*-PL.json` - polskie sticky notes (node names and code stay English either way)
+
+Import whichever file matches your preference (n8n → Workflows → Import from File).
+
 ## Receive & Download Invoices
 
-**File:** `receive-invoices.json`
+**Files:** `receive-invoices.json` / `receive-invoices-PL.json`
 
-For finding out what's been issued *to* you - KSeF has no email/webhook notifications, so this polls instead. See [Receiving Invoices](../../README.en.md#receiving-invoices) in the main README for the underlying endpoints.
+For finding out what's been issued *to* you - KSeF has no email/webhook notifications, so this polls instead. See [Receiving Invoices](../../README.md#receiving-invoices) in the main README for the underlying endpoints.
 
 ### What it does
 
@@ -19,9 +26,10 @@ For finding out what's been issued *to* you - KSeF has no email/webhook notifica
 
 ### Setup
 
-1. **Import workflow** - n8n → Workflows → Import from File → select `receive-invoices.json`
+1. **Import workflow** - n8n → Workflows → Import from File → select `receive-invoices.json` (or the `-PL` variant)
 2. **Edit the "Configuration (EDIT ME)" node**:
    - `ksefGatewayUrl` - your KSeF Gateway base URL
+   - `gatewayApiKey` - your gateway's `GATEWAY_API_KEY` (sent as `X-Api-Key` - see [Security](../../README.md#security) in the main README)
    - `ksefNip` - the NIP whose inbox to poll (sent as `X-KSeF-NIP`)
    - `ksefInvoicesDir` - where to save downloaded PDFs on the n8n host
 3. **Wire up notifications** - replace the `Notify (TODO)` node with a Slack/Email/Discord node of your choice
@@ -35,95 +43,81 @@ For finding out what's been issued *to* you - KSeF has no email/webhook notifica
 
 ## WooCommerce → KSeF
 
-**File:** `woocommerce-ksef.json`
+**Files:** `woocommerce-ksef.json` / `woocommerce-ksef-PL.json`
 
 ### What it does
 
-1. Receives WooCommerce order webhook (`order.completed`)
-2. Checks if buyer has a NIP (Polish tax ID) - consumers without NIP are skipped
-3. Transforms WooCommerce order data to KSeF invoice format
+1. Receives a signed WooCommerce order webhook and verifies its `X-WC-Webhook-Signature` header
+2. Checks if the buyer has a NIP (Polish tax ID) in order meta data - consumers without a NIP are skipped (KSeF is only required for B2B)
+3. Transforms the WooCommerce order into KSeF invoice format, auto-detecting the VAT rate per line item from WooCommerce's tax totals
 4. Sends `POST /ksef/invoice` to your KSeF Gateway
-5. Returns KSeF number in the response
+5. Returns the KSeF number (or a skip/error reason) in the webhook response
 
 ### Setup
 
-1. **Import workflow** - open n8n, go to Workflows → Import from File → select `woocommerce-ksef.json`
-
-2. **Set environment variable** in n8n:
-   ```
-   KSEF_GATEWAY_URL=https://your-ksef-gateway.onrender.com
-   ```
-
-3. **Edit seller data** in the "Transform to KSeF" node - replace placeholders:
-   - `{{ SELLER_NIP }}` → your company NIP
-   - `{{ SELLER_NAME }}` → your company name
-   - `{{ SELLER_STREET }}` → your company address
-   - `{{ SELLER_CITY }}` → your company city (with postal code)
-
-4. **Configure WooCommerce webhook:**
+1. **Import workflow** - n8n → Workflows → Import from File → select `woocommerce-ksef.json` (or the `-PL` variant)
+2. **Edit the "Configuration (EDIT ME)" node** - fill in:
+   - `ksefGatewayUrl` - your KSeF Gateway base URL
+   - `gatewayApiKey` - your gateway's `GATEWAY_API_KEY` (sent as `X-Api-Key` - see [Security](../../README.md#security) in the main README)
+   - `sellerNip`, `sellerName`, `sellerStreet`, `sellerCity` - your company's invoicing details
+   - `webhookSecret` - the same secret you'll set in WooCommerce's webhook below
+3. **Set `NODE_FUNCTION_ALLOW_BUILTIN=crypto`** in your n8n environment and restart (needed by the **Verify Signature** node - see the red sticky note on the canvas)
+4. In WooCommerce, add a custom checkout field storing the buyer's NIP as order meta `_billing_nip` (or `billing_nip`)
+5. **Configure the WooCommerce webhook:**
    - WooCommerce → Settings → Advanced → Webhooks → Add Webhook
    - Topic: `Order completed`
-   - Delivery URL: `https://your-n8n.example.com/webhook/woo-ksef`
-   - Secret: (optional, for signature verification)
-
-5. **Activate the workflow** in n8n
+   - Delivery URL: this workflow's Production URL (Webhook node)
+   - Secret: the same value as `webhookSecret` above
+6. **Activate the workflow** in n8n
 
 ### NIP detection
 
-The workflow looks for buyer's NIP in WooCommerce meta fields:
-- `_billing_nip` (most Polish WooCommerce plugins use this)
-- `billing_nip`
-
-If no NIP is found, the order is skipped (consumer purchase - KSeF not required for B2C).
+The workflow looks for the buyer's NIP in WooCommerce meta fields `_billing_nip` (most Polish WooCommerce plugins use this) or `billing_nip`. If no NIP is found, the order is treated as a consumer purchase and skipped - KSeF isn't required for B2C.
 
 ### Customization
 
 - **VAT rate detection** - auto-detects from WooCommerce tax amounts, defaults to 23%
-- **Invoice number format** - defaults to `WOO/{order_number}`, edit in Transform node
+- **Invoice number format** - defaults to `WOO/{order_number}`, edit in the **Transform to KSeF** node
 - **Payment method mapping** - `cod` → cash, everything else → transfer
 
 ---
 
 ## Sellf → KSeF
 
-**File:** `sellf-ksef.json`
+**Files:** `sellf-ksef.json` / `sellf-ksef-PL.json`
 
-For [Sellf](https://github.com/jurczykpawel/sellf) digital products platform.
+For [Sellf](https://github.com/jurczykpawel/sellf) digital products platform. This is the
+**source of truth** - the same two files are mirrored into the Sellf repo (`n8n/`) by a
+scheduled sync there, so edit them here only.
 
 ### What it does
 
-1. Receives Sellf purchase webhook (`purchase.completed`)
-2. Checks if buyer requested an invoice (`needsInvoice`) and provided NIP
-3. Builds KSeF invoice with seller data from n8n variables
+1. Receives a signed Sellf `purchase.completed` webhook and verifies its `X-Sellf-Signature` header
+2. Checks if the buyer requested an invoice (`needsInvoice`) and provided a NIP
+3. Builds a KSeF invoice payload from your seller details and the order
 4. Sends `POST /ksef/invoice` to your KSeF Gateway
-5. On success: extracts KSeF number (ready to save to DB)
-6. On failure: logs error (connect to Slack/email for alerts)
+5. On success: captures the returned `ksefNumber` (ready to save to your DB)
+6. On failure: captures the error (connect to Slack/email for alerts)
 
 ### Setup
 
-1. **Import workflow** - n8n → Workflows → Import from File → select `sellf-ksef.json`
-
-2. **Set n8n variables** (Settings → Variables):
-   ```
-   KSEF_GATEWAY_URL=https://your-ksef-gateway.onrender.com
-   SELLER_NIP=your company NIP
-   SELLER_NAME=Your Company sp. z o.o.
-   SELLER_STREET=ul. Firmowa 1
-   SELLER_CITY=00-001 Warszawa
-   ```
-
-3. **Configure Sellf webhook:**
-   - Sellf admin → Settings → Webhooks
-   - URL: `https://your-n8n.example.com/webhook/sellf-purchase-ksef`
+1. **Import workflow** - n8n → Workflows → Import from File → select `sellf-ksef.json` (or the `-PL` variant)
+2. **Edit the "Configuration (EDIT ME)" node** - fill in:
+   - `ksefGatewayUrl` - your KSeF Gateway base URL
+   - `gatewayApiKey` - your gateway's `GATEWAY_API_KEY` (sent as `X-Api-Key` - see [Security](../../README.md#security) in the main README)
+   - `sellerNip`, `sellerName`, `sellerStreet`, `sellerCity`, `defaultVatRate` - your company's invoicing details
+   - `webhookSecret` - the signing secret from Sellf → Settings → Webhooks
+3. **Set `NODE_FUNCTION_ALLOW_BUILTIN=crypto`** in your n8n environment and restart (needed by the **Verify Signature** node - see the red sticky note on the canvas)
+4. **Configure the Sellf webhook** - Sellf admin → Settings → Webhooks:
+   - URL: this workflow's Production URL (Webhook node)
    - Event: `purchase.completed`
-
-4. **Activate the workflow** in n8n
+5. **Activate the workflow** in n8n
 
 ### Customization
 
-- **VAT rate** - hardcoded to 23%, edit in "Build KSeF Payload" node
-- **Invoice number format** - `FV/YYYY/MM/DD/XXXX` (XXXX = last 4 chars of Sellf sessionId)
-- **Error alerts** - connect "Log Error" node to Slack, email, or Supabase
+- **VAT rate** - set via `defaultVatRate` in Configuration, edit further in **Build KSeF Payload**
+- **Invoice number format** - `FV/YYYY/MM/DD/XXXX` (XXXX = last 4 chars of Sellf's `sessionId`)
+- **Error alerts** - connect **Log Error** to Slack, email, or Supabase
 
 ## Render keep-alive (stop free services spinning down)
 

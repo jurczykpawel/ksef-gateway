@@ -1,9 +1,9 @@
 {
-  "name": "Sellf: Purchase → KSeF Invoice",
+  "name": "Sellf: Zakup → Faktura KSeF",
   "nodes": [
     {
       "parameters": {
-        "content": "## Create a KSeF invoice when a Sellf purchase completes\n\n### How it works\nThis workflow reacts to [Sellf](https://github.com/jurczykpawel/sellf) - a self-hosted checkout platform for digital products - which sends a signed `purchase.completed` webhook for every paid order. It verifies the `X-Sellf-Signature` header, checks that the customer asked for an invoice and supplied a NIP, builds a KSeF-ready payload, and sends it to your self-hosted [KSeF Gateway](https://github.com/jurczykpawel/ksef-gateway) - a small HTTP wrapper around Poland's official e-invoice API. On success the returned `ksefNumber` is captured; on failure the error is captured so you can alert on it.\n\n### Setup\n1. Deploy a KSeF Gateway instance (Docker, Render, or StackPilot - see the project README) and note its URL. New to KSeF, or need a certificate (KSeF tokens are being phased out)? See [the main README](https://github.com/jurczykpawel/ksef-gateway#certificate-based-auth-alternative-to-tokens).\n2. Open **Configuration (EDIT ME)** and fill in your gateway URL, gateway API key, seller details, and the webhook signing secret from Sellf → Settings → Webhooks.\n3. Copy the **Sellf Webhook** node's Production URL into that same Sellf settings page.\n4. See the red note on **Verify Signature** for one required n8n environment setting.\n\n### Customization tips\nConnect **Log Error** to Slack, email, or a database to get alerted on failed KSeF submissions.",
+        "content": "## Twórz fakturę KSeF przy każdym zakupie w Sellf\n\n### Jak to działa\nTen workflow reaguje na [Sellf](https://github.com/jurczykpawel/sellf) - self-hostowaną platformę checkoutu do produktów cyfrowych - która wysyła podpisany webhook `purchase.completed` przy każdym opłaconym zamówieniu. Weryfikuje nagłówek `X-Sellf-Signature`, sprawdza, czy klient poprosił o fakturę i podał NIP, buduje gotowy payload KSeF i wysyła go do Twojego self-hostowanego [KSeF Gateway](https://github.com/jurczykpawel/ksef-gateway) - niewielkiej nakładki HTTP na oficjalne API polskiego e-fakturowania. Przy sukcesie zwrócony `ksefNumber` jest zapisywany; przy błędzie zapisywana jest treść błędu, żebyś mógł na nią zareagować.\n\n### Konfiguracja\n1. Wdróż instancję KSeF Gateway (Docker, Render albo StackPilot - patrz README projektu) i zanotuj jej adres URL. Nowy w KSeF albo potrzebujesz certyfikatu (tokeny KSeF będą wycofywane)? Zobacz [główny README](https://github.com/jurczykpawel/ksef-gateway#certificate-based-auth-alternative-to-tokens).\n2. Otwórz **Configuration (EDIT ME)** i uzupełnij URL bramki, klucz API bramki, dane sprzedawcy oraz sekret podpisujący webhooki z Sellf → Ustawienia → Webhooks.\n3. Wklej Production URL node'a **Sellf Webhook** w tym samym miejscu w ustawieniach Sellf.\n4. Zobacz czerwoną notatkę przy **Verify Signature** - jedno wymagane ustawienie środowiska n8n.\n\n### Wskazówki dotyczące personalizacji\nPodłącz **Log Error** do Slacka, maila albo bazy danych, żeby dostawać alert o nieudanych zgłoszeniach do KSeF.",
         "height": 420,
         "width": 700,
         "color": 1
@@ -19,7 +19,7 @@
     },
     {
       "parameters": {
-        "content": "## Receive & Verify\nAccepts the Sellf webhook and checks its HMAC signature before trusting the payload.",
+        "content": "## Odbiór i weryfikacja\nPrzyjmuje webhook Sellf i sprawdza jego podpis HMAC, zanim zaufa danym.",
         "height": 380,
         "width": 1120,
         "color": 7
@@ -35,7 +35,7 @@
     },
     {
       "parameters": {
-        "content": "## Acknowledge & Extract\nResponds immediately, then filters for completed purchases that requested an invoice with a NIP.",
+        "content": "## Potwierdzenie i wyodrębnienie\nOdpowiada natychmiast, a potem filtruje opłacone zakupy, w których poproszono o fakturę z NIP-em.",
         "height": 220,
         "width": 820,
         "color": 7
@@ -51,7 +51,7 @@
     },
     {
       "parameters": {
-        "content": "## Build the Invoice\nAssembles a KSeF-ready invoice payload from your seller details and the order.",
+        "content": "## Budowa faktury\nSkłada gotowy payload faktury KSeF z danych sprzedawcy i zamówienia.",
         "height": 220,
         "width": 520,
         "color": 7
@@ -67,7 +67,7 @@
     },
     {
       "parameters": {
-        "content": "## Send & Log Result\nSends the invoice to your KSeF Gateway and records the resulting KSeF number, or the error if it fails.",
+        "content": "## Wysyłka i zapis wyniku\nWysyła fakturę do Twojego KSeF Gateway i zapisuje zwrócony numer KSeF albo błąd, jeśli się nie uda.",
         "height": 540,
         "width": 820,
         "color": 7
@@ -83,7 +83,7 @@
     },
     {
       "parameters": {
-        "content": "## Node setting required\nThis Code node needs `require('crypto')`. Self-hosted n8n: set `NODE_FUNCTION_ALLOW_BUILTIN=crypto` in the n8n environment, then restart.",
+        "content": "## Wymagane ustawienie node'a\nTen node Code potrzebuje `require('crypto')`. Self-hostowany n8n: ustaw `NODE_FUNCTION_ALLOW_BUILTIN=crypto` w środowisku n8n i zrestartuj.",
         "height": 160,
         "width": 260,
         "color": 3

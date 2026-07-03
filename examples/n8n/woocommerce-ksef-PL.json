@@ -1,9 +1,9 @@
 {
-  "name": "WooCommerce → KSeF Gateway",
+  "name": "WooCommerce → Faktury KSeF",
   "nodes": [
     {
       "parameters": {
-        "content": "## Send WooCommerce orders to KSeF automatically\n\n### How it works\nThis workflow listens for a signed WooCommerce order webhook, verifies its `X-WC-Webhook-Signature` header, pulls the buyer's NIP from order meta data, and forwards the order to your self-hosted [KSeF Gateway](https://github.com/jurczykpawel/ksef-gateway) - a small HTTP wrapper around Poland's official e-invoice API. Orders without a NIP are treated as consumer purchases and skipped, since KSeF is only required for B2B sales. VAT rate is auto-detected per line item from WooCommerce's tax totals.\n\n### Setup\n1. Deploy a KSeF Gateway instance (Docker, Render, or StackPilot - see the project README) and note its URL. New to KSeF, or need a certificate (KSeF tokens are being phased out)? See [the main README](https://github.com/jurczykpawel/ksef-gateway#certificate-based-auth-alternative-to-tokens).\n2. Open **Configuration (EDIT ME)** and fill in your gateway URL, gateway API key, seller details, and the WooCommerce webhook secret.\n3. In WooCommerce, add a custom checkout field storing the buyer's NIP as order meta `_billing_nip` (or `billing_nip`), then create a webhook (Settings → Advanced → Webhooks) pointing at this workflow's Production URL with that same secret.\n4. See the red note on **Verify Signature** for one required n8n environment setting.\n\n### Customization tips\nAdd a Slack or email node after **Respond Skipped** if you want a heads-up whenever an order is missing a NIP.",
+        "content": "## Automatycznie wysyłaj zamówienia WooCommerce do KSeF\n\n### Jak to działa\nTen workflow nasłuchuje podpisanego webhooka zamówienia z WooCommerce, weryfikuje jego nagłówek `X-WC-Webhook-Signature`, pobiera NIP kupującego z metadanych zamówienia i przekazuje zamówienie do Twojego self-hostowanego [KSeF Gateway](https://github.com/jurczykpawel/ksef-gateway) - niewielkiej nakładki HTTP na oficjalne API polskiego e-fakturowania. Zamówienia bez NIP-u są traktowane jako zakupy konsumenckie i pomijane, bo KSeF wymagany jest tylko dla sprzedaży B2B. Stawka VAT jest wykrywana automatycznie dla każdej pozycji na podstawie sum podatkowych WooCommerce.\n\n### Konfiguracja\n1. Wdróż instancję KSeF Gateway (Docker, Render albo StackPilot - patrz README projektu) i zanotuj jej adres URL. Nowy w KSeF albo potrzebujesz certyfikatu (tokeny KSeF będą wycofywane)? Zobacz [główny README](https://github.com/jurczykpawel/ksef-gateway#certificate-based-auth-alternative-to-tokens).\n2. Otwórz **Configuration (EDIT ME)** i uzupełnij URL bramki, klucz API bramki, dane sprzedawcy oraz sekret webhooka WooCommerce.\n3. W WooCommerce dodaj niestandardowe pole checkoutu zapisujące NIP kupującego jako metadane zamówienia `_billing_nip` (albo `billing_nip`), a potem utwórz webhook (Ustawienia → Zaawansowane → Webhooks) wskazujący na Production URL tego workflowa z tym samym sekretem.\n4. Zobacz czerwoną notatkę przy **Verify Signature** - jedno wymagane ustawienie środowiska n8n.\n\n### Wskazówki dotyczące personalizacji\nDodaj node Slack albo email po **Respond Skipped**, jeśli chcesz dostawać powiadomienie za każdym razem, gdy zamówieniu brakuje NIP-u.",
         "height": 420,
         "width": 700,
         "color": 1
@@ -19,7 +19,7 @@
     },
     {
       "parameters": {
-        "content": "## Receive & Verify\nAccepts the WooCommerce webhook and checks its HMAC signature before trusting the payload.",
+        "content": "## Odbiór i weryfikacja\nPrzyjmuje webhook WooCommerce i sprawdza jego podpis HMAC, zanim zaufa danym.",
         "height": 380,
         "width": 1120,
         "color": 7
@@ -35,7 +35,7 @@
     },
     {
       "parameters": {
-        "content": "## Build & Check\nMaps the order into a KSeF invoice payload and checks for a buyer NIP.",
+        "content": "## Budowa i sprawdzenie\nMapuje zamówienie na payload faktury KSeF i sprawdza NIP kupującego.",
         "height": 380,
         "width": 520,
         "color": 7
@@ -51,7 +51,7 @@
     },
     {
       "parameters": {
-        "content": "## Send & Respond\nSends the invoice to your KSeF Gateway and reports the result back to WooCommerce.",
+        "content": "## Wysyłka i odpowiedź\nWysyła fakturę do Twojego KSeF Gateway i zwraca wynik do WooCommerce.",
         "height": 220,
         "width": 520,
         "color": 7
@@ -67,7 +67,7 @@
     },
     {
       "parameters": {
-        "content": "## Node setting required\nThis Code node needs `require('crypto')`. Self-hosted n8n: set `NODE_FUNCTION_ALLOW_BUILTIN=crypto` in the n8n environment, then restart.",
+        "content": "## Wymagane ustawienie node'a\nTen node Code potrzebuje `require('crypto')`. Self-hostowany n8n: ustaw `NODE_FUNCTION_ALLOW_BUILTIN=crypto` w środowisku n8n i zrestartuj.",
         "height": 160,
         "width": 260,
         "color": 3

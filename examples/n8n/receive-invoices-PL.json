@@ -1,0 +1,530 @@
+{
+  "name": "KSeF: sprawdzanie i pobieranie otrzymanych faktur",
+  "nodes": [
+    {
+      "parameters": {
+        "content": "## Sprawdzaj KSeF i pobieraj PDF-y nowych otrzymanych faktur\n\n### Jak to działa\nKSeF nie wysyła powiadomień mailem ani webhookiem, więc ten workflow co 20 minut odpytuje Twój self-hostowany [KSeF Gateway](https://github.com/jurczykpawel/ksef-gateway) o faktury wystawione na Ciebie, korzystając z bezstanowego kursora `/ksef/invoices/received/new`. Checkpoint (`nextSince`) żyje we własnych danych statycznych tego workflowa, więc sama bramka nie potrzebuje bazy danych. PDF każdej nowej faktury jest pobierany i zapisywany na dysku; node `Notify (TODO)` oznacza miejsce, gdzie podłączysz Slacka, mail albo Discorda.\n\n### Konfiguracja\n1. Wdróż instancję KSeF Gateway z certyfikatem mającym uprawnienie `InvoiceRead` (tokeny KSeF będą wycofywane - certyfikaty to docelowa ścieżka). Nowy w KSeF albo potrzebujesz certyfikatu? Zobacz [główny README](https://github.com/jurczykpawel/ksef-gateway#certificate-based-auth-alternative-to-tokens).\n2. Otwórz **Configuration (EDIT ME)** i uzupełnij URL bramki, klucz API bramki, NIP oraz folder, w którym mają się zapisywać PDF-y.\n3. Aktywuj workflow. Pierwsze uruchomienie sięga 30 dni wstecz; kolejne pobierają tylko to, co nowe.\n\n### Wskazówki dotyczące personalizacji\nKSeF ogranicza ten endpoint do 20 zapytań/godzinę - nie ustawiaj harmonogramu częściej niż co 15 minut. Zamień **Save PDF To Disk** na node Google Drive, S3 albo Dropbox, jeśli wolisz przechowywać faktury tam.",
+        "height": 380,
+        "width": 700,
+        "color": 1
+      },
+      "id": "sticky-overview",
+      "name": "Overview",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -760,
+        -380
+      ]
+    },
+    {
+      "parameters": {
+        "content": "## Sprawdzenie i checkpoint\nSprawdza nowe faktury od ostatniego checkpointu. W razie błędu checkpoint zostaje bez zmian, więc kolejne uruchomienie powtórzy to samo okno.",
+        "height": 380,
+        "width": 1420,
+        "color": 7
+      },
+      "id": "sticky-section-a",
+      "name": "Section: Poll & Checkpoint",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -760,
+        340
+      ]
+    },
+    {
+      "parameters": {
+        "content": "## Przetwarzanie nowych faktur\nPrzesuwa checkpoint, a potem pobiera i zapisuje PDF każdej nowo otrzymanej faktury.",
+        "height": 380,
+        "width": 1720,
+        "color": 7
+      },
+      "id": "sticky-section-b",
+      "name": "Section: Process New Invoices",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        740,
+        340
+      ]
+    },
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "minutes",
+              "minutesInterval": 20
+            }
+          ]
+        }
+      },
+      "id": "sched-1",
+      "name": "Poll Every 20 Minutes",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        -700,
+        400
+      ],
+      "notes": "KSeF caps query/metadata at 20 req/h - don't go below ~15 min per the gateway's own rate limiter."
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "a1",
+              "name": "ksefGatewayUrl",
+              "value": "https://your-ksef-gateway.example.com",
+              "type": "string"
+            },
+            {
+              "id": "a2",
+              "name": "ksefNip",
+              "value": "0000000000",
+              "type": "string"
+            },
+            {
+              "id": "a3",
+              "name": "ksefInvoicesDir",
+              "value": "/data/ksef-invoices",
+              "type": "string"
+            },
+            {
+              "id": "a4",
+              "name": "gatewayApiKey",
+              "value": "your-gateway-api-key",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "config-1",
+      "name": "Configuration (EDIT ME)",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -400,
+        400
+      ],
+      "notes": "ksefNip must have a certificate with the InvoiceRead permission. ksefInvoicesDir must be writable by n8n."
+    },
+    {
+      "parameters": {
+        "jsCode": "// Stateless gateway, stateful workflow: the checkpoint lives in this node's static data.\nconst staticData = $getWorkflowStaticData('node');\n\nreturn [{ json: { since: staticData.lastSince || null } }];"
+      },
+      "id": "code-1",
+      "name": "Get Checkpoint",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -100,
+        400
+      ],
+      "notes": "First run: since=null -> gateway defaults to last 30 days. Later runs: since=last nextSince."
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "={{ $json.since ? $('Configuration (EDIT ME)').item.json.ksefGatewayUrl + '/ksef/invoices/received/new?since=' + encodeURIComponent($json.since) : $('Configuration (EDIT ME)').item.json.ksefGatewayUrl + '/ksef/invoices/received/new' }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "X-KSeF-NIP",
+              "value": "={{ $('Configuration (EDIT ME)').item.json.ksefNip }}"
+            },
+            {
+              "name": "X-Api-Key",
+              "value": "={{ $('Configuration (EDIT ME)').item.json.gatewayApiKey }}"
+            }
+          ]
+        },
+        "options": {
+          "timeout": 30000,
+          "response": {
+            "response": {
+              "neverError": true
+            }
+          }
+        }
+      },
+      "id": "http-1",
+      "name": "Get New Invoices",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        200,
+        400
+      ],
+      "notes": "neverError: true so 429/503/502 come through as normal JSON ({success:false,...}) instead of throwing - handled by the Success? branch below."
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "combinator": "and",
+          "conditions": [
+            {
+              "leftValue": "={{ $json.success }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true"
+              }
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "if-1",
+      "name": "Success?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        500,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "error",
+              "name": "error",
+              "value": "={{ $json.error || 'Unexpected response: ' + JSON.stringify($json) }}",
+              "type": "string"
+            },
+            {
+              "id": "sinceUsed",
+              "name": "sinceUsed",
+              "value": "={{ $('Get Checkpoint').item.json.since }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "set-1",
+      "name": "Log Poll Error",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        500,
+        560
+      ],
+      "notes": "TODO: Connect to Slack / email / Discord to alert on repeated poll failures.\nCheckpoint is untouched here - the next scheduled run retries the same window."
+    },
+    {
+      "parameters": {
+        "jsCode": "// Move the checkpoint forward ONLY on a successful poll - keeps a failed/rate-limited\n// poll from silently skipping the invoices that would have been in that window.\nconst staticData = $getWorkflowStaticData('node');\nconst data = $input.first().json.data;\n\nstaticData.lastSince = data.nextSince;\n\nreturn [{ json: data }];"
+      },
+      "id": "code-2",
+      "name": "Save Checkpoint",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        800,
+        400
+      ],
+      "notes": "Output: {invoices, hasMore, nextSince}. Runs even when invoices is empty - that's what advances the cursor."
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "combinator": "and",
+          "conditions": [
+            {
+              "leftValue": "={{ $json.invoices.length }}",
+              "rightValue": 0,
+              "operator": {
+                "type": "number",
+                "operation": "gt"
+              }
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "if-2",
+      "name": "Has New Invoices?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        1100,
+        400
+      ]
+    },
+    {
+      "parameters": {},
+      "id": "noop-1",
+      "name": "No New Invoices",
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [
+        1100,
+        560
+      ]
+    },
+    {
+      "parameters": {
+        "fieldToSplitOut": "invoices",
+        "options": {}
+      },
+      "id": "split-1",
+      "name": "Split Invoices",
+      "type": "n8n-nodes-base.splitOut",
+      "typeVersion": 1,
+      "position": [
+        1400,
+        400
+      ],
+      "notes": "Each output item = one ReceivedInvoiceSummary: ksefNumber, invoiceNumber, sellerNip, sellerName, netAmount, grossAmount, vatAmount, currency, issueDate, hasAttachment."
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "={{ $('Configuration (EDIT ME)').item.json.ksefGatewayUrl + '/ksef/invoice/' + $json.ksefNumber + '/pdf' }}",
+        "options": {
+          "timeout": 30000,
+          "response": {
+            "response": {
+              "responseFormat": "file",
+              "outputPropertyName": "data"
+            }
+          }
+        },
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "X-Api-Key",
+              "value": "={{ $('Configuration (EDIT ME)').item.json.gatewayApiKey }}"
+            }
+          ]
+        }
+      },
+      "id": "http-2",
+      "name": "Download Invoice PDF",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1700,
+        400
+      ],
+      "notes": "Same endpoint works for invoices you sent or received - no separate PDF endpoint for the buyer role."
+    },
+    {
+      "parameters": {
+        "operation": "write",
+        "fileName": "={{ $('Configuration (EDIT ME)').item.json.ksefInvoicesDir + '/' + $('Split Invoices').item.json.ksefNumber + '.pdf' }}",
+        "dataPropertyName": "data",
+        "options": {}
+      },
+      "id": "file-1",
+      "name": "Save PDF To Disk",
+      "type": "n8n-nodes-base.readWriteFile",
+      "typeVersion": 1,
+      "position": [
+        2000,
+        400
+      ],
+      "notes": "Writes to disk on the machine running n8n. Swap for a Google Drive / S3 / Dropbox node if you'd rather store invoices there."
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "ksefNumber",
+              "name": "ksefNumber",
+              "value": "={{ $('Split Invoices').item.json.ksefNumber }}",
+              "type": "string"
+            },
+            {
+              "id": "invoiceNumber",
+              "name": "invoiceNumber",
+              "value": "={{ $('Split Invoices').item.json.invoiceNumber }}",
+              "type": "string"
+            },
+            {
+              "id": "sellerName",
+              "name": "sellerName",
+              "value": "={{ $('Split Invoices').item.json.sellerName }}",
+              "type": "string"
+            },
+            {
+              "id": "amount",
+              "name": "amount",
+              "value": "={{ $('Split Invoices').item.json.grossAmount + ' ' + $('Split Invoices').item.json.currency }}",
+              "type": "string"
+            },
+            {
+              "id": "savedPath",
+              "name": "savedPath",
+              "value": "={{ $('Configuration (EDIT ME)').item.json.ksefInvoicesDir + '/' + $('Split Invoices').item.json.ksefNumber + '.pdf' }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "set-2",
+      "name": "Notify (TODO)",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        2300,
+        400
+      ],
+      "notes": "TODO: Connect Slack / email / Discord here to get notified - the PDF is already saved to disk by the previous node."
+    }
+  ],
+  "connections": {
+    "Poll Every 20 Minutes": {
+      "main": [
+        [
+          {
+            "node": "Configuration (EDIT ME)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Configuration (EDIT ME)": {
+      "main": [
+        [
+          {
+            "node": "Get Checkpoint",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Checkpoint": {
+      "main": [
+        [
+          {
+            "node": "Get New Invoices",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get New Invoices": {
+      "main": [
+        [
+          {
+            "node": "Success?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Success?": {
+      "main": [
+        [
+          {
+            "node": "Save Checkpoint",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Log Poll Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Save Checkpoint": {
+      "main": [
+        [
+          {
+            "node": "Has New Invoices?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Has New Invoices?": {
+      "main": [
+        [
+          {
+            "node": "Split Invoices",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "No New Invoices",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Split Invoices": {
+      "main": [
+        [
+          {
+            "node": "Download Invoice PDF",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Download Invoice PDF": {
+      "main": [
+        [
+          {
+            "node": "Save PDF To Disk",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Save PDF To Disk": {
+      "main": [
+        [
+          {
+            "node": "Notify (TODO)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "pinData": {},
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "ksef-gateway"
+  }
+}

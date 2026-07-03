@@ -1,16 +1,26 @@
 ---
 // Realne, kopiowalne demo przeciw żywej publicznej instancji (KSeF TEST, always-on).
 // Wartości niżej to PRAWDZIWE przechwycone wywołania - komenda skopiowana 1:1 działa.
+// Rozbite na kroki z wyjaśnieniami, żeby nie straszyć ścianą bash-a.
 const DEMO = "https://ksef-demo.techskills.academy";
 const KEY = "0679d36400bfdedcaf1f7d1f5774d0d94ffae5a9f6bc7596cbf24de94d42a8ee";
 const KSEF_NR = "3202004132-20260702-9D77C0C00000-3D";
 
-// Numer faktury musi być unikalny (KSeF TEST odrzuca duplikaty), więc doklejamy
-// timestamp - dzięki temu polecenie działa za każdym razem, ile razy je odpalisz.
-// Odpowiedź ląduje w $RESP, a numer KSeF od razu w $KSEF - gotowy dla kroku 2.
-const sendCmd = `DEMO="${DEMO}"
-KEY="${KEY}"
-NR="DEMO/$(date +%s)"   # unikalny numer - KSeF odrzuca duplikaty
+// Każdy krok = mały, samodzielny snippet. Zmienne ($DEMO, $KEY, $KSEF) przechodzą
+// między krokami w tym samym oknie terminala, więc podział niczego nie psuje.
+const steps = [
+  {
+    n: 1,
+    title: "Ustaw adres i klucz",
+    desc: "Adres publicznego dema i klucz API. Klucz jest celowo jawny — to środowisko TEST na jednorazowym NIP-ie, a nie prawdziwa firma. Wklej raz i zostaje w Twoim terminalu.",
+    code: `DEMO="${DEMO}"
+KEY="${KEY}"`,
+  },
+  {
+    n: 2,
+    title: "Wyślij fakturę jednym żądaniem",
+    desc: "Wysyłasz zwykły JSON: sprzedawca, nabywca, pozycje. Całą złożoność KSeF — szyfrowanie, sesję, podpis, wysyłkę — usługa bierze na siebie. Numer dostaje znacznik czasu, bo KSeF odrzuca duplikaty faktur. Odpowiedź ląduje w zmiennej $RESP.",
+    code: `NR="DEMO/$(date +%s)"          # unikalny numer
 
 RESP=$(curl -s -X POST "$DEMO/ksef/invoice" \\
   -H "X-Api-Key: $KEY" \\
@@ -24,15 +34,26 @@ RESP=$(curl -s -X POST "$DEMO/ksef/invoice" \\
     "buyer":  { "nip": "3202004132", "name": "Demo sp. z o.o.",
                 "address": { "street": "ul. Demo 1", "city": "00-001 Warszawa" } },
     "items":  [ { "name": "Usługa demo", "quantity": 1, "unitPrice": 100, "vatRate": 23 } ]
-  }')
-
-echo "$RESP"                                                      # pełna odpowiedź
+  }')`,
+  },
+  {
+    n: 3,
+    title: "Odczytaj nadany numer KSeF",
+    desc: "Wypisujesz całą odpowiedź i wyciągasz z niej numer, pod którym faktura trafiła do rządowego systemu — do zmiennej $KSEF. Zwykłym grep-em, bez instalowania jq.",
+    code: `echo "$RESP"                    # pełna odpowiedź (niżej)
 KSEF=$(echo "$RESP" | grep -o '"ksefNumber":"[^"]*"' | cut -d'"' -f4)
-echo "→ numer KSeF: $KSEF"`;
-
-// Krok 2 używa $KSEF ustawionego przez krok 1 (ten sam terminal) - zero kopiowania numeru.
-const pdfCmd = `curl "$DEMO/ksef/invoice/$KSEF/pdf" \\
-  -H "X-Api-Key: $KEY" -o faktura.pdf`;
+echo "→ numer KSeF: $KSEF"`,
+    response: true,
+  },
+  {
+    n: 4,
+    title: "Pobierz PDF faktury",
+    desc: "Ten sam numer zamieniasz na gotowy PDF z kodem QR, którym KSeF weryfikuje autentyczność dokumentu. Zapisze się jako faktura.pdf.",
+    code: `curl "$DEMO/ksef/invoice/$KSEF/pdf" \\
+  -H "X-Api-Key: $KEY" -o faktura.pdf`,
+    note: "→ prawdziwy PDF z kodem QR weryfikacyjnym KSeF (~31 KB)",
+  },
+];
 ---
 <section id="live-demo" class="section-gap" aria-labelledby="live-demo-heading">
   <div class="container-kg">
@@ -47,65 +68,67 @@ const pdfCmd = `curl "$DEMO/ksef/invoice/$KSEF/pdf" \\
     <h2 id="live-demo-heading" class="text-3xl sm:text-4xl font-bold text-[var(--color-ink)] mb-3" data-reveal>
       Nie wierz na słowo &mdash; odpal na naszej żywej instancji
     </h2>
-    <p class="text-[var(--color-muted)] mb-10 max-w-xl leading-relaxed" data-reveal>
+    <p class="text-[var(--color-muted)] mb-12 max-w-2xl leading-relaxed" data-reveal>
       Publiczne demo działa non-stop na środowisku <strong class="text-[var(--color-ink)]">TEST</strong> KSeF
-      (jednorazowa firma, nie prawdziwy biznes). Skopiuj poniższe, wklej w terminal i zobacz, jak
-      z jednego requestu wraca numer KSeF, a złożoność systemu zostaje schowana w usłudze.
+      (jednorazowa firma, nie prawdziwy biznes). Cztery krótkie kroki &mdash; skopiuj je po kolei do jednego
+      okna terminala. Od wysłania faktury po gotowy PDF: całą złożoność KSeF widzisz jako parę linijek.
     </p>
 
-    <div class="grid lg:grid-cols-2 gap-5">
+    <ol class="relative max-w-2xl mx-0">
+      {steps.map((step, i) => (
+        <li class="relative flex gap-4 sm:gap-5 pb-9 last:pb-0" data-copy-block data-reveal>
+          {i < steps.length - 1 && (
+            <span class="absolute left-[15px] sm:left-[17px] top-9 bottom-0 w-px bg-[var(--color-line-strong)]" aria-hidden="true"></span>
+          )}
+          <div class="relative z-10 shrink-0 w-8 h-8 sm:w-9 sm:h-9 rounded-full border border-[var(--color-line-strong)] bg-[var(--color-bg)] flex items-center justify-center text-sm font-semibold text-[var(--color-accent-bright)]">
+            {step.n}
+          </div>
 
-      <!-- 1 - wyślij fakturę -->
-      <div class="code-block flex flex-col" data-copy-block data-reveal>
-        <div class="terminal-bar">
-          <span class="terminal-dot bg-[#ff5f56]"></span>
-          <span class="terminal-dot bg-[#ffbd2e]"></span>
-          <span class="terminal-dot bg-[#27c93f]"></span>
-          <span class="ml-2 text-xs text-[var(--color-faint)]">1 · wyslij-fakture.sh</span>
-          <button type="button" data-copy-btn class="copy-btn ml-auto" aria-label="Kopiuj polecenie">
-            <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
-              <rect x="5" y="5" width="9" height="9" rx="1.5"/><path d="M11 5V3.5A1.5 1.5 0 0 0 9.5 2h-6A1.5 1.5 0 0 0 2 3.5v6A1.5 1.5 0 0 0 3.5 11H5"/>
-            </svg>
-            <span data-copy-label>Kopiuj</span>
-          </button>
-        </div>
-        <pre data-copy-src class="m-0 p-4 text-xs leading-relaxed font-mono text-[var(--color-muted)] overflow-x-auto">{sendCmd}</pre>
-        <div class="border-t border-[var(--color-line-strong)] px-4 py-3 mt-auto">
-          <div class="text-xs text-[var(--color-faint)] mb-1.5">Odpowiedź (pełna, prosto z terminala)</div>
-          <pre class="m-0 text-xs leading-relaxed font-mono text-[var(--color-muted)] overflow-x-auto">{"{"}"success":true,"data":{"{"}
+          <div class="flex-1 min-w-0 pt-0.5">
+            <h3 class="text-base sm:text-lg font-semibold text-[var(--color-ink)] mb-1.5">{step.title}</h3>
+            <p class="text-sm text-[var(--color-muted)] leading-relaxed mb-3 max-w-xl">{step.desc}</p>
+
+            <div class="code-block">
+              <div class="terminal-bar">
+                <span class="terminal-dot bg-[#ff5f56]"></span>
+                <span class="terminal-dot bg-[#ffbd2e]"></span>
+                <span class="terminal-dot bg-[#27c93f]"></span>
+                <span class="ml-2 text-xs text-[var(--color-faint)]">krok {step.n}</span>
+                <button type="button" data-copy-btn class="copy-btn ml-auto" aria-label={`Kopiuj polecenie z kroku ${step.n}`}>
+                  <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
+                    <rect x="5" y="5" width="9" height="9" rx="1.5"/><path d="M11 5V3.5A1.5 1.5 0 0 0 9.5 2h-6A1.5 1.5 0 0 0 2 3.5v6A1.5 1.5 0 0 0 3.5 11H5"/>
+                  </svg>
+                  <span data-copy-label>Kopiuj</span>
+                </button>
+              </div>
+              <pre data-copy-src class="m-0 p-4 text-xs leading-relaxed font-mono text-[var(--color-muted)] overflow-x-auto">{step.code}</pre>
+
+              {step.response && (
+                <div class="border-t border-[var(--color-line-strong)] px-4 py-3">
+                  <div class="text-xs text-[var(--color-faint)] mb-1.5">Odpowiedź (pełna, prosto z terminala)</div>
+                  <pre class="m-0 text-xs leading-relaxed font-mono text-[var(--color-muted)] overflow-x-auto">{"{"}"success":true,"data":{"{"}
   "ksefNumber":<span class="text-[var(--color-accent-bright)]">"{KSEF_NR}"</span>,
   "status":<span class="text-[#fbbf24]">"accepted"</span>,"statusDescription":"Sukces",
   "sessionReferenceNumber":"20260703-SO-...","invoiceReferenceNumber":"20260703-EE-..."{"}"},"error":null{"}"}
 <span class="text-[var(--color-accent)]">→ numer KSeF: {KSEF_NR}</span></pre>
-        </div>
-      </div>
+                </div>
+              )}
 
-      <!-- 2 - pobierz PDF -->
-      <div class="code-block flex flex-col" data-copy-block data-reveal>
-        <div class="terminal-bar">
-          <span class="terminal-dot bg-[#ff5f56]"></span>
-          <span class="terminal-dot bg-[#ffbd2e]"></span>
-          <span class="terminal-dot bg-[#27c93f]"></span>
-          <span class="ml-2 text-xs text-[var(--color-faint)]">2 · pobierz-pdf.sh</span>
-          <button type="button" data-copy-btn class="copy-btn ml-auto" aria-label="Kopiuj polecenie">
-            <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
-              <rect x="5" y="5" width="9" height="9" rx="1.5"/><path d="M11 5V3.5A1.5 1.5 0 0 0 9.5 2h-6A1.5 1.5 0 0 0 2 3.5v6A1.5 1.5 0 0 0 3.5 11H5"/>
-            </svg>
-            <span data-copy-label>Kopiuj</span>
-          </button>
-        </div>
-        <pre data-copy-src class="m-0 p-4 text-xs leading-relaxed font-mono text-[var(--color-muted)] overflow-x-auto">{pdfCmd}</pre>
-        <div class="border-t border-[var(--color-line-strong)] px-4 py-3 mt-auto flex items-center gap-2 text-xs text-[var(--color-faint)]">
-          <svg width="13" height="13" viewBox="0 0 16 16" fill="var(--color-accent)" aria-hidden="true">
-            <path d="M8 .5a7.5 7.5 0 1 0 0 15A7.5 7.5 0 0 0 8 .5Zm3.28 5.72-4 4a.75.75 0 0 1-1.06 0l-2-2a.75.75 0 0 1 1.06-1.06L6.75 8.69l3.47-3.47a.75.75 0 1 1 1.06 1.06Z"/>
-          </svg>
-          &rarr; prawdziwy PDF z kodem QR weryfikacyjnym KSeF (~31&nbsp;KB)
-        </div>
-      </div>
+              {step.note && (
+                <div class="border-t border-[var(--color-line-strong)] px-4 py-3 flex items-center gap-2 text-xs text-[var(--color-faint)]">
+                  <svg width="13" height="13" viewBox="0 0 16 16" fill="var(--color-accent)" aria-hidden="true">
+                    <path d="M8 .5a7.5 7.5 0 1 0 0 15A7.5 7.5 0 0 0 8 .5Zm3.28 5.72-4 4a.75.75 0 0 1-1.06 0l-2-2a.75.75 0 0 1 1.06-1.06L6.75 8.69l3.47-3.47a.75.75 0 1 1 1.06 1.06Z"/>
+                  </svg>
+                  {step.note}
+                </div>
+              )}
+            </div>
+          </div>
+        </li>
+      ))}
+    </ol>
 
-    </div>
-
-    <p class="text-xs text-[var(--color-faint)] mt-5" data-reveal>
+    <p class="text-xs text-[var(--color-faint)] mt-8 max-w-2xl" data-reveal>
       Klucz powyżej jest publiczny i celowo współdzielony (środowisko TEST, jednorazowy NIP). Pełny opis w
       <a href="https://github.com/jurczykpawel/ksef-gateway#wypróbuj-live-demo" target="_blank" rel="noopener noreferrer" class="text-[var(--color-accent-bright)] hover:underline">README</a>.
     </p>

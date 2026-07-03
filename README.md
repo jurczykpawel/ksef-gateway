@@ -901,6 +901,25 @@ Kliknij przycisk, ustaw trzy zmienne środowiskowe (`GITHUB_PAT`, `KSEF_TOKEN`, 
 
 **Multi-NIP z kilkoma certyfikatami na Render:** Secret Files nie są ograniczone do jednej pary - wgraj tyle plików cert/klucz, ile masz firm (np. `firma-a.crt`/`firma-a.key`, `firma-b.crt`/`firma-b.key`, ...), *plus* sam `contexts.json` jako kolejny Secret File, gdzie `certificatePath`/`privateKeyPath` każdego wpisu wskazuje na odpowiedni `/etc/secrets/<nazwapliku>`. Potem ustaw `KSEF_CONTEXTS_FILE=/etc/secrets/contexts.json` (zmienna środowiskowa) zamiast `KSEF_TOKEN`/`KSEF_CERT_PATH`. Wymaga [licencji multi-NIP](#licencjonowanie-multi-nip) dla więcej niż jednego NIP-u.
 
+### Mikrus / dowolny VPS (jedną komendą)
+
+Najtańsza droga do własnej instancji. Jedno polecenie na świeżym serwerze stawia całą bramę (API + PDF), samo generuje klucz `GATEWAY_API_KEY` i sekret usługi PDF, pobiera gotowe obrazy i podnosi stack:
+
+```bash
+curl -fsSL https://stackpilot.techskills.academy/ksef-gateway | bash
+```
+
+Albo z własnego komputera, od razu z domeną i certyfikatem SSL (Cloudflare, w pełni automatycznie):
+
+```bash
+git clone https://github.com/jurczykpawel/stackpilot && cd stackpilot
+./local/deploy.sh ksef-gateway --ssh=TWÓJ_VPS --domain-type=cloudflare --domain=ksef.twojafirma.pl
+```
+
+Brama wstaje od razu; KSeF podłączasz dopisując `KSEF_TOKEN` + `KSEF_NIP` do `/opt/stacks/ksef-gateway/.env` i robiąc `docker compose up -d`. Zero baz danych, zero konfiguracji — reszta sekretów robi się sama.
+
+> **Nie masz jeszcze VPS-a?** [Mikrus](https://mikr.us/?r=pavvel) to polski VPS od ~5 zł/mies., idealny pod tę bramę (amd64, Docker, ~1 GB RAM w zupełności wystarcza). Postawisz KSeF Gateway w kilka minut, taniej niż jakikolwiek abonament za e-fakturowanie.
+
 ### AWS Lambda
 
 Wdróż jako funkcję serverless Lambda z Function URL (bez API Gateway - unika timeoutu 29s).

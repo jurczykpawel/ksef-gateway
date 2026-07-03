@@ -842,6 +842,25 @@ Click the button, set three env vars (`GITHUB_PAT`, `KSEF_TOKEN`, `KSEF_NIP`), d
 
 **Multi-NIP with several certificates on Render:** Secret Files aren't limited to one pair - upload as many cert/key files as you have companies (e.g. `company-a.crt`/`company-a.key`, `company-b.crt`/`company-b.key`, ...), *plus* your `contexts.json` itself as another Secret File, with each entry's `certificatePath`/`privateKeyPath` pointing at the matching `/etc/secrets/<filename>`. Then set `KSEF_CONTEXTS_FILE=/etc/secrets/contexts.json` (env var) instead of `KSEF_TOKEN`/`KSEF_CERT_PATH`. Requires a [multi-NIP license](#multi-nip-licensing) for more than one NIP.
 
+### Mikrus / any VPS (one command)
+
+The cheapest way to your own instance. One command on a fresh server stands up the whole gateway (API + PDF), generates the `GATEWAY_API_KEY` and the PDF-service secret itself, pulls the prebuilt images, and brings the stack up:
+
+```bash
+curl -fsSL https://stackpilot.techskills.academy/ksef-gateway | bash
+```
+
+Or from your own machine, with a domain and SSL certificate out of the box (Cloudflare, fully automatic):
+
+```bash
+git clone https://github.com/jurczykpawel/stackpilot && cd stackpilot
+./local/deploy.sh ksef-gateway --ssh=YOUR_VPS --domain-type=cloudflare --domain=ksef.yourcompany.com
+```
+
+The gateway boots immediately; connect KSeF by adding `KSEF_TOKEN` + `KSEF_NIP` to `/opt/stacks/ksef-gateway/.env` and running `docker compose up -d`. No database, no config — the rest of the secrets generate themselves.
+
+> **No VPS yet?** [Mikrus](https://mikr.us/?r=pavvel) is a Polish VPS from ~€1.20/mo, a perfect fit for this gateway (amd64, Docker, ~1 GB RAM is plenty). You'll have KSeF Gateway running in minutes — cheaper than any e-invoicing subscription.
+
 ### AWS Lambda
 
 Deploy as a serverless Lambda function with Function URL (no API Gateway - avoids 29s timeout).

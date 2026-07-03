@@ -1,0 +1,381 @@
+---
+// Realne, kopiowalne demo przeciw żywej publicznej instancji (KSeF TEST, always-on).
+// Wartości niżej to PRAWDZIWE przechwycone wywołania - komenda skopiowana 1:1 działa.
+// Dwie ścieżki (wystawiam / odbieram), każda jako zakładki (jeden krok naraz = mało miejsca).
+const DEMO = "https://ksef-demo.techskills.academy";
+const KEY = "0679d36400bfdedcaf1f7d1f5774d0d94ffae5a9f6bc7596cbf24de94d42a8ee";
+const KSEF_NR = "3202004132-20260702-9D77C0C00000-3D";
+
+// Krok 1 (adres + klucz) jest wspólny dla obu ścieżek.
+const keyStep = {
+  tab: "Klucz",
+  title: "Wskazujesz, gdzie stoi Twoja usługa",
+  desc: "Poniżej są nasze wartości demo — u siebie wpiszesz własny adres i klucz. Usługa stoi na Twoim serwerze, klucz zna tylko Twój kod. Ten jest jawny naumyślnie, bo to tylko środowisko testowe (nie prawdziwe faktury).",
+  code: `# ↓ wartości demo — u siebie wpiszesz swoje
+DEMO="${DEMO}"
+KEY="${KEY}"`,
+};
+
+const issueSteps = [
+  keyStep,
+  {
+    tab: "Wyślij",
+    title: "Wysyłasz fakturę tak, jak zrobiłby to Twój sklep",
+    desc: "Jeden JSON z danymi faktury — resztę (szyfrowanie, sesję, podpis, wysyłkę do KSeF) usługa robi za Ciebie. Numer dostaje datę, bo dwóch identycznych faktur KSeF nie przyjmie.",
+    code: `NR="DEMO/$(date +%s)"          # unikalny numer
+
+RESP=$(curl -s -X POST "$DEMO/ksef/invoice" \\
+  -H "X-Api-Key: $KEY" \\
+  -H "Content-Type: application/json" \\
+  -d '{
+    "invoiceNumber": "'"$NR"'",
+    "issueDate":  "'"$(date +%F)"'",
+    "saleDate":   "'"$(date +%F)"'",
+    "seller": { "nip": "3202004132", "name": "Demo sp. z o.o.",
+                "address": { "street": "ul. Demo 1", "city": "00-001 Warszawa" } },
+    "buyer":  { "nip": "3202004132", "name": "Demo sp. z o.o.",
+                "address": { "street": "ul. Demo 1", "city": "00-001 Warszawa" } },
+    "items":  [ { "name": "Usługa demo", "quantity": 1, "unitPrice": 100, "vatRate": 23 } ]
+  }')`,
+  },
+  {
+    tab: "Numer KSeF",
+    title: "Dostajesz numer KSeF — dowód, że faktura jest w systemie",
+    desc: "W odpowiedzi wraca numer, pod którym Twoja faktura wylądowała w rządowym systemie. Wyłapujesz go do zmiennej — dokładnie tak zrobi Twój kod (bez jq, zwykłym grep-em).",
+    code: `echo "$RESP"                    # pełna odpowiedź (niżej)
+KSEF=$(echo "$RESP" | grep -o '"ksefNumber":"[^"]*"' | cut -d'"' -f4)
+echo "→ numer KSeF: $KSEF"`,
+    response: "send",
+  },
+  {
+    tab: "PDF",
+    title: "Pobierasz gotowy PDF dla klienta",
+    desc: "Ten numer zamieniasz na PDF z kodem QR, którym każdy zweryfikuje fakturę. To samo poślesz mailem kupującemu.",
+    code: `curl "$DEMO/ksef/invoice/$KSEF/pdf" \\
+  -H "X-Api-Key: $KEY" -o faktura.pdf`,
+    note: "→ prawdziwy PDF z kodem QR weryfikacyjnym KSeF (~31 KB)",
+  },
+];
+
+const receiveSteps = [
+  keyStep,
+  {
+    tab: "Pobierz listę",
+    title: "Sprawdzasz, kto wystawił fakturę na Ciebie",
+    desc: "Jednym żądaniem pobierasz faktury, które trafiły do KSeF na Twój NIP — bez znajomości ich numerów. To Twój stateless inbox: KSeF pilnuje, co przyszło.",
+    code: `RESP=$(curl -s "$DEMO/ksef/invoices/received" \\
+  -H "X-Api-Key: $KEY")
+
+echo "$RESP"                    # lista faktur (niżej)`,
+    response: "list",
+  },
+  {
+    tab: "Pobierz PDF",
+    title: "Bierzesz numer z listy i pobierasz fakturę",
+    desc: "Z listy wyłuskujesz numer KSeF (tu: najnowsza) i pobierasz jej PDF — dokładnie tak, jak zrobiłby to Twój system księgowy przy imporcie kosztów.",
+    code: `KSEF=$(echo "$RESP" | grep -o '"ksefNumber":"[^"]*"' | head -1 | cut -d'"' -f4)
+
+curl "$DEMO/ksef/invoice/$KSEF/pdf" \\
+  -H "X-Api-Key: $KEY" -o faktura.pdf`,
+    note: "→ prawdziwy PDF otrzymanej faktury z kodem QR (~31 KB)",
+  },
+];
+
+const modes = [
+  { id: "issue",   label: "Chcę wystawiać", hint: "wysyłasz fakturę do KSeF", steps: issueSteps },
+  { id: "receive", label: "Chcę odbierać",  hint: "pobierasz to, co inni wystawili na Ciebie", steps: receiveSteps },
+];
+---
+<section id="live-demo" class="section-gap" aria-labelledby="live-demo-heading">
+  <div class="container-kg">
+    <div class="section-label" data-reveal>
+      <span class="relative flex w-2.5 h-2.5" aria-hidden="true">
+        <span class="absolute inline-flex w-full h-full rounded-full bg-[var(--color-accent)] opacity-60 animate-ping"></span>
+        <span class="relative inline-flex w-2.5 h-2.5 rounded-full bg-[var(--color-accent-bright)]"></span>
+      </span>
+      Live demo &middot; środowisko TEST
+    </div>
+
+    <h2 id="live-demo-heading" class="text-3xl sm:text-4xl font-bold text-[var(--color-ink)] mb-3" data-reveal>
+      Nie wierz na słowo &mdash; odpal na naszej żywej instancji
+    </h2>
+    <p class="text-[var(--color-muted)] mb-7 max-w-2xl leading-relaxed" data-reveal>
+      Wybierz, co chcesz zrobić w KSeF. Dane poniżej są przykładowe
+      (<strong class="text-[var(--color-ink)]">środowisko testowe</strong>, nie prawdziwe faktury) &mdash; u siebie
+      wpiszesz własne. Przeklikaj kolejne kroki i przekonaj się, że cała obsługa KSeF sprowadza się
+      do kilku linijek.
+    </p>
+
+    <div class="max-w-2xl" data-demo-root data-reveal>
+      <!-- wybór ścieżki: wystawiam / odbieram -->
+      <div role="tablist" aria-label="Co chcesz zrobić" class="grid grid-cols-2 gap-2 mb-6">
+        {modes.map((mode, i) => (
+          <button
+            type="button"
+            role="tab"
+            id={`demo-mode-${mode.id}`}
+            aria-controls={`demo-modegroup-${mode.id}`}
+            aria-selected={i === 0 ? "true" : "false"}
+            tabindex={i === 0 ? 0 : -1}
+            data-mode={mode.id}
+            class="demo-mode flex flex-col items-start gap-0.5 px-4 py-3 rounded-xl border text-left transition-colors"
+          >
+            <span class="flex items-center gap-2 font-semibold">
+              {mode.id === "issue" ? (
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                  <line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/>
+                </svg>
+              ) : (
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                  <path d="M22 12h-6l-2 3h-4l-2-3H2"/><path d="M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"/>
+                </svg>
+              )}
+              {mode.label}
+            </span>
+            <span class="demo-mode-hint text-xs text-[var(--color-faint)] pl-6">{mode.hint}</span>
+          </button>
+        ))}
+      </div>
+
+      <!-- grupy krokow per sciezka -->
+      {modes.map((mode, mi) => (
+        <div
+          role="tabpanel"
+          id={`demo-modegroup-${mode.id}`}
+          aria-labelledby={`demo-mode-${mode.id}`}
+          hidden={mi !== 0}
+          data-mode-group={mode.id}
+          data-demo-tabs
+        >
+          <!-- zakładki kroków -->
+          <div role="tablist" aria-label={`Kroki: ${mode.label}`} class="flex flex-wrap gap-1.5 mb-4">
+            {mode.steps.map((step, i) => (
+              <button
+                type="button"
+                role="tab"
+                id={`demo-tab-${mode.id}-${i}`}
+                aria-controls={`demo-panel-${mode.id}-${i}`}
+                aria-selected={i === 0 ? "true" : "false"}
+                tabindex={i === 0 ? 0 : -1}
+                data-tab={i}
+                class="demo-tab inline-flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium border transition-colors"
+              >
+                <span class="demo-tab-num inline-flex items-center justify-center w-5 h-5 rounded-full text-xs font-semibold">{i + 1}</span>
+                <span>{step.tab}</span>
+              </button>
+            ))}
+          </div>
+
+          <!-- panele kroków -->
+          {mode.steps.map((step, i) => (
+            <div
+              role="tabpanel"
+              id={`demo-panel-${mode.id}-${i}`}
+              aria-labelledby={`demo-tab-${mode.id}-${i}`}
+              data-panel={i}
+              hidden={i !== 0}
+              data-copy-block
+            >
+              <h3 class="text-base sm:text-lg font-semibold text-[var(--color-ink)] mb-1">{step.title}</h3>
+              <p class="text-sm text-[var(--color-muted)] leading-snug mb-3 max-w-xl">{step.desc}</p>
+
+              <div class="code-block">
+                <div class="terminal-bar">
+                  <span class="terminal-dot bg-[#ff5f56]"></span>
+                  <span class="terminal-dot bg-[#ffbd2e]"></span>
+                  <span class="terminal-dot bg-[#27c93f]"></span>
+                  <span class="ml-2 text-xs text-[var(--color-faint)]">krok {i + 1} · {step.tab}</span>
+                  <button type="button" data-copy-btn class="copy-btn ml-auto" aria-label={`Kopiuj polecenie z kroku ${i + 1}`}>
+                    <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
+                      <rect x="5" y="5" width="9" height="9" rx="1.5"/><path d="M11 5V3.5A1.5 1.5 0 0 0 9.5 2h-6A1.5 1.5 0 0 0 2 3.5v6A1.5 1.5 0 0 0 3.5 11H5"/>
+                    </svg>
+                    <span data-copy-label>Kopiuj</span>
+                  </button>
+                </div>
+                <pre data-copy-src class="m-0 p-4 text-xs leading-relaxed font-mono text-[var(--color-muted)] overflow-x-auto">{step.code}</pre>
+
+                {step.response === "send" && (
+                  <div class="border-t border-[var(--color-line-strong)] px-4 py-3">
+                    <div class="text-xs text-[var(--color-faint)] mb-1.5">Odpowiedź (pełna, prosto z terminala)</div>
+                    <pre class="m-0 text-xs leading-relaxed font-mono text-[var(--color-muted)] overflow-x-auto">{"{"}"success":true,"data":{"{"}
+  "ksefNumber":<span class="text-[var(--color-accent-bright)]">"{KSEF_NR}"</span>,
+  "status":<span class="text-[#fbbf24]">"accepted"</span>,"statusDescription":"Sukces",
+  "sessionReferenceNumber":"20260703-SO-...","invoiceReferenceNumber":"20260703-EE-..."{"}"},"error":null{"}"}
+<span class="text-[var(--color-accent)]">→ numer KSeF: {KSEF_NR}</span></pre>
+                  </div>
+                )}
+
+                {step.response === "list" && (
+                  <div class="border-t border-[var(--color-line-strong)] px-4 py-3">
+                    <div class="text-xs text-[var(--color-faint)] mb-1.5">Odpowiedź — lista faktur na Twój NIP</div>
+                    <pre class="m-0 text-xs leading-relaxed font-mono text-[var(--color-muted)] overflow-x-auto">{"{"}"success":true,"data":{"{"}"invoices":[
+  {"{"}"ksefNumber":<span class="text-[var(--color-accent-bright)]">"{KSEF_NR}"</span>,
+   "invoiceNumber":"DEMO/178...","sellerName":"Demo sp. z o.o.",
+   "grossAmount":123,"currency":<span class="text-[#fbbf24]">"PLN"</span>{"}"},
+  {"{"} ...kolejne faktury... {"}"}
+]{"}"},"error":null{"}"}</pre>
+                  </div>
+                )}
+
+                {step.note && (
+                  <div class="border-t border-[var(--color-line-strong)] px-4 py-3 flex items-center gap-2 text-xs text-[var(--color-faint)]">
+                    <svg width="13" height="13" viewBox="0 0 16 16" fill="var(--color-accent)" aria-hidden="true">
+                      <path d="M8 .5a7.5 7.5 0 1 0 0 15A7.5 7.5 0 0 0 8 .5Zm3.28 5.72-4 4a.75.75 0 0 1-1.06 0l-2-2a.75.75 0 0 1 1.06-1.06L6.75 8.69l3.47-3.47a.75.75 0 1 1 1.06 1.06Z"/>
+                    </svg>
+                    {step.note}
+                  </div>
+                )}
+              </div>
+
+              <!-- nawigacja krok dalej/wstecz -->
+              <div class="flex items-center justify-between mt-3">
+                <button type="button" data-demo-prev class="demo-nav text-xs text-[var(--color-faint)] disabled:opacity-0 disabled:pointer-events-none">&larr; poprzedni</button>
+                <span class="text-xs text-[var(--color-faint)]">krok {i + 1} z {mode.steps.length}</span>
+                <button type="button" data-demo-next class="demo-nav text-xs text-[var(--color-accent-bright)] disabled:opacity-0 disabled:pointer-events-none">następny &rarr;</button>
+              </div>
+            </div>
+          ))}
+        </div>
+      ))}
+    </div>
+
+    <p class="text-xs text-[var(--color-faint)] mt-6 max-w-2xl" data-reveal>
+      Klucz powyżej jest publiczny i celowo współdzielony (środowisko TEST, jednorazowy NIP). Pełny opis w
+      <a href="https://github.com/jurczykpawel/ksef-gateway#wypróbuj-live-demo" target="_blank" rel="noopener noreferrer" class="text-[var(--color-accent-bright)] hover:underline">README</a>.
+    </p>
+  </div>
+</section>
+
+<style>
+  .demo-mode {
+    color: var(--color-muted);
+    border-color: var(--color-line-strong);
+    background: transparent;
+    cursor: pointer;
+  }
+  .demo-mode:hover { border-color: var(--color-accent); }
+  .demo-mode[aria-selected="true"] {
+    color: var(--color-ink);
+    border-color: var(--color-accent);
+    background: var(--color-accent-soft);
+  }
+  .demo-mode[aria-selected="true"] .demo-mode-hint { color: var(--color-muted); }
+
+  .demo-tab {
+    color: var(--color-muted);
+    border-color: var(--color-line-strong);
+    background: transparent;
+    cursor: pointer;
+  }
+  .demo-tab:hover { color: var(--color-ink); border-color: var(--color-accent); }
+  .demo-tab .demo-tab-num {
+    background: var(--color-line-strong);
+    color: var(--color-faint);
+    transition: background 0.15s, color 0.15s;
+  }
+  .demo-tab[aria-selected="true"] {
+    color: var(--color-ink);
+    border-color: var(--color-accent);
+    background: var(--color-accent-soft);
+  }
+  .demo-tab[aria-selected="true"] .demo-tab-num {
+    background: var(--color-accent-bright);
+    color: var(--color-bg);
+  }
+
+  .copy-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    padding: 0.2rem 0.55rem;
+    font-size: 0.7rem;
+    border-radius: 0.4rem;
+    color: var(--color-faint);
+    border: 1px solid var(--color-line-strong);
+    background: transparent;
+    cursor: pointer;
+    transition: color 0.15s, border-color 0.15s, background 0.15s;
+  }
+  .copy-btn:hover { color: var(--color-ink); border-color: var(--color-accent); }
+  .copy-btn.copied { color: var(--color-accent-bright); border-color: var(--color-accent); }
+
+  .demo-nav { cursor: pointer; background: transparent; border: 0; padding: 0.25rem 0; }
+  .demo-nav:hover { text-decoration: underline; }
+</style>
+
+<script>
+  import { reveal } from "../scripts/reveal";
+
+  // Kopiowanie polecenia (wszystkie bloki, także w ukrytych panelach)
+  document.querySelectorAll<HTMLButtonElement>("[data-copy-btn]").forEach((btn) => {
+    btn.addEventListener("click", async () => {
+      const block = btn.closest("[data-copy-block]");
+      const src = block?.querySelector("[data-copy-src]");
+      if (!src?.textContent) return;
+      try {
+        await navigator.clipboard.writeText(src.textContent.trim());
+        const label = btn.querySelector<HTMLElement>("[data-copy-label]");
+        const prev = label?.textContent ?? "Kopiuj";
+        if (label) label.textContent = "Skopiowano";
+        btn.classList.add("copied");
+        setTimeout(() => {
+          if (label) label.textContent = prev;
+          btn.classList.remove("copied");
+        }, 1600);
+      } catch {
+        /* clipboard niedostępny - cicho ignoruj */
+      }
+    });
+  });
+
+  // Generyczny stepper dla tablisty (używany i dla trybów, i dla kroków)
+  function initTablist(tabs: HTMLButtonElement[], panels: HTMLElement[], onSelect?: (i: number) => void) {
+    const select = (index: number, focus = false) => {
+      const i = (index + tabs.length) % tabs.length;
+      tabs.forEach((tab, j) => {
+        const active = j === i;
+        tab.setAttribute("aria-selected", active ? "true" : "false");
+        tab.tabIndex = active ? 0 : -1;
+        if (panels[j]) panels[j].hidden = !active;
+      });
+      if (focus) tabs[i].focus();
+      onSelect?.(i);
+    };
+    tabs.forEach((tab, i) => {
+      tab.addEventListener("click", () => select(i));
+      tab.addEventListener("keydown", (e) => {
+        if (e.key === "ArrowRight" || e.key === "ArrowDown") { e.preventDefault(); select(i + 1, true); }
+        else if (e.key === "ArrowLeft" || e.key === "ArrowUp") { e.preventDefault(); select(i - 1, true); }
+        else if (e.key === "Home") { e.preventDefault(); select(0, true); }
+        else if (e.key === "End") { e.preventDefault(); select(tabs.length - 1, true); }
+      });
+    });
+    return select;
+  }
+
+  const root = document.querySelector<HTMLElement>("[data-demo-root]");
+  if (root) {
+    // 1) przełącznik ścieżki (wystawiam / odbieram)
+    const modeTabs = Array.from(root.querySelectorAll<HTMLButtonElement>('[role="tablist"][aria-label="Co chcesz zrobić"] [role="tab"]'));
+    const modeGroups = Array.from(root.querySelectorAll<HTMLElement>("[data-mode-group]"));
+    initTablist(modeTabs, modeGroups);
+
+    // 2) kroki wewnątrz każdej ścieżki
+    root.querySelectorAll<HTMLElement>("[data-demo-tabs]").forEach((group) => {
+      const tabs = Array.from(group.querySelectorAll<HTMLButtonElement>(':scope > [role="tablist"] > [role="tab"]'));
+      const panels = Array.from(group.querySelectorAll<HTMLElement>(':scope > [role="tabpanel"][data-panel]'));
+      const select = initTablist(tabs, panels);
+
+      // przyciski poprzedni/następny
+      const current = () => tabs.findIndex((t) => t.getAttribute("aria-selected") === "true");
+      panels.forEach((panel, i) => {
+        panel.querySelector<HTMLButtonElement>("[data-demo-next]")?.addEventListener("click", () => select(current() + 1));
+        panel.querySelector<HTMLButtonElement>("[data-demo-prev]")?.addEventListener("click", () => select(current() - 1));
+        if (i === 0) panel.querySelector<HTMLButtonElement>("[data-demo-prev]")?.setAttribute("disabled", "");
+        if (i === panels.length - 1) panel.querySelector<HTMLButtonElement>("[data-demo-next]")?.setAttribute("disabled", "");
+      });
+    });
+  }
+
+  reveal("[data-reveal]", { duration: 0.5, delayStep: 0.06, margin: "0px 0px -40px 0px", distance: 14 });
+</script>

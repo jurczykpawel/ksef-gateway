@@ -41,11 +41,15 @@ const badgeStyles = {
     </div>
     <div class="mt-8 card-floating p-5 flex flex-col sm:flex-row items-start sm:items-center gap-4" data-dep>
       <div class="flex-1">
-        <p class="text-sm font-semibold text-[var(--color-ink)] mb-0.5">Używasz StackPilot?</p>
-        <p class="text-sm text-[var(--color-muted)]">Wdróż na dowolny VPS jednym poleceniem z terminala.</p>
+        <p class="text-sm font-semibold text-[var(--color-ink)] mb-0.5">Postaw jedną komendą — na Mikrusie lub dowolnym VPS</p>
+        <p class="text-sm text-[var(--color-muted)]">
+          Klucz API i pozostałe sekrety generują się same. Nie masz serwera?
+          <a href="https://mikr.us/?r=pavvel" target="_blank" rel="noopener noreferrer" class="text-[var(--color-accent-bright)] hover:underline">Mikrus</a>
+          od ~5&nbsp;zł/mies. w zupełności wystarcza.
+        </p>
       </div>
       <div class="code-block shrink-0">
-        <div class="px-4 py-3 text-xs font-mono text-[var(--color-muted)]">./local/deploy.sh ksef-gateway --ssh=vps</div>
+        <div class="px-4 py-3 text-xs font-mono text-[var(--color-muted)]">curl&nbsp;-fsSL&nbsp;stackpilot.techskills.academy/ksef-gateway&nbsp;|&nbsp;bash</div>
       </div>
     </div>
   </div>

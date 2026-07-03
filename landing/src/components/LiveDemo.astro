@@ -10,7 +10,7 @@ const KSEF_NR = "3202004132-20260702-9D77C0C00000-3D";
 const keyStep = {
   tab: "Klucz",
   title: "Wskazujesz, gdzie stoi Twoja usługa",
-  desc: "Poniżej są nasze wartości demo — u siebie wpiszesz własny adres i klucz. Usługa stoi na Twoim serwerze, klucz zna tylko Twój kod. Ten jest jawny naumyślnie, bo to piaskownica TEST.",
+  desc: "Poniżej są nasze wartości demo — u siebie wpiszesz własny adres i klucz. Usługa stoi na Twoim serwerze, klucz zna tylko Twój kod. Ten jest jawny naumyślnie, bo to tylko środowisko testowe (nie prawdziwe faktury).",
   code: `# ↓ wartości demo — u siebie wpiszesz swoje
 DEMO="${DEMO}"
 KEY="${KEY}"`,
@@ -100,9 +100,10 @@ const modes = [
       Nie wierz na słowo &mdash; odpal na naszej żywej instancji
     </h2>
     <p class="text-[var(--color-muted)] mb-7 max-w-2xl leading-relaxed" data-reveal>
-      Wybierz, po co przychodzisz do KSeF. Wartości niżej są
-      <strong class="text-[var(--color-ink)]">demowe</strong> (piaskownica TEST, jednorazowy NIP); u siebie
-      podmieniasz je na swoje. Klikaj kolejne zakładki i zobacz, jak całą złożoność robisz w parę linijek.
+      Wybierz, co chcesz zrobić w KSeF. Dane poniżej są przykładowe
+      (<strong class="text-[var(--color-ink)]">środowisko testowe</strong>, nie prawdziwe faktury) &mdash; u siebie
+      wpiszesz własne. Przeklikaj kolejne kroki i przekonaj się, że cała obsługa KSeF sprowadza się
+      do kilku linijek.
     </p>
 
     <div class="max-w-2xl" data-demo-root data-reveal>

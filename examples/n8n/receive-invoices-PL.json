@@ -19,38 +19,6 @@
     },
     {
       "parameters": {
-        "content": "## Sprawdzenie i checkpoint\nSprawdza nowe faktury od ostatniego checkpointu. W razie błędu checkpoint zostaje bez zmian, więc kolejne uruchomienie powtórzy to samo okno.",
-        "height": 380,
-        "width": 1420,
-        "color": 7
-      },
-      "id": "sticky-section-a",
-      "name": "Section: Poll & Checkpoint",
-      "type": "n8n-nodes-base.stickyNote",
-      "typeVersion": 1,
-      "position": [
-        -760,
-        340
-      ]
-    },
-    {
-      "parameters": {
-        "content": "## Przetwarzanie nowych faktur\nPrzesuwa checkpoint, a potem pobiera i zapisuje PDF każdej nowo otrzymanej faktury.",
-        "height": 380,
-        "width": 1720,
-        "color": 7
-      },
-      "id": "sticky-section-b",
-      "name": "Section: Process New Invoices",
-      "type": "n8n-nodes-base.stickyNote",
-      "typeVersion": 1,
-      "position": [
-        740,
-        340
-      ]
-    },
-    {
-      "parameters": {
         "rule": {
           "interval": [
             {
@@ -391,6 +359,86 @@
         400
       ],
       "notes": "TODO: Connect Slack / email / Discord here to get notified - the PDF is already saved to disk by the previous node."
+    },
+    {
+      "parameters": {
+        "content": "## 1 · Wyzwalacz i konfiguracja\nUruchamia się według harmonogramu i trzyma w jednym miejscu wszystko, co edytujesz — URL bramki, klucz API, NIP sprzedawcy, interwał odpytywania i folder na PDF-y. Zacznij tutaj.",
+        "height": 380,
+        "width": 620,
+        "color": 7
+      },
+      "id": "sticky-section-1",
+      "name": "Section: Trigger & Config",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -760,
+        340
+      ]
+    },
+    {
+      "parameters": {
+        "content": "## 2 · Odpytaj od punktu kontrolnego\nWczytuje zapisany znacznik i pyta KSeF Gateway o każdą fakturę odebraną po nim. Bezstanowy kursor odpytywania — bez bazy i dodatkowego magazynu.",
+        "height": 380,
+        "width": 560,
+        "color": 7
+      },
+      "id": "sticky-section-2",
+      "name": "Section: Poll Since Checkpoint",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -120,
+        340
+      ]
+    },
+    {
+      "parameters": {
+        "content": "## 3 · Obsłuż błędy odpytywania\nGdy wywołanie bramki się nie powiedzie, zaloguj i zatrzymaj. Punkt kontrolny zostaje nietknięty, więc następne uruchomienie bezpiecznie ponowi to samo okno.",
+        "height": 380,
+        "width": 280,
+        "color": 7
+      },
+      "id": "sticky-section-3",
+      "name": "Section: Handle Poll Errors",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        460,
+        340
+      ]
+    },
+    {
+      "parameters": {
+        "content": "## 4 · Przesuń znacznik i rozgałęź\nZapisz nowy punkt kontrolny, potem rozgałęź: zakończ czysto, gdy nic nowego nie przyszło, albo kontynuuj, gdy są świeże faktury do pobrania.",
+        "height": 380,
+        "width": 580,
+        "color": 7
+      },
+      "id": "sticky-section-4",
+      "name": "Section: Advance & Gate",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        760,
+        340
+      ]
+    },
+    {
+      "parameters": {
+        "content": "## 5 · Pobierz i zapisz PDF-y\nPodziel partię, pobierz każdy PDF faktury z bramki i zapisz na dysk. Podłącz końcowy krok Notify do Slacka, e-maila lub bazy, aby dostać powiadomienie.",
+        "height": 380,
+        "width": 1180,
+        "color": 7
+      },
+      "id": "sticky-section-5",
+      "name": "Section: Download & Save PDFs",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        1360,
+        340
+      ]
     }
   ],
   "connections": {

@@ -19,38 +19,6 @@
     },
     {
       "parameters": {
-        "content": "## Poll & Checkpoint\nPolls for new invoices since the last checkpoint. On failure, the checkpoint stays put so the next run retries the same window.",
-        "height": 380,
-        "width": 1420,
-        "color": 7
-      },
-      "id": "sticky-section-a",
-      "name": "Section: Poll & Checkpoint",
-      "type": "n8n-nodes-base.stickyNote",
-      "typeVersion": 1,
-      "position": [
-        -760,
-        340
-      ]
-    },
-    {
-      "parameters": {
-        "content": "## Process New Invoices\nAdvances the checkpoint, then downloads and saves the PDF for each newly received invoice.",
-        "height": 380,
-        "width": 1720,
-        "color": 7
-      },
-      "id": "sticky-section-b",
-      "name": "Section: Process New Invoices",
-      "type": "n8n-nodes-base.stickyNote",
-      "typeVersion": 1,
-      "position": [
-        740,
-        340
-      ]
-    },
-    {
-      "parameters": {
         "rule": {
           "interval": [
             {
@@ -391,6 +359,86 @@
         400
       ],
       "notes": "TODO: Connect Slack / email / Discord here to get notified - the PDF is already saved to disk by the previous node."
+    },
+    {
+      "parameters": {
+        "content": "## 1 · Trigger & config\nRuns on a schedule and holds every setting you edit in one place — gateway URL, API key, seller NIP, poll interval and the folder to save PDFs into. Start here.",
+        "height": 380,
+        "width": 620,
+        "color": 7
+      },
+      "id": "sticky-section-1",
+      "name": "Section: Trigger & Config",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -760,
+        340
+      ]
+    },
+    {
+      "parameters": {
+        "content": "## 2 · Poll since checkpoint\nReads the stored high-water mark, then asks the KSeF Gateway for every invoice received after it. A stateless polling cursor — no database or extra storage needed.",
+        "height": 380,
+        "width": 560,
+        "color": 7
+      },
+      "id": "sticky-section-2",
+      "name": "Section: Poll Since Checkpoint",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -120,
+        340
+      ]
+    },
+    {
+      "parameters": {
+        "content": "## 3 · Handle poll errors\nIf the gateway call fails, log it and stop. The checkpoint is left untouched, so the next scheduled run safely retries the exact same window.",
+        "height": 380,
+        "width": 280,
+        "color": 7
+      },
+      "id": "sticky-section-3",
+      "name": "Section: Handle Poll Errors",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        460,
+        340
+      ]
+    },
+    {
+      "parameters": {
+        "content": "## 4 · Advance & gate\nStore the new checkpoint, then branch: exit cleanly when nothing new arrived, or continue when there are fresh invoices to download.",
+        "height": 380,
+        "width": 580,
+        "color": 7
+      },
+      "id": "sticky-section-4",
+      "name": "Section: Advance & Gate",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        760,
+        340
+      ]
+    },
+    {
+      "parameters": {
+        "content": "## 5 · Download & save PDFs\nSplit the batch, download each invoice PDF from the gateway, and write it to disk. Wire the final Notify step to Slack, email or a DB to get alerted.",
+        "height": 380,
+        "width": 1180,
+        "color": 7
+      },
+      "id": "sticky-section-5",
+      "name": "Section: Download & Save PDFs",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        1360,
+        340
+      ]
     }
   ],
   "connections": {

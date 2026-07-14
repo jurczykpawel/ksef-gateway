@@ -20,7 +20,7 @@
     {
       "parameters": {
         "content": "## Odbiór i weryfikacja\nPrzyjmuje webhook Sellf i sprawdza jego podpis HMAC, zanim zaufa danym.",
-        "height": 380,
+        "height": 510,
         "width": 1120,
         "color": 7
       },
@@ -30,13 +30,13 @@
       "typeVersion": 1,
       "position": [
         -760,
-        340
+        210
       ]
     },
     {
       "parameters": {
         "content": "## Potwierdzenie i wyodrębnienie\nOdpowiada natychmiast, a potem filtruje opłacone zakupy, w których poproszono o fakturę z NIP-em.",
-        "height": 220,
+        "height": 350,
         "width": 820,
         "color": 7
       },
@@ -46,13 +46,13 @@
       "typeVersion": 1,
       "position": [
         440,
-        340
+        210
       ]
     },
     {
       "parameters": {
         "content": "## Budowa faktury\nSkłada gotowy payload faktury KSeF z danych sprzedawcy i zamówienia.",
-        "height": 220,
+        "height": 350,
         "width": 520,
         "color": 7
       },
@@ -62,13 +62,13 @@
       "typeVersion": 1,
       "position": [
         1340,
-        340
+        210
       ]
     },
     {
       "parameters": {
         "content": "## Wysyłka i zapis wyniku\nWysyła fakturę do Twojego KSeF Gateway i zapisuje zwrócony numer KSeF albo błąd, jeśli się nie uda.",
-        "height": 540,
+        "height": 670,
         "width": 820,
         "color": 7
       },
@@ -78,7 +78,7 @@
       "typeVersion": 1,
       "position": [
         1940,
-        180
+        50
       ]
     },
     {

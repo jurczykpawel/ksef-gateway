@@ -20,7 +20,7 @@
     {
       "parameters": {
         "content": "## Receive & Verify\nAccepts the WooCommerce webhook and checks its HMAC signature before trusting the payload.",
-        "height": 380,
+        "height": 510,
         "width": 1120,
         "color": 7
       },
@@ -30,13 +30,13 @@
       "typeVersion": 1,
       "position": [
         -760,
-        340
+        210
       ]
     },
     {
       "parameters": {
         "content": "## Build & Check\nMaps the order into a KSeF invoice payload and checks for a buyer NIP.",
-        "height": 380,
+        "height": 510,
         "width": 520,
         "color": 7
       },
@@ -46,13 +46,13 @@
       "typeVersion": 1,
       "position": [
         440,
-        340
+        210
       ]
     },
     {
       "parameters": {
         "content": "## Send & Respond\nSends the invoice to your KSeF Gateway and reports the result back to WooCommerce.",
-        "height": 220,
+        "height": 350,
         "width": 520,
         "color": 7
       },
@@ -62,7 +62,7 @@
       "typeVersion": 1,
       "position": [
         1040,
-        340
+        210
       ]
     },
     {

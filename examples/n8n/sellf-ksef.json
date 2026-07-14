@@ -20,7 +20,7 @@
     {
       "parameters": {
         "content": "## Receive & Verify\nAccepts the Sellf webhook and checks its HMAC signature before trusting the payload.",
-        "height": 380,
+        "height": 510,
         "width": 1120,
         "color": 7
       },
@@ -30,13 +30,13 @@
       "typeVersion": 1,
       "position": [
         -760,
-        340
+        210
       ]
     },
     {
       "parameters": {
         "content": "## Acknowledge & Extract\nResponds immediately, then filters for completed purchases that requested an invoice with a NIP.",
-        "height": 220,
+        "height": 350,
         "width": 820,
         "color": 7
       },
@@ -46,13 +46,13 @@
       "typeVersion": 1,
       "position": [
         440,
-        340
+        210
       ]
     },
     {
       "parameters": {
         "content": "## Build the Invoice\nAssembles a KSeF-ready invoice payload from your seller details and the order.",
-        "height": 220,
+        "height": 350,
         "width": 520,
         "color": 7
       },
@@ -62,13 +62,13 @@
       "typeVersion": 1,
       "position": [
         1340,
-        340
+        210
       ]
     },
     {
       "parameters": {
         "content": "## Send & Log Result\nSends the invoice to your KSeF Gateway and records the resulting KSeF number, or the error if it fails.",
-        "height": 540,
+        "height": 670,
         "width": 820,
         "color": 7
       },
@@ -78,7 +78,7 @@
       "typeVersion": 1,
       "position": [
         1940,
-        180
+        50
       ]
     },
     {

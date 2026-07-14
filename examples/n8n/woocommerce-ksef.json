@@ -4,7 +4,7 @@
     {
       "parameters": {
         "content": "## Send WooCommerce orders to KSeF automatically\n\n### How it works\nThis workflow listens for a signed WooCommerce order webhook, verifies its `X-WC-Webhook-Signature` header, pulls the buyer's NIP from order meta data, and forwards the order to your self-hosted [KSeF Gateway](https://github.com/jurczykpawel/ksef-gateway) - a small HTTP wrapper around Poland's official e-invoice API. Orders without a NIP are treated as consumer purchases and skipped, since KSeF is only required for B2B sales. VAT rate is auto-detected per line item from WooCommerce's tax totals.\n\n### Setup\n1. Deploy a KSeF Gateway instance (Docker, Render, or StackPilot - see the project README) and note its URL. New to KSeF, or need a certificate (KSeF tokens are being phased out)? See [the main README](https://github.com/jurczykpawel/ksef-gateway#certificate-based-auth-alternative-to-tokens).\n2. Open **Configuration (EDIT ME)** and fill in your gateway URL, gateway API key, seller details, and the WooCommerce webhook secret.\n3. In WooCommerce, add a custom checkout field storing the buyer's NIP as order meta `_billing_nip` (or `billing_nip`), then create a webhook (Settings → Advanced → Webhooks) pointing at this workflow's Production URL with that same secret.\n4. See the red note on **Verify Signature** for one required n8n environment setting.\n\n### Customization tips\nAdd a Slack or email node after **Respond Skipped** if you want a heads-up whenever an order is missing a NIP.",
-        "height": 420,
+        "height": 720,
         "width": 700,
         "color": 1
       },
@@ -20,7 +20,7 @@
     {
       "parameters": {
         "content": "## Receive & Verify\nAccepts the WooCommerce webhook and checks its HMAC signature before trusting the payload.",
-        "height": 380,
+        "height": 510,
         "width": 1120,
         "color": 7
       },
@@ -30,13 +30,13 @@
       "typeVersion": 1,
       "position": [
         -760,
-        340
+        360
       ]
     },
     {
       "parameters": {
         "content": "## Build & Check\nMaps the order into a KSeF invoice payload and checks for a buyer NIP.",
-        "height": 380,
+        "height": 510,
         "width": 520,
         "color": 7
       },
@@ -46,13 +46,13 @@
       "typeVersion": 1,
       "position": [
         440,
-        340
+        360
       ]
     },
     {
       "parameters": {
         "content": "## Send & Respond\nSends the invoice to your KSeF Gateway and reports the result back to WooCommerce.",
-        "height": 220,
+        "height": 350,
         "width": 520,
         "color": 7
       },
@@ -62,14 +62,14 @@
       "typeVersion": 1,
       "position": [
         1040,
-        340
+        360
       ]
     },
     {
       "parameters": {
         "content": "## Node setting required\nThis Code node needs `require('crypto')`. Self-hosted n8n: set `NODE_FUNCTION_ALLOW_BUILTIN=crypto` in the n8n environment, then restart.",
-        "height": 160,
-        "width": 260,
+        "height": 220,
+        "width": 300,
         "color": 3
       },
       "id": "sticky-warning",
@@ -78,7 +78,7 @@
       "typeVersion": 1,
       "position": [
         -130,
-        370
+        710
       ]
     },
     {
@@ -96,7 +96,7 @@
       "typeVersion": 2,
       "position": [
         -700,
-        400
+        550
       ],
       "notes": "Raw Body is required so the signature check below sees the exact bytes WooCommerce signed.",
       "onError": "continueRegularOutput"
@@ -160,7 +160,7 @@
       "typeVersion": 3.4,
       "position": [
         -400,
-        400
+        550
       ],
       "notes": "Fill in your KSeF Gateway URL, seller details, and the WooCommerce webhook secret before activating this workflow."
     },
@@ -174,7 +174,7 @@
       "typeVersion": 2,
       "position": [
         -100,
-        400
+        550
       ],
       "notes": "Verifies WooCommerce's base64 HMAC-SHA256 X-WC-Webhook-Signature header and re-parses the raw body for downstream nodes."
     },
@@ -206,7 +206,7 @@
       "typeVersion": 2.2,
       "position": [
         200,
-        400
+        550
       ]
     },
     {
@@ -223,7 +223,7 @@
       "typeVersion": 1.1,
       "position": [
         200,
-        560
+        710
       ],
       "notes": "Dead end: bad or missing signature. Nothing downstream trusts this payload."
     },
@@ -237,7 +237,7 @@
       "typeVersion": 2,
       "position": [
         500,
-        400
+        550
       ]
     },
     {
@@ -268,7 +268,7 @@
       "typeVersion": 2.2,
       "position": [
         800,
-        400
+        550
       ],
       "notes": "IF, not Filter - a Filter node only has one output and silently drops non-matching items, which broke the 'skipped' response path."
     },
@@ -286,7 +286,7 @@
       "typeVersion": 1.1,
       "position": [
         800,
-        560
+        710
       ]
     },
     {
@@ -315,7 +315,7 @@
       "typeVersion": 4.2,
       "position": [
         1100,
-        400
+        550
       ]
     },
     {
@@ -329,7 +329,7 @@
       "typeVersion": 1.1,
       "position": [
         1400,
-        400
+        550
       ]
     }
   ],

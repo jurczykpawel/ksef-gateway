@@ -4,7 +4,7 @@
     {
       "parameters": {
         "content": "## Sprawdzaj KSeF i pobieraj PDF-y nowych otrzymanych faktur\n\n### Jak to działa\nKSeF nie wysyła powiadomień mailem ani webhookiem, więc ten workflow co 20 minut odpytuje Twój self-hostowany [KSeF Gateway](https://github.com/jurczykpawel/ksef-gateway) o faktury wystawione na Ciebie, korzystając z bezstanowego kursora `/ksef/invoices/received/new`. Checkpoint (`nextSince`) żyje we własnych danych statycznych tego workflowa, więc sama bramka nie potrzebuje bazy danych. PDF każdej nowej faktury jest pobierany i zapisywany na dysku; node `Notify (TODO)` oznacza miejsce, gdzie podłączysz Slacka, mail albo Discorda.\n\n### Konfiguracja\n1. Wdróż instancję KSeF Gateway z certyfikatem mającym uprawnienie `InvoiceRead` (tokeny KSeF będą wycofywane - certyfikaty to docelowa ścieżka). Nowy w KSeF albo potrzebujesz certyfikatu? Zobacz [główny README](https://github.com/jurczykpawel/ksef-gateway#certificate-based-auth-alternative-to-tokens).\n2. Otwórz **Configuration (EDIT ME)** i uzupełnij URL bramki, klucz API bramki, NIP oraz folder, w którym mają się zapisywać PDF-y.\n3. Aktywuj workflow. Pierwsze uruchomienie sięga 30 dni wstecz; kolejne pobierają tylko to, co nowe.\n\n### Wskazówki dotyczące personalizacji\nKSeF ogranicza ten endpoint do 20 zapytań/godzinę - nie ustawiaj harmonogramu częściej niż co 15 minut. Zamień **Save PDF To Disk** na node Google Drive, S3 albo Dropbox, jeśli wolisz przechowywać faktury tam.",
-        "height": 380,
+        "height": 720,
         "width": 700,
         "color": 1
       },
@@ -34,7 +34,7 @@
       "typeVersion": 1.2,
       "position": [
         -700,
-        400
+        550
       ],
       "notes": "KSeF caps query/metadata at 20 req/h - don't go below ~15 min per the gateway's own rate limiter."
     },
@@ -76,7 +76,7 @@
       "typeVersion": 3.4,
       "position": [
         -400,
-        400
+        550
       ],
       "notes": "ksefNip must have a certificate with the InvoiceRead permission. ksefInvoicesDir must be writable by n8n."
     },
@@ -90,7 +90,7 @@
       "typeVersion": 2,
       "position": [
         -100,
-        400
+        550
       ],
       "notes": "First run: since=null -> gateway defaults to last 30 days. Later runs: since=last nextSince."
     },
@@ -126,7 +126,7 @@
       "typeVersion": 4.2,
       "position": [
         200,
-        400
+        550
       ],
       "notes": "neverError: true so 429/503/502 come through as normal JSON ({success:false,...}) instead of throwing - handled by the Success? branch below."
     },
@@ -158,7 +158,7 @@
       "typeVersion": 2.2,
       "position": [
         500,
-        400
+        550
       ]
     },
     {
@@ -187,7 +187,7 @@
       "typeVersion": 3.4,
       "position": [
         500,
-        560
+        710
       ],
       "notes": "TODO: Connect to Slack / email / Discord to alert on repeated poll failures.\nCheckpoint is untouched here - the next scheduled run retries the same window."
     },
@@ -201,7 +201,7 @@
       "typeVersion": 2,
       "position": [
         800,
-        400
+        550
       ],
       "notes": "Output: {invoices, hasMore, nextSince}. Runs even when invoices is empty - that's what advances the cursor."
     },
@@ -233,7 +233,7 @@
       "typeVersion": 2.2,
       "position": [
         1100,
-        400
+        550
       ]
     },
     {
@@ -244,7 +244,7 @@
       "typeVersion": 1,
       "position": [
         1100,
-        560
+        710
       ]
     },
     {
@@ -258,7 +258,7 @@
       "typeVersion": 1,
       "position": [
         1400,
-        400
+        550
       ],
       "notes": "Each output item = one ReceivedInvoiceSummary: ksefNumber, invoiceNumber, sellerNip, sellerName, netAmount, grossAmount, vatAmount, currency, issueDate, hasAttachment."
     },
@@ -291,7 +291,7 @@
       "typeVersion": 4.2,
       "position": [
         1700,
-        400
+        550
       ],
       "notes": "Same endpoint works for invoices you sent or received - no separate PDF endpoint for the buyer role."
     },
@@ -308,7 +308,7 @@
       "typeVersion": 1,
       "position": [
         2000,
-        400
+        550
       ],
       "notes": "Writes to disk on the machine running n8n. Swap for a Google Drive / S3 / Dropbox node if you'd rather store invoices there."
     },
@@ -356,14 +356,14 @@
       "typeVersion": 3.4,
       "position": [
         2300,
-        400
+        550
       ],
       "notes": "TODO: Connect Slack / email / Discord here to get notified - the PDF is already saved to disk by the previous node."
     },
     {
       "parameters": {
         "content": "## 1 · Wyzwalacz i konfiguracja\nUruchamia się według harmonogramu i trzyma w jednym miejscu wszystko, co edytujesz — URL bramki, klucz API, NIP sprzedawcy, interwał odpytywania i folder na PDF-y. Zacznij tutaj.",
-        "height": 380,
+        "height": 510,
         "width": 620,
         "color": 7
       },
@@ -373,13 +373,13 @@
       "typeVersion": 1,
       "position": [
         -760,
-        340
+        360
       ]
     },
     {
       "parameters": {
         "content": "## 2 · Odpytaj od punktu kontrolnego\nWczytuje zapisany znacznik i pyta KSeF Gateway o każdą fakturę odebraną po nim. Bezstanowy kursor odpytywania — bez bazy i dodatkowego magazynu.",
-        "height": 380,
+        "height": 510,
         "width": 560,
         "color": 7
       },
@@ -389,13 +389,13 @@
       "typeVersion": 1,
       "position": [
         -120,
-        340
+        360
       ]
     },
     {
       "parameters": {
         "content": "## 3 · Obsłuż błędy odpytywania\nGdy wywołanie bramki się nie powiedzie, zaloguj i zatrzymaj. Punkt kontrolny zostaje nietknięty, więc następne uruchomienie bezpiecznie ponowi to samo okno.",
-        "height": 380,
+        "height": 510,
         "width": 280,
         "color": 7
       },
@@ -405,13 +405,13 @@
       "typeVersion": 1,
       "position": [
         460,
-        340
+        360
       ]
     },
     {
       "parameters": {
         "content": "## 4 · Przesuń znacznik i rozgałęź\nZapisz nowy punkt kontrolny, potem rozgałęź: zakończ czysto, gdy nic nowego nie przyszło, albo kontynuuj, gdy są świeże faktury do pobrania.",
-        "height": 380,
+        "height": 510,
         "width": 580,
         "color": 7
       },
@@ -421,13 +421,13 @@
       "typeVersion": 1,
       "position": [
         760,
-        340
+        360
       ]
     },
     {
       "parameters": {
         "content": "## 5 · Pobierz i zapisz PDF-y\nPodziel partię, pobierz każdy PDF faktury z bramki i zapisz na dysk. Podłącz końcowy krok Notify do Slacka, e-maila lub bazy, aby dostać powiadomienie.",
-        "height": 380,
+        "height": 510,
         "width": 1180,
         "color": 7
       },
@@ -437,7 +437,7 @@
       "typeVersion": 1,
       "position": [
         1360,
-        340
+        360
       ]
     }
   ],

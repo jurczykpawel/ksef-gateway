@@ -4,7 +4,7 @@
     {
       "parameters": {
         "content": "## Poll KSeF for new received invoices and download the PDFs\n\n### How it works\nKSeF has no email or webhook notifications, so this workflow polls your self-hosted [KSeF Gateway](https://github.com/jurczykpawel/ksef-gateway) every 20 minutes for invoices issued to you, using its stateless `/ksef/invoices/received/new` cursor. The checkpoint (`nextSince`) lives in this workflow's own static data, so the gateway itself doesn't need a database. Every new invoice's PDF is downloaded and saved to disk; a `Notify (TODO)` node marks where to plug in Slack, email, or Discord.\n\n### Setup\n1. Deploy a KSeF Gateway instance with a certificate that has the `InvoiceRead` permission (KSeF tokens are being phased out - certificates are the durable path). New to KSeF, or need a certificate? See [the main README](https://github.com/jurczykpawel/ksef-gateway#certificate-based-auth-alternative-to-tokens).\n2. Open **Configuration (EDIT ME)** and fill in your gateway URL, gateway API key, NIP, and the folder where PDFs should be saved.\n3. Activate the workflow. The first run looks back 30 days; later runs only fetch what's new.\n\n### Customization tips\nKSeF caps this endpoint at 20 requests/hour - don't schedule more often than every 15 minutes. Swap **Save PDF To Disk** for a Google Drive, S3, or Dropbox node if you'd rather store invoices there.",
-        "height": 380,
+        "height": 1000,
         "width": 700,
         "color": 1
       },
@@ -34,7 +34,7 @@
       "typeVersion": 1.2,
       "position": [
         -700,
-        400
+        830
       ],
       "notes": "KSeF caps query/metadata at 20 req/h - don't go below ~15 min per the gateway's own rate limiter."
     },
@@ -76,7 +76,7 @@
       "typeVersion": 3.4,
       "position": [
         -400,
-        400
+        830
       ],
       "notes": "ksefNip must have a certificate with the InvoiceRead permission. ksefInvoicesDir must be writable by n8n."
     },
@@ -90,7 +90,7 @@
       "typeVersion": 2,
       "position": [
         -100,
-        400
+        830
       ],
       "notes": "First run: since=null -> gateway defaults to last 30 days. Later runs: since=last nextSince."
     },
@@ -126,7 +126,7 @@
       "typeVersion": 4.2,
       "position": [
         200,
-        400
+        830
       ],
       "notes": "neverError: true so 429/503/502 come through as normal JSON ({success:false,...}) instead of throwing - handled by the Success? branch below."
     },
@@ -158,7 +158,7 @@
       "typeVersion": 2.2,
       "position": [
         500,
-        400
+        830
       ]
     },
     {
@@ -187,7 +187,7 @@
       "typeVersion": 3.4,
       "position": [
         500,
-        560
+        990
       ],
       "notes": "TODO: Connect to Slack / email / Discord to alert on repeated poll failures.\nCheckpoint is untouched here - the next scheduled run retries the same window."
     },
@@ -201,7 +201,7 @@
       "typeVersion": 2,
       "position": [
         800,
-        400
+        830
       ],
       "notes": "Output: {invoices, hasMore, nextSince}. Runs even when invoices is empty - that's what advances the cursor."
     },
@@ -233,7 +233,7 @@
       "typeVersion": 2.2,
       "position": [
         1100,
-        400
+        830
       ]
     },
     {
@@ -244,7 +244,7 @@
       "typeVersion": 1,
       "position": [
         1100,
-        560
+        990
       ]
     },
     {
@@ -258,7 +258,7 @@
       "typeVersion": 1,
       "position": [
         1400,
-        400
+        830
       ],
       "notes": "Each output item = one ReceivedInvoiceSummary: ksefNumber, invoiceNumber, sellerNip, sellerName, netAmount, grossAmount, vatAmount, currency, issueDate, hasAttachment."
     },
@@ -291,7 +291,7 @@
       "typeVersion": 4.2,
       "position": [
         1700,
-        400
+        830
       ],
       "notes": "Same endpoint works for invoices you sent or received - no separate PDF endpoint for the buyer role."
     },
@@ -308,7 +308,7 @@
       "typeVersion": 1,
       "position": [
         2000,
-        400
+        830
       ],
       "notes": "Writes to disk on the machine running n8n. Swap for a Google Drive / S3 / Dropbox node if you'd rather store invoices there."
     },
@@ -356,7 +356,7 @@
       "typeVersion": 3.4,
       "position": [
         2300,
-        400
+        830
       ],
       "notes": "TODO: Connect Slack / email / Discord here to get notified - the PDF is already saved to disk by the previous node."
     },
@@ -373,7 +373,7 @@
       "typeVersion": 1,
       "position": [
         -760,
-        210
+        640
       ]
     },
     {
@@ -389,7 +389,7 @@
       "typeVersion": 1,
       "position": [
         -120,
-        210
+        640
       ]
     },
     {
@@ -405,7 +405,7 @@
       "typeVersion": 1,
       "position": [
         460,
-        210
+        640
       ]
     },
     {
@@ -421,7 +421,7 @@
       "typeVersion": 1,
       "position": [
         760,
-        210
+        640
       ]
     },
     {
@@ -437,7 +437,7 @@
       "typeVersion": 1,
       "position": [
         1360,
-        210
+        640
       ]
     }
   ],

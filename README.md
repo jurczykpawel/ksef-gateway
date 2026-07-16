@@ -984,6 +984,13 @@ Wkład mile widziany! Zobacz [CONTRIBUTING.md](CONTRIBUTING.md) po szczegóły.
 
 ---
 
+## Wsparcie
+
+KSeF Gateway jest darmowy i open source. Jeśli zaoszczędził Ci setki godzin czytania
+dokumentacji Ministerstwa — możesz postawić mi kawę:
+
+[![☕ Postaw mi kawę](https://img.shields.io/badge/☕_Postaw_mi_kawę-FFDD00)](https://sellf.techskills.academy/checkout/tip-ksef-gateway?utm_source=github&utm_medium=readme&utm_campaign=tip-jar)
+
 ## Licencja
 
 AGPL-3.0 - zobacz [LICENSE](LICENSE)

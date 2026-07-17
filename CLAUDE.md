@@ -70,9 +70,3 @@ Note: `ksef-api`'s runtime image has no SDK and a fixed `ENTRYPOINT`, so it can'
 - `pdf-service` uses xml-js for bidirectional JSON/XML conversion and CIRFMF lib for PDF rendering
 - QR codes use SHA-256 hash of KSeF-canonical XML + P_1 date + seller NIP
 
-## Git workflow
-- **main**: stable releases only, tagged (v0.1.0, ...)
-- **dev**: active development, feature branches merge here
-- Feature branches: `feat/feature-name`, `fix/bug-name`
-- Merge: `--no-ff` with descriptive commit message
-- Never commit directly to main

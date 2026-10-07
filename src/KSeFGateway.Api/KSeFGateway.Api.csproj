@@ -16,7 +16,7 @@
     <PackageReference Include="Scalar.AspNetCore" Version="2.*" />
 
     <!-- AWS Lambda hosting (no-op when not running on Lambda) -->
-    <PackageReference Include="Amazon.Lambda.AspNetCoreServer.Hosting" Version="1.10.0" />
+    <PackageReference Include="Amazon.Lambda.AspNetCoreServer.Hosting" Version="2.2.1" />
   </ItemGroup>
 
 </Project>

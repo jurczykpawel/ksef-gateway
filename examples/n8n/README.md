@@ -18,28 +18,32 @@ For finding out what's been issued *to* you - KSeF has no email/webhook notifica
 ### What it does
 
 1. Runs on a schedule (every 20 minutes by default)
-2. Reads the last checkpoint from the workflow's own static data (starts from "now" on first run)
-3. Calls `GET /ksef/invoices/received/new?since=<checkpoint>`
-4. Saves the new `nextSince` checkpoint - only on a successful poll (a failed/rate-limited one leaves the checkpoint untouched, so nothing gets silently skipped), regardless of whether any invoices actually came back
-5. For each new invoice, downloads its PDF (`GET /ksef/invoice/{ksefNumber}/pdf`) and saves it to disk
-6. Leaves a `Notify (TODO)` node where you wire up Slack, email, or Discord
+2. **Wakes the services** - calls `/health` on the gateway (and the PDF service) and retries every 30 s, up to 8 times. Only matters on Render's free tier, where services sleep after ~15 minutes and the first request gets an error page; elsewhere it passes straight through
+3. Reads the last checkpoint from the workflow's own static data (first run: the gateway returns the last 30 days)
+4. Calls `GET /ksef/invoices/received/new?since=<checkpoint>`
+5. *Remembers* the new `nextSince` - it is only **committed after the PDFs are downloaded, saved and notified** (or immediately when nothing new came back). A failed poll or a failure midway leaves the checkpoint untouched, so nothing is skipped; the same window is retried (at-least-once: a notification can repeat after a failed run, an invoice is never lost)
+6. For each new invoice, downloads its PDF (`GET /ksef/invoice/{ksefNumber}/pdf`, one at a time - the gateway allows 16 `invoices/get` per minute) and saves it to disk
+7. Leaves a `Notify (TODO)` node where you wire up Slack, email, or Discord
+8. After 6 failed polls in a row (~2 h) the run fails on purpose - set an **Error Workflow** in the workflow settings to get alerted
 
 ### Setup
 
 1. **Import workflow** - n8n → Workflows → Import from File → select `receive-invoices.json` (or the `-PL` variant)
-2. **Edit the "Configuration (EDIT ME)" node**:
+2. **Create a credential** - *Header Auth*, name `X-Api-Key`, value = your gateway's `GATEWAY_API_KEY` (see [Security](../../README.md#security) in the main README). Select it on the three HTTP Request nodes (`Get New Invoices`, `Download Invoice PDF`; the `Wake` nodes need no key). The key is deliberately **not** stored in the workflow JSON
+3. **Edit the "Configuration (EDIT ME)" node**:
    - `ksefGatewayUrl` - your KSeF Gateway base URL
-   - `gatewayApiKey` - your gateway's `GATEWAY_API_KEY` (sent as `X-Api-Key` - see [Security](../../README.md#security) in the main README)
    - `ksefNip` - the NIP whose inbox to poll (sent as `X-KSeF-NIP`)
-   - `ksefInvoicesDir` - where to save downloaded PDFs on the n8n host
-3. **Wire up notifications** - replace the `Notify (TODO)` node with a Slack/Email/Discord node of your choice
-4. **Activate the workflow** in n8n
+   - `ksefInvoicesDir` - where to save downloaded PDFs on the n8n host. The folder must **exist**, be writable by the n8n user, and lie inside n8n's allowed file path (default `~/.n8n-files`, controlled by `N8N_RESTRICT_FILE_ACCESS_TO`) - otherwise `Save PDF To Disk` fails with *Access to the file is not allowed*. The default value assumes the official Docker image (`/home/node/.n8n-files/ksef-invoices`; create it first)
+   - `pdfServiceUrl` - only on Render's free tier: the public URL of the PDF service (e.g. `https://your-pdf.onrender.com`). Leave empty elsewhere
+4. **Wire up notifications** - replace the `Notify (TODO)` node with a Slack/Email/Discord node of your choice
+5. **Activate the workflow** in n8n. Static data is only saved in production runs (triggered by the schedule) - a manual test run does **not** move the checkpoint, so every test fetches the last 30 days again
 
 ### Customization
 
 - **Poll interval** - default 20 minutes, matches KSeF's own rate-limit guidance (don't go below ~15 min - `query/metadata` is capped at 20 requests/hour)
-- **Checkpoint storage** - uses n8n's workflow static data; move it to a database node if you run multiple n8n instances without shared storage
-- **Multi-NIP** - duplicate the workflow per NIP, or extend the Configuration node into a loop over several NIPs
+- **Checkpoint storage** - uses n8n's workflow static data (scope `global` - the `node` scope is private to the node that wrote it and would never be read back); move it to a database node if you run multiple n8n instances without shared storage
+- **Render free tier** - the wake loop above is enough for a poller. You do **not** need `render-keepalive.json` for this: keeping a service awake 24/7 eats the shared 750 h/month (see below)
+- **Multi-NIP** - duplicate the workflow per NIP, or extend the Configuration node into a loop over several NIPs (the gateway needs a [multi-NIP license](../../README.en.md#multi-nip-licensing) for more than one)
 
 ## WooCommerce → KSeF
 

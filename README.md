@@ -827,7 +827,7 @@ Jeden NIP jest darmowy, zawsze - żadnej licencji, żadnego limitu czasowego. Pr
 
 Ustaw klucz licencji jako `GATEWAY_LICENSE`. Weryfikacja jest w pełni offline (sprawdzenie podpisu ECDSA wobec zbuforowanego klucza publicznego) - token licencji nigdy nie opuszcza Twojego serwera, a chwilowa awaria sieci nie blokuje Ci dostępu (patrz niżej).
 
-Jeśli `contexts.json` konfiguruje więcej NIP-ów niż pozwala Twoja licencja, usługa nie odmawia startu - aktywuje pierwsze `N` (Twój domyślny NIP jest zawsze zachowany, nawet jeśli nie był pierwszy w pliku) i loguje wyraźne ostrzeżenie, wymieniając które zostały pominięte. Sprawdź `GET /ksef/status` po `license: {licensed, maxNips, activeNips, email, expiresAt}` (`email` jest tylko dla Twojej własnej informacji - do jakiego zakupu należy ta licencja - nie jest sprawdzane wobec niczego).
+Jeśli `contexts.json` konfiguruje więcej NIP-ów niż pozwala Twoja licencja, usługa nie odmawia startu - aktywuje pierwsze `N` (Twój domyślny NIP jest zawsze zachowany, nawet jeśli nie był pierwszy w pliku) i loguje wyraźne ostrzeżenie, wymieniając które zostały pominięte. Sprawdź `GET /ksef/status` po `license: {licensed, maxNips, activeNips, email, expiresAt}` (`email` jest tylko dla Twojej własnej informacji - do jakiego zakupu należy ta licencja - nie jest sprawdzane wobec niczego). Brama weryfikuje podpis, nazwę produktu, datę wygaśnięcia i listę unieważnionych - domena zapisana na licencji **nie** jest sprawdzana. Zmiana `GATEWAY_LICENSE` na Renderze wymaga nowego **deployu**: samo zapisanie zmiennej (albo zwykły restart) jej nie wczytuje.
 
 | Sytuacja | Zachowanie |
 |---|---|

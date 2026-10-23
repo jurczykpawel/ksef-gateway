@@ -1,5 +1,17 @@
 # Changelog
 
+## [Unreleased]
+
+### Fixed
+
+- `examples/n8n/receive-invoices*.json`: the checkpoint was never read back - `Get Checkpoint` and `Save Checkpoint` used the `node` static-data scope, which is private to each node, so every run re-fetched the last 30 days. Now uses the `global` scope
+- `examples/n8n/receive-invoices*.json`: the checkpoint is committed only after the PDFs were downloaded, saved and notified (a failure midway used to skip the batch); timeouts/retries on the HTTP nodes; PDFs downloaded one at a time (the gateway rate-limits `invoices/get`); the gateway API key is a Header Auth credential instead of plain text in the workflow
+
+### Added
+
+- `examples/n8n/receive-invoices*.json`: wake loop for Render's free tier (`/health` of the gateway and the PDF service, 30 s retries), optional `pdfServiceUrl`; fails on purpose after 6 polls in a row so an Error Workflow can alert you
+- Docs: license verification details (domain not checked) and that a `GATEWAY_LICENSE` change on Render needs a deploy
+
 ## [0.2.0] - 2026-07-01
 
 ### Added

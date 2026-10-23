@@ -3,8 +3,8 @@
   "nodes": [
     {
       "parameters": {
-        "content": "## Sprawdzaj KSeF i pobieraj PDF-y nowych otrzymanych faktur\n\n### Jak to działa\nKSeF nie wysyła powiadomień mailem ani webhookiem, więc ten workflow co 20 minut odpytuje Twój self-hostowany [KSeF Gateway](https://github.com/jurczykpawel/ksef-gateway) o faktury wystawione na Ciebie, korzystając z bezstanowego kursora `/ksef/invoices/received/new`. Checkpoint (`nextSince`) żyje we własnych danych statycznych tego workflowa, więc sama bramka nie potrzebuje bazy danych. PDF każdej nowej faktury jest pobierany i zapisywany na dysku; node `Notify (TODO)` oznacza miejsce, gdzie podłączysz Slacka, mail albo Discorda.\n\n### Konfiguracja\n1. Wdróż instancję KSeF Gateway z certyfikatem mającym uprawnienie `InvoiceRead` (tokeny KSeF będą wycofywane - certyfikaty to docelowa ścieżka). Nowy w KSeF albo potrzebujesz certyfikatu? Zobacz [główny README](https://github.com/jurczykpawel/ksef-gateway#certificate-based-auth-alternative-to-tokens).\n2. Otwórz **Configuration (EDIT ME)** i uzupełnij URL bramki, klucz API bramki, NIP oraz folder, w którym mają się zapisywać PDF-y.\n3. Aktywuj workflow. Pierwsze uruchomienie sięga 30 dni wstecz; kolejne pobierają tylko to, co nowe.\n\n### Wskazówki dotyczące personalizacji\nKSeF ogranicza ten endpoint do 20 zapytań/godzinę - nie ustawiaj harmonogramu częściej niż co 15 minut. Zamień **Save PDF To Disk** na node Google Drive, S3 albo Dropbox, jeśli wolisz przechowywać faktury tam.",
-        "height": 720,
+        "content": "## Sprawdzaj KSeF i pobieraj PDF-y nowych otrzymanych faktur\n\n### Jak to działa\nKSeF nie wysyła powiadomień mailem ani webhookiem, więc ten workflow co 20 minut odpytuje Twój self-hostowany [KSeF Gateway](https://github.com/jurczykpawel/ksef-gateway) o faktury wystawione na Ciebie, korzystając z bezstanowego kursora `/ksef/invoices/received/new`. Punkt kontrolny (`nextSince`) żyje we własnych danych statycznych tego workflowa (zakres `global`), więc sama bramka nie potrzebuje bazy danych. Punkt kontrolny przesuwa się dopiero po pobraniu i zapisaniu wszystkich PDF-ów z partii; jeśli przebieg padnie w połowie, całe okno jest ponawiane (co najmniej raz: powiadomienie może się powtórzyć, faktura nigdy nie zostanie pominięta). Node `Notify (TODO)` oznacza miejsce, gdzie podłączysz Slacka, mail albo Discorda.\n\n### Konfiguracja\n1. Wdróż instancję KSeF Gateway z certyfikatem mającym uprawnienie `InvoiceRead` (tokeny KSeF będą wycofywane - certyfikaty to docelowa ścieżka). Nowy w KSeF albo potrzebujesz certyfikatu? Zobacz [główny README](https://github.com/jurczykpawel/ksef-gateway#certificate-based-auth-alternative-to-tokens).\n2. Otwórz **Configuration (EDIT ME)** i uzupełnij adres bramki, NIP, folder na PDF-y oraz - na darmowym Renderze - adres serwisu PDF. Potem wybierz credential **Header Auth** (nazwa `X-Api-Key`, wartość = Twój `GATEWAY_API_KEY`) w trzech węzłach HTTP Request.\n3. **Aktywuj** workflow. Dane statyczne zapisują się tylko w uruchomieniach produkcyjnych, więc ręczny test nie przesuwa punktu kontrolnego. Pierwsze uruchomienie sięga 30 dni wstecz; kolejne pobierają tylko nowe.\n\n### Wskazówki\nKSeF ogranicza ten endpoint do 20 zapytań/godz. - nie planuj częściej niż co 15 minut. Zamień **Save PDF To Disk** na Google Drive, S3 albo Dropbox, jeśli wolisz inne miejsce. Ustaw **Error Workflow** w ustawieniach workflowa, żeby dostać alert, gdy bramka ciągle zawodzi.",
+        "height": 760,
         "width": 700,
         "color": 1
       },
@@ -18,6 +18,14 @@
       ]
     },
     {
+      "id": "sched-1",
+      "name": "Poll Every 20 Minutes",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        -700,
+        550
+      ],
       "parameters": {
         "rule": {
           "interval": [
@@ -28,14 +36,6 @@
           ]
         }
       },
-      "id": "sched-1",
-      "name": "Poll Every 20 Minutes",
-      "type": "n8n-nodes-base.scheduleTrigger",
-      "typeVersion": 1.2,
-      "position": [
-        -700,
-        550
-      ],
       "notes": "KSeF caps query/metadata at 20 req/h - don't go below ~15 min per the gateway's own rate limiter."
     },
     {
@@ -57,13 +57,13 @@
             {
               "id": "a3",
               "name": "ksefInvoicesDir",
-              "value": "/data/ksef-invoices",
+              "value": "/home/node/.n8n-files/ksef-invoices",
               "type": "string"
             },
             {
-              "id": "a4",
-              "name": "gatewayApiKey",
-              "value": "your-gateway-api-key",
+              "id": "a5",
+              "name": "pdfServiceUrl",
+              "value": "",
               "type": "string"
             }
           ]
@@ -78,41 +78,22 @@
         -400,
         550
       ],
-      "notes": "ksefNip must have a certificate with the InvoiceRead permission. ksefInvoicesDir must be writable by n8n."
+      "notes": "ksefNip must have a certificate with the InvoiceRead permission. ksefInvoicesDir must exist, be writable by n8n AND lie inside n8n's allowed file path (default ~/.n8n-files, see N8N_RESTRICT_FILE_ACCESS_TO) - otherwise 'Save PDF To Disk' fails with 'Access to the file is not allowed'. pdfServiceUrl: only for Render's free tier (public URL of the PDF service, e.g. https://xxx.onrender.com) - leave empty elsewhere. The gateway API key is NOT stored here - pick a Header Auth credential on the HTTP Request nodes."
     },
     {
-      "parameters": {
-        "jsCode": "// Stateless gateway, stateful workflow: the checkpoint lives in this node's static data.\nconst staticData = $getWorkflowStaticData('node');\n\nreturn [{ json: { since: staticData.lastSince || null } }];"
-      },
-      "id": "code-1",
-      "name": "Get Checkpoint",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
+      "id": "http-wake",
+      "name": "Wake Gateway",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
       "position": [
-        -100,
+        -130,
         550
       ],
-      "notes": "First run: since=null -> gateway defaults to last 30 days. Later runs: since=last nextSince."
-    },
-    {
       "parameters": {
         "method": "GET",
-        "url": "={{ $json.since ? $('Configuration (EDIT ME)').item.json.ksefGatewayUrl + '/ksef/invoices/received/new?since=' + encodeURIComponent($json.since) : $('Configuration (EDIT ME)').item.json.ksefGatewayUrl + '/ksef/invoices/received/new' }}",
-        "sendHeaders": true,
-        "headerParameters": {
-          "parameters": [
-            {
-              "name": "X-KSeF-NIP",
-              "value": "={{ $('Configuration (EDIT ME)').item.json.ksefNip }}"
-            },
-            {
-              "name": "X-Api-Key",
-              "value": "={{ $('Configuration (EDIT ME)').item.json.gatewayApiKey }}"
-            }
-          ]
-        },
+        "url": "={{ $('Configuration (EDIT ME)').first().json.ksefGatewayUrl + '/health' }}",
         "options": {
-          "timeout": 30000,
+          "timeout": 60000,
           "response": {
             "response": {
               "neverError": true
@@ -120,15 +101,131 @@
           }
         }
       },
+      "notes": "GET /health needs no API key. neverError so a 503 / error page during cold start is just 'not ready yet'."
+    },
+    {
+      "id": "http-wake-pdf",
+      "name": "Wake PDF Service",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        60,
+        550
+      ],
+      "parameters": {
+        "method": "GET",
+        "url": "={{ $('Configuration (EDIT ME)').first().json.pdfServiceUrl ? $('Configuration (EDIT ME)').first().json.pdfServiceUrl + '/health' : $('Configuration (EDIT ME)').first().json.ksefGatewayUrl + '/health' }}",
+        "options": {
+          "timeout": 60000,
+          "response": {
+            "response": {
+              "neverError": true
+            }
+          }
+        }
+      },
+      "notes": "With pdfServiceUrl empty this just calls the gateway /health again (harmless)."
+    },
+    {
+      "id": "if-wake",
+      "name": "Gateway Ready?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        250,
+        550
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose"
+          },
+          "combinator": "and",
+          "conditions": [
+            {
+              "id": "c1",
+              "leftValue": "={{ ($('Wake Gateway').item.json.status === 'ok' && $json.status === 'ok') || $runIndex >= 8 }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ]
+        },
+        "options": {}
+      },
+      "notes": "Passes when both services answer {status: ok}, or after 8 tries (then the poll below decides)."
+    },
+    {
+      "id": "wait-wake",
+      "name": "Wait 30 s",
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        250,
+        740
+      ],
+      "parameters": {
+        "resume": "timeInterval",
+        "amount": 30,
+        "unit": "seconds"
+      }
+    },
+    {
+      "id": "code-1",
+      "name": "Get Checkpoint",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        550,
+        550
+      ],
+      "parameters": {
+        "jsCode": "// Stateless gateway, stateful workflow: the checkpoint lives in the workflow's static data.\n// Scope 'global' on purpose - 'node' data is private to the node that wrote it.\nconst sd = $getWorkflowStaticData('global');\n\nreturn [{ json: { since: sd.since || null } }];"
+      },
+      "notes": "First run: since=null -> gateway defaults to last 30 days. Later runs: since=last committed nextSince. Scope is 'global' on purpose: 'node' static data is private to the node that wrote it, so Get Checkpoint would never see what Remember Checkpoint stored."
+    },
+    {
       "id": "http-1",
       "name": "Get New Invoices",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        200,
+        850,
         550
       ],
-      "notes": "neverError: true so 429/503/502 come through as normal JSON ({success:false,...}) instead of throwing - handled by the Success? branch below."
+      "parameters": {
+        "method": "GET",
+        "url": "={{ $json.since ? $('Configuration (EDIT ME)').item.json.ksefGatewayUrl + '/ksef/invoices/received/new?since=' + encodeURIComponent($json.since) : $('Configuration (EDIT ME)').item.json.ksefGatewayUrl + '/ksef/invoices/received/new' }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "X-KSeF-NIP",
+              "value": "={{ $('Configuration (EDIT ME)').item.json.ksefNip }}"
+            }
+          ]
+        },
+        "options": {
+          "timeout": 90000,
+          "response": {
+            "response": {
+              "neverError": true
+            }
+          }
+        }
+      },
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 5000,
+      "onError": "continueRegularOutput",
+      "notes": "neverError: true so 429/502/503 come through as normal JSON ({success:false,...}) instead of throwing - handled by the Success? branch below. Retries cover plain timeouts."
     },
     {
       "parameters": {
@@ -157,53 +254,37 @@
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.2,
       "position": [
-        500,
+        1150,
         550
       ]
     },
     {
-      "parameters": {
-        "assignments": {
-          "assignments": [
-            {
-              "id": "error",
-              "name": "error",
-              "value": "={{ $json.error || 'Unexpected response: ' + JSON.stringify($json) }}",
-              "type": "string"
-            },
-            {
-              "id": "sinceUsed",
-              "name": "sinceUsed",
-              "value": "={{ $('Get Checkpoint').item.json.since }}",
-              "type": "string"
-            }
-          ]
-        },
-        "options": {}
-      },
-      "id": "set-1",
-      "name": "Log Poll Error",
-      "type": "n8n-nodes-base.set",
-      "typeVersion": 3.4,
-      "position": [
-        500,
-        710
-      ],
-      "notes": "TODO: Connect to Slack / email / Discord to alert on repeated poll failures.\nCheckpoint is untouched here - the next scheduled run retries the same window."
-    },
-    {
-      "parameters": {
-        "jsCode": "// Move the checkpoint forward ONLY on a successful poll - keeps a failed/rate-limited\n// poll from silently skipping the invoices that would have been in that window.\nconst staticData = $getWorkflowStaticData('node');\nconst data = $input.first().json.data;\n\nstaticData.lastSince = data.nextSince;\n\nreturn [{ json: data }];"
-      },
-      "id": "code-2",
-      "name": "Save Checkpoint",
+      "id": "code-err",
+      "name": "Count Poll Failure",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        800,
+        1150,
+        710
+      ],
+      "parameters": {
+        "jsCode": "// Failed poll: checkpoint stays as is, the next run retries the same window.\n// A few failures (cold start, rate limit) are normal; 6 in a row (~2 h) fail the run on purpose\n// so an Error Workflow (workflow settings) can alert you.\nconst sd = $getWorkflowStaticData('global');\nsd.fails = (sd.fails || 0) + 1;\nif (sd.fails >= 6 && sd.fails % 6 === 0) {\n  throw new Error(`KSeF Gateway failed ${sd.fails} polls in a row: ` + JSON.stringify($input.first().json).slice(0, 300));\n}\nreturn [];"
+      },
+      "notes": "Checkpoint is untouched here - the next scheduled run retries the same window. Throws after 6 failures in a row so an Error Workflow (workflow settings) can alert you."
+    },
+    {
+      "id": "code-2",
+      "name": "Remember Checkpoint",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1450,
         550
       ],
-      "notes": "Output: {invoices, hasMore, nextSince}. Runs even when invoices is empty - that's what advances the cursor."
+      "parameters": {
+        "jsCode": "// The new checkpoint is only REMEMBERED (pending) here and committed after delivery,\n// so a failure midway doesn't skip invoices - the next run takes the same window.\nconst sd = $getWorkflowStaticData('global');\nconst data = $input.first().json.data;\n\nsd.pending = data.nextSince;\nsd.fails = 0;\n\nreturn [{ json: data }];"
+      },
+      "notes": "Output: {invoices, hasMore, nextSince}. The new checkpoint is only remembered (pending) here; it is committed after the PDFs are saved (or immediately when there is nothing to send)."
     },
     {
       "parameters": {
@@ -232,20 +313,23 @@
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.2,
       "position": [
-        1100,
+        1750,
         550
       ]
     },
     {
-      "parameters": {},
-      "id": "noop-1",
+      "id": "code-none",
       "name": "No New Invoices",
-      "type": "n8n-nodes-base.noOp",
-      "typeVersion": 1,
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
       "position": [
-        1100,
+        1750,
         710
-      ]
+      ],
+      "parameters": {
+        "jsCode": "// Nothing new: commit the remembered checkpoint and finish.\nconst sd = $getWorkflowStaticData('global');\nif (sd.pending) sd.since = sd.pending;\nreturn [{ json: { since: sd.since } }];"
+      },
+      "notes": "Nothing new: commit the remembered checkpoint and finish."
     },
     {
       "parameters": {
@@ -257,43 +341,54 @@
       "type": "n8n-nodes-base.splitOut",
       "typeVersion": 1,
       "position": [
-        1400,
+        2050,
         550
       ],
       "notes": "Each output item = one ReceivedInvoiceSummary: ksefNumber, invoiceNumber, sellerNip, sellerName, netAmount, grossAmount, vatAmount, currency, issueDate, hasAttachment."
     },
     {
+      "id": "http-2",
+      "name": "Download Invoice PDF",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        2350,
+        550
+      ],
       "parameters": {
         "method": "GET",
         "url": "={{ $('Configuration (EDIT ME)').item.json.ksefGatewayUrl + '/ksef/invoice/' + $json.ksefNumber + '/pdf' }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "X-KSeF-NIP",
+              "value": "={{ $('Configuration (EDIT ME)').item.json.ksefNip }}"
+            }
+          ]
+        },
         "options": {
-          "timeout": 30000,
+          "timeout": 90000,
+          "batching": {
+            "batch": {
+              "batchSize": 1,
+              "batchInterval": 4000
+            }
+          },
           "response": {
             "response": {
               "responseFormat": "file",
               "outputPropertyName": "data"
             }
           }
-        },
-        "sendHeaders": true,
-        "headerParameters": {
-          "parameters": [
-            {
-              "name": "X-Api-Key",
-              "value": "={{ $('Configuration (EDIT ME)').item.json.gatewayApiKey }}"
-            }
-          ]
         }
       },
-      "id": "http-2",
-      "name": "Download Invoice PDF",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.2,
-      "position": [
-        1700,
-        550
-      ],
-      "notes": "Same endpoint works for invoices you sent or received - no separate PDF endpoint for the buyer role."
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 15000,
+      "notes": "Same endpoint works for invoices you sent or received - no separate PDF endpoint for the buyer role. One request at a time (the gateway allows 16 invoices/get per minute); retries survive a PDF service cold start."
     },
     {
       "parameters": {
@@ -307,7 +402,7 @@
       "type": "n8n-nodes-base.readWriteFile",
       "typeVersion": 1,
       "position": [
-        2000,
+        2650,
         550
       ],
       "notes": "Writes to disk on the machine running n8n. Swap for a Google Drive / S3 / Dropbox node if you'd rather store invoices there."
@@ -355,18 +450,26 @@
       "type": "n8n-nodes-base.set",
       "typeVersion": 3.4,
       "position": [
-        2300,
+        2950,
         550
       ],
       "notes": "TODO: Connect Slack / email / Discord here to get notified - the PDF is already saved to disk by the previous node."
     },
     {
+      "id": "code-commit",
+      "name": "Commit Checkpoint",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3250,
+        550
+      ],
       "parameters": {
-        "content": "## 1 · Wyzwalacz i konfiguracja\nUruchamia się według harmonogramu i trzyma w jednym miejscu wszystko, co edytujesz — URL bramki, klucz API, NIP sprzedawcy, interwał odpytywania i folder na PDF-y. Zacznij tutaj.",
-        "height": 510,
-        "width": 620,
-        "color": 7
+        "jsCode": "// The whole batch is saved and notified: move the checkpoint.\nconst sd = $getWorkflowStaticData('global');\nif (sd.pending) sd.since = sd.pending;\nreturn [{ json: { since: sd.since } }];"
       },
+      "notes": "Runs once the whole batch is saved and notified and commits the checkpoint. If anything above failed, this is skipped and the next run retries the same window."
+    },
+    {
       "id": "sticky-section-1",
       "name": "Section: Trigger & Config",
       "type": "n8n-nodes-base.stickyNote",
@@ -374,71 +477,93 @@
       "position": [
         -760,
         360
-      ]
+      ],
+      "parameters": {
+        "content": "## 1 · Wyzwalacz i konfiguracja\nUruchamia się według harmonogramu i trzyma w jednym miejscu wszystko, co edytujesz - adres bramki, NIP sprzedawcy, opcjonalny adres serwisu PDF i folder na PDF-y. Zacznij tutaj.",
+        "height": 510,
+        "width": 620,
+        "color": 7
+      }
     },
     {
+      "id": "sticky-section-1b",
+      "name": "Section: Wake Services",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -160,
+        360
+      ],
       "parameters": {
-        "content": "## 2 · Odpytaj od punktu kontrolnego\nWczytuje zapisany znacznik i pyta KSeF Gateway o każdą fakturę odebraną po nim. Bezstanowy kursor odpytywania — bez bazy i dodatkowego magazynu.",
+        "content": "## 2 · Obudź usługi\nDarmowy Render usypia usługi po ~15 minutach, a pierwsze zapytanie dostaje wtedy stronę błędu przez nawet minutę. Ta pętla woła `/health` (bramka i serwis PDF) i ponawia co 30 s, maksymalnie 8 razy, zanim zacznie odpytywać. Na hostingu bez usypiania przechodzi od razu.",
         "height": 510,
-        "width": 560,
+        "width": 640,
         "color": 7
-      },
+      }
+    },
+    {
       "id": "sticky-section-2",
       "name": "Section: Poll Since Checkpoint",
       "type": "n8n-nodes-base.stickyNote",
       "typeVersion": 1,
       "position": [
-        -120,
+        510,
         360
-      ]
+      ],
+      "parameters": {
+        "content": "## 3 · Odpytaj od punktu kontrolnego\nWczytuje zapisany znacznik i pyta KSeF Gateway o każdą fakturę odebraną po nim. Bezstanowy kursor odpytywania - bez bazy i dodatkowego magazynu.",
+        "height": 510,
+        "width": 580,
+        "color": 7
+      }
     },
     {
-      "parameters": {
-        "content": "## 3 · Obsłuż błędy odpytywania\nGdy wywołanie bramki się nie powiedzie, zaloguj i zatrzymaj. Punkt kontrolny zostaje nietknięty, więc następne uruchomienie bezpiecznie ponowi to samo okno.",
-        "height": 510,
-        "width": 280,
-        "color": 7
-      },
       "id": "sticky-section-3",
       "name": "Section: Handle Poll Errors",
       "type": "n8n-nodes-base.stickyNote",
       "typeVersion": 1,
       "position": [
-        460,
+        1110,
         360
-      ]
+      ],
+      "parameters": {
+        "content": "## 4 · Obsłuż błędy odpytywania\nGdy wywołanie bramki się nie powiedzie, policz błąd i zatrzymaj. Punkt kontrolny zostaje nietknięty, więc następne uruchomienie ponowi to samo okno. Po 6 błędach z rzędu (~2 h) przebieg celowo kończy się błędem, żeby Error Workflow mógł Cię powiadomić.",
+        "height": 510,
+        "width": 280,
+        "color": 7
+      }
     },
     {
-      "parameters": {
-        "content": "## 4 · Przesuń znacznik i rozgałęź\nZapisz nowy punkt kontrolny, potem rozgałęź: zakończ czysto, gdy nic nowego nie przyszło, albo kontynuuj, gdy są świeże faktury do pobrania.",
-        "height": 510,
-        "width": 580,
-        "color": 7
-      },
       "id": "sticky-section-4",
       "name": "Section: Advance & Gate",
       "type": "n8n-nodes-base.stickyNote",
       "typeVersion": 1,
       "position": [
-        760,
+        1410,
         360
-      ]
+      ],
+      "parameters": {
+        "content": "## 5 · Zapamiętaj i rozgałęź\nZapamiętaj nowy punkt kontrolny (zatwierdzany dopiero po dostarczeniu), potem rozgałęź: zatwierdź i zakończ, gdy nic nowego nie przyszło, albo kontynuuj, gdy są świeże faktury.",
+        "height": 510,
+        "width": 580,
+        "color": 7
+      }
     },
     {
-      "parameters": {
-        "content": "## 5 · Pobierz i zapisz PDF-y\nPodziel partię, pobierz każdy PDF faktury z bramki i zapisz na dysk. Podłącz końcowy krok Notify do Slacka, e-maila lub bazy, aby dostać powiadomienie.",
-        "height": 510,
-        "width": 1180,
-        "color": 7
-      },
       "id": "sticky-section-5",
       "name": "Section: Download & Save PDFs",
       "type": "n8n-nodes-base.stickyNote",
       "typeVersion": 1,
       "position": [
-        1360,
+        2010,
         360
-      ]
+      ],
+      "parameters": {
+        "content": "## 6 · Pobierz, zapisz i zatwierdź\nPodziel partię, pobierz każdy PDF (po jednym - bramka limituje `invoices/get`), zapisz, powiadom i dopiero wtedy zatwierdź punkt kontrolny.",
+        "height": 510,
+        "width": 1500,
+        "color": 7
+      }
     }
   ],
   "connections": {
@@ -457,7 +582,58 @@
       "main": [
         [
           {
+            "node": "Wake Gateway",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wake Gateway": {
+      "main": [
+        [
+          {
+            "node": "Wake PDF Service",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wake PDF Service": {
+      "main": [
+        [
+          {
+            "node": "Gateway Ready?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Gateway Ready?": {
+      "main": [
+        [
+          {
             "node": "Get Checkpoint",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Wait 30 s",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wait 30 s": {
+      "main": [
+        [
+          {
+            "node": "Wake Gateway",
             "type": "main",
             "index": 0
           }
@@ -490,21 +666,21 @@
       "main": [
         [
           {
-            "node": "Save Checkpoint",
+            "node": "Remember Checkpoint",
             "type": "main",
             "index": 0
           }
         ],
         [
           {
-            "node": "Log Poll Error",
+            "node": "Count Poll Failure",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Save Checkpoint": {
+    "Remember Checkpoint": {
       "main": [
         [
           {
@@ -560,6 +736,17 @@
         [
           {
             "node": "Notify (TODO)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Notify (TODO)": {
+      "main": [
+        [
+          {
+            "node": "Commit Checkpoint",
             "type": "main",
             "index": 0
           }

@@ -768,7 +768,7 @@ A single NIP is free, always - no license needed, no time limit. Running **more 
 
 Set the license key as `GATEWAY_LICENSE`. Verification is fully offline (ECDSA signature check against a cached public key) - your license token never leaves your server, and a temporary network blip doesn't lock you out (see below).
 
-If `contexts.json` configures more NIPs than your license allows, the gateway doesn't refuse to start - it activates the first `N` (your default NIP is always kept, even if it wasn't first in the file) and logs a clear warning naming which ones were skipped. Check `GET /ksef/status` for `license: {licensed, maxNips, activeNips, email, expiresAt}` (`email` is just for your own visibility - which purchase this license belongs to - it's not checked against anything).
+If `contexts.json` configures more NIPs than your license allows, the gateway doesn't refuse to start - it activates the first `N` (your default NIP is always kept, even if it wasn't first in the file) and logs a clear warning naming which ones were skipped. Check `GET /ksef/status` for `license: {licensed, maxNips, activeNips, email, expiresAt}` (`email` is just for your own visibility - which purchase this license belongs to - it's not checked against anything). The gateway verifies the signature, the product name, the expiry date and the revocation list - the domain stored on the license is **not** checked. Changing `GATEWAY_LICENSE` on Render needs a new **deploy**: saving the variable (or a plain restart) does not reload it.
 
 | Situation | Behavior |
 |---|---|

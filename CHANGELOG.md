@@ -2,6 +2,10 @@
 
 ## [Unreleased]
 
+### Security
+
+- Docker images: the build-time GitHub PAT (`read:packages`, used to restore the CIRFMF SDK from GitHub Packages) was passed as a build argument, so BuildKit recorded its value in the public provenance attestation of the published `ksef-gateway-api` images (up to v0.2.0 and `latest` until 2026-10-23). The token has been revoked and replaced. The Dockerfiles (API, Lambda, tools) now take it as a BuildKit **secret** (`--secret id=GITHUB_PAT,env=GITHUB_PAT`), never promote it to `ENV`, and CI/publish workflows pass it as a secret instead of a build argument. `--build-arg GITHUB_PAT=...` still works as a fallback for builders without secret support (Render, SAM). If you built or pushed your own images with the old Dockerfiles, rotate the PAT you used.
+
 ### Fixed
 
 - `pdf-service/Dockerfile`: `npm install` without the lockfile crashed (`Cannot read properties of null (reading 'edgesOut')`), so the PDF image failed to build - on Render every PDF-service deploy since 2026-09-23 ended in `build_failed` while the old build kept serving. Now copies `package-lock.json` and runs `npm ci` (reproducible)

@@ -122,9 +122,11 @@ jobs:
           submodules: recursive
 
       - name: Build ksef-api image
+        env:
+          GITHUB_PAT: ${{ secrets.CIRFMF_PAT }}
         run: |
           docker build \
-            --build-arg GITHUB_PAT=${{ secrets.CIRFMF_PAT }} \
+            --secret id=GITHUB_PAT,env=GITHUB_PAT \
             -f src/KSeFGateway.Api/Dockerfile \
             -t ksef-api-cert-test \
             src/
@@ -209,9 +211,11 @@ jobs:
           submodules: recursive
 
       - name: Build ksef-api
+        env:
+          GITHUB_PAT: ${{ secrets.CIRFMF_PAT }}
         run: |
           docker build \
-            --build-arg GITHUB_PAT=${{ secrets.CIRFMF_PAT }} \
+            --secret id=GITHUB_PAT,env=GITHUB_PAT \
             -f src/KSeFGateway.Api/Dockerfile \
             src/
 

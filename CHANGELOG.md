@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## [0.2.1] - 2026-10-23
+
 ### Security
 
 - Docker images: the build-time GitHub PAT (`read:packages`, used to restore the CIRFMF SDK from GitHub Packages) was passed as a build argument, so BuildKit recorded its value in the public provenance attestation of the published `ksef-gateway-api` images (up to v0.2.0 and `latest` until 2026-10-23). The token has been revoked and replaced. The Dockerfiles (API, Lambda, tools) now take it as a BuildKit **secret** (`--secret id=GITHUB_PAT,env=GITHUB_PAT`), never promote it to `ENV`, and CI/publish workflows pass it as a secret instead of a build argument. `--build-arg GITHUB_PAT=...` still works as a fallback for builders without secret support (Render, SAM). If you built or pushed your own images with the old Dockerfiles, rotate the PAT you used.
@@ -11,6 +13,10 @@
 - `pdf-service/Dockerfile`: `npm install` without the lockfile crashed (`Cannot read properties of null (reading 'edgesOut')`), so the PDF image failed to build - on Render every PDF-service deploy since 2026-09-23 ended in `build_failed` while the old build kept serving. Now copies `package-lock.json` and runs `npm ci` (reproducible)
 - `examples/n8n/receive-invoices*.json`: the checkpoint was never read back - `Get Checkpoint` and `Save Checkpoint` used the `node` static-data scope, which is private to each node, so every run re-fetched the last 30 days. Now uses the `global` scope
 - `examples/n8n/receive-invoices*.json`: the checkpoint is committed only after the PDFs were downloaded, saved and notified (a failure midway used to skip the batch); timeouts/retries on the HTTP nodes; PDFs downloaded one at a time (the gateway rate-limits `invoices/get`); the gateway API key is a Header Auth credential instead of plain text in the workflow
+
+### Changed
+
+- Dependency updates merged since 0.2.0 (npm: pdf-service, landing)
 
 ### Added
 

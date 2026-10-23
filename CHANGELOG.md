@@ -4,6 +4,7 @@
 
 ### Fixed
 
+- `pdf-service/Dockerfile`: `npm install` without the lockfile crashed (`Cannot read properties of null (reading 'edgesOut')`), so the PDF image failed to build - on Render every PDF-service deploy since 2026-09-23 ended in `build_failed` while the old build kept serving. Now copies `package-lock.json` and runs `npm ci` (reproducible)
 - `examples/n8n/receive-invoices*.json`: the checkpoint was never read back - `Get Checkpoint` and `Save Checkpoint` used the `node` static-data scope, which is private to each node, so every run re-fetched the last 30 days. Now uses the `global` scope
 - `examples/n8n/receive-invoices*.json`: the checkpoint is committed only after the PDFs were downloaded, saved and notified (a failure midway used to skip the batch); timeouts/retries on the HTTP nodes; PDFs downloaded one at a time (the gateway rate-limits `invoices/get`); the gateway API key is a Header Auth credential instead of plain text in the workflow
 

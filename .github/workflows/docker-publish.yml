@@ -50,6 +50,8 @@ jobs:
           context: src/
           file: src/KSeFGateway.Api/Dockerfile
           push: true
+          # mode=min: the attestation never records build arguments (defence in depth; secrets already go via BuildKit secrets)
+          provenance: mode=min
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           secrets: |
@@ -97,6 +99,8 @@ jobs:
           context: pdf-service/
           file: pdf-service/Dockerfile
           push: true
+          # mode=min: the attestation never records build arguments (defence in depth; secrets already go via BuildKit secrets)
+          provenance: mode=min
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha

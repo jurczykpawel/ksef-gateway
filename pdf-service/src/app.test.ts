@@ -70,7 +70,7 @@ describe("POST /pdf/invoice", () => {
     const res = await request(server)
       .post("/pdf/invoice")
       .set("Content-Type", "application/xml")
-      .send(withKodSystemowy(fixtureXml, "FA (2)"));
+      .send(readFileSync(new URL("../test/fixtures/mf-fa2.xml", import.meta.url), "utf8"));
 
     expect(res.status).toBe(200);
     expect(res.body.subarray(0, 5).toString()).toBe("%PDF-");
@@ -80,7 +80,7 @@ describe("POST /pdf/invoice", () => {
     const res = await request(server)
       .post("/pdf/invoice")
       .set("Content-Type", "application/xml")
-      .send(withKodSystemowy(fixtureXml, "FA (1)"));
+      .send(readFileSync(new URL("../test/fixtures/mf-fa1.xml", import.meta.url), "utf8"));
 
     expect(res.status).toBe(200);
     expect(res.body.subarray(0, 5).toString()).toBe("%PDF-");

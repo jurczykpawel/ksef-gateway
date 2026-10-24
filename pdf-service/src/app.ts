@@ -4,9 +4,9 @@ import { js2xml } from "xml-js";
 import pdfMake from "pdfmake/build/pdfmake.js";
 import pdfFonts from "pdfmake/build/vfs_fonts.js";
 import { parseXmlString, buildVerificationUrl } from "./xml-utils.js";
+import { i18nReady } from "../lib/src/lib-public/i18n/i18n-init.js";
 
-// @ts-ignore - pdfmake needs vfs for fonts
-pdfMake.vfs = pdfFonts.vfs;
+pdfMake.addVirtualFileSystem(pdfFonts);
 
 export function createApp() {
   const app = express();
@@ -104,6 +104,7 @@ export function createApp() {
 
       let generateFn: (invoice: any, additionalData: any) => any;
 
+      await i18nReady;
       switch (kodSystemowy) {
         case "FA (3)": {
           const { generateFA3 } = await import("../lib/src/lib-public/FA3-generator.js");

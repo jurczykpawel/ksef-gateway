@@ -18,6 +18,8 @@
 
 ### Changed
 
+- Upgrade the PDF generator to CIRFMF release 1.1.46, initialize bundled Polish translations and retain pdfmake 0.3 Promise rendering; verify invoice amounts, zero totals, pagination and environment QR links from real PDF content.
+
 - Migrate the API, tests, tools, CI, and container deployments to .NET 10 LTS while retaining the OpenAPI 3.0 contract and KSeF SDK 2.9.0.
 - Pin all NuGet PackageReference versions in the API, tests, and tools to their currently resolved versions, including KSeF SDK 2.9.0.
 - PDF image installs production dependencies only (`tsx` remains a runtime dependency) and sets `NODE_ENV=production`.

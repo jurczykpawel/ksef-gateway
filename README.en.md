@@ -458,7 +458,7 @@ curl -H "X-Api-Key: $GATEWAY_API_KEY" -X POST "http://localhost:8080/pdf/invoice
   --data-binary @examples/invoice.xml -o faktura.pdf
 ```
 
-PDFs are generated using the official [CIRFMF/ksef-pdf-generator](https://github.com/CIRFMF/ksef-pdf-generator) library. QR codes contain the KSeF verification URL with SHA-256 hash - scannable and verified by KSeF.
+PDFs are generated using the official [CIRFMF/ksef-pdf-generator 1.1.46](https://github.com/CIRFMF/ksef-pdf-generator/releases/tag/1.1.46) library (FA(1), FA(2), FA(3), Polish translations; pdfmake 0.3.12). QR codes contain the KSeF verification URL with SHA-256 hash - scannable and verified by KSeF.
 
 ---
 

@@ -510,7 +510,7 @@ curl -H "X-Api-Key: $GATEWAY_API_KEY" -X POST "http://localhost:8080/pdf/invoice
   --data-binary @examples/invoice.xml -o faktura.pdf
 ```
 
-PDF-y są generowane przy użyciu oficjalnej biblioteki [CIRFMF/ksef-pdf-generator](https://github.com/CIRFMF/ksef-pdf-generator). Kody QR zawierają URL weryfikacyjny KSeF z hashem SHA-256 - skanowalny i weryfikowany przez KSeF.
+PDF-y są generowane przy użyciu oficjalnej biblioteki [CIRFMF/ksef-pdf-generator 1.1.46](https://github.com/CIRFMF/ksef-pdf-generator/releases/tag/1.1.46) (FA(1), FA(2), FA(3), polskie tłumaczenia; pdfmake 0.3.12). Kody QR zawierają URL weryfikacyjny KSeF z hashem SHA-256 - skanowalny i weryfikowany przez KSeF.
 
 ### Konfiguracja usługi PDF (`PDF_SERVICE_URL` / `PDF_SERVICE_SECRET`)
 

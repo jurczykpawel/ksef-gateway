@@ -2,9 +2,14 @@
 
 ## [Unreleased]
 
+### Security
+
+- API and PDF containers run as non-root users; the API retains read access to Render Secret Files. PDF errors return concise JSON without internal messages or stack traces.
+
 ### Changed
 
 - Pin all NuGet PackageReference versions in the API, tests, and tools to their currently resolved versions, including KSeF SDK 2.9.0.
+- PDF image installs production dependencies only (`tsx` remains a runtime dependency) and sets `NODE_ENV=production`.
 
 ### Fixed
 

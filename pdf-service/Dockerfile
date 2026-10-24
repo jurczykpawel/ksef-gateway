@@ -5,7 +5,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends curl && rm -rf 
 
 # Install app dependencies
 COPY package.json package-lock.json ./
-RUN npm ci
+RUN npm ci --omit=dev
 
 # Copy CIRFMF pdf-generator library source
 COPY lib/src/ lib/src/
@@ -14,8 +14,10 @@ COPY lib/src/ lib/src/
 COPY src/ src/
 COPY tsconfig.json ./
 
+ENV NODE_ENV=production
 ENV PORT=3000
+USER node
 EXPOSE 3000
 
 # Use tsx for TypeScript runtime (handles imports from lib/src/)
-CMD ["npx", "tsx", "src/server.ts"]
+CMD ["node", "--import", "tsx", "src/server.ts"]

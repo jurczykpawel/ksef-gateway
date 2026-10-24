@@ -1,4 +1,4 @@
-import express from "express";
+import express, { type ErrorRequestHandler } from "express";
 import crypto from "node:crypto";
 import { js2xml } from "xml-js";
 import pdfMake from "pdfmake/build/pdfmake.js";
@@ -24,7 +24,7 @@ export function createApp() {
       if (req.path === "/health") return next();
       const provided = Buffer.from(req.get("X-Pdf-Secret") ?? "");
       if (provided.length !== expected.length || !crypto.timingSafeEqual(provided, expected)) {
-        res.status(403).json({ error: "This PDF service only accepts authenticated requests." });
+        res.status(403).json({ success: false, error: "This PDF service only accepts authenticated requests." });
         return;
       }
       next();
@@ -59,60 +59,68 @@ export function createApp() {
       qrCode = req.body.qrCode;
     } else {
       res.status(400).json({
+        success: false,
         error: "Missing invoice XML. Send as XML body or JSON { xml, nrKSeF?, qrCode? }",
       });
       return;
     }
 
-    // Auto-generate QR verification URL if nrKSeF provided but qrCode not
-    if (nrKSeF && !qrCode) {
-      qrCode = buildVerificationUrl(xml, nrKSeF);
+    if (typeof xml !== "string") {
+      res.status(400).json({ success: false, error: "Invoice XML must be a string" });
+      return;
     }
 
+    let parsed: any;
     try {
-      const parsed = parseXmlString(xml) as any;
-      const invoice = parsed?.Faktura;
-      if (!invoice) {
-        res.status(400).json({ error: "Invalid XML: no <Faktura> root element found" });
-        return;
+      parsed = parseXmlString(xml);
+      // QR generation also parses XML and must use the same safe input-error path.
+      if (nrKSeF && !qrCode) {
+        qrCode = buildVerificationUrl(xml, nrKSeF);
       }
-
-      const kodSystemowy = invoice?.Naglowek?.KodFormularza?._attributes?.kodSystemowy;
-
-      let generateFn: (invoice: any, additionalData: any) => any;
-
-      switch (kodSystemowy) {
-        case "FA (3)": {
-          const { generateFA3 } = await import("../lib/src/lib-public/FA3-generator.js");
-          generateFn = generateFA3;
-          break;
-        }
-        case "FA (2)": {
-          const { generateFA2 } = await import("../lib/src/lib-public/FA2-generator.js");
-          generateFn = generateFA2;
-          break;
-        }
-        case "FA (1)": {
-          const { generateFA1 } = await import("../lib/src/lib-public/FA1-generator.js");
-          generateFn = generateFA1;
-          break;
-        }
-        default:
-          res.status(400).json({ error: `Unsupported schema: ${kodSystemowy}` });
-          return;
-      }
-
-      const additionalData = { nrKSeF: nrKSeF ?? "", qrCode };
-      const pdf = generateFn(invoice, additionalData);
-
-      const buffer = await pdf.getBuffer();
-      res.contentType("application/pdf");
-      res.setHeader("Content-Disposition", "inline; filename=faktura.pdf");
-      res.send(Buffer.from(buffer));
-    } catch (err: any) {
-      console.error("PDF generation error:", err);
-      res.status(500).json({ error: `PDF generation failed: ${err.message}` });
+    } catch (err) {
+      console.error("Invalid invoice XML:", err);
+      res.status(400).json({ success: false, error: "Invalid invoice XML" });
+      return;
     }
+
+    const invoice = parsed?.Faktura;
+    if (!invoice) {
+      res.status(400).json({ success: false, error: "Invalid XML: no <Faktura> root element found" });
+      return;
+    }
+
+    const kodSystemowy = invoice?.Naglowek?.KodFormularza?._attributes?.kodSystemowy;
+
+    let generateFn: (invoice: any, additionalData: any) => any;
+
+    switch (kodSystemowy) {
+      case "FA (3)": {
+        const { generateFA3 } = await import("../lib/src/lib-public/FA3-generator.js");
+        generateFn = generateFA3;
+        break;
+      }
+      case "FA (2)": {
+        const { generateFA2 } = await import("../lib/src/lib-public/FA2-generator.js");
+        generateFn = generateFA2;
+        break;
+      }
+      case "FA (1)": {
+        const { generateFA1 } = await import("../lib/src/lib-public/FA1-generator.js");
+        generateFn = generateFA1;
+        break;
+      }
+      default:
+        res.status(400).json({ success: false, error: `Unsupported schema: ${kodSystemowy}` });
+        return;
+    }
+
+    const additionalData = { nrKSeF: nrKSeF ?? "", qrCode };
+    const pdf = generateFn(invoice, additionalData);
+
+    const buffer = await pdf.getBuffer();
+    res.contentType("application/pdf");
+    res.setHeader("Content-Disposition", "inline; filename=faktura.pdf");
+    res.send(Buffer.from(buffer));
   });
 
   // POST /json-to-xml - converts JSON (xml-js compact format) to FA(3) XML
@@ -123,33 +131,8 @@ export function createApp() {
 
     if (!json || !json.Faktura) {
       res.status(400).json({
+        success: false,
         error: 'Missing root "Faktura" element. Send JSON in xml-js compact format.',
-        example: {
-          Faktura: {
-            _attributes: { xmlns: "http://crd.gov.pl/wzor/2025/06/25/13775/" },
-            Naglowek: {
-              KodFormularza: {
-                _attributes: { kodSystemowy: "FA (3)", wersjaSchemy: "1-0E" },
-                _text: "FA",
-              },
-              WariantFormularza: { _text: "3" },
-              DataWytworzeniaFa: { _text: "2026-01-01T00:00:00Z" },
-              SystemInfo: { _text: "my-system" },
-            },
-            Podmiot1: {
-              DaneIdentyfikacyjne: {
-                NIP: { _text: "1234567890" },
-                Nazwa: { _text: "Seller sp. z o.o." },
-              },
-              Adres: {
-                KodKraju: { _text: "PL" },
-                AdresL1: { _text: "ul. Test 1" },
-                AdresL2: { _text: "00-001 Warszawa" },
-              },
-            },
-            "...": "see FA(3) XSD for full structure",
-          },
-        },
       });
       return;
     }
@@ -168,10 +151,24 @@ export function createApp() {
         js2xml(json, { compact: true, spaces: 0 });
 
       res.contentType("application/xml").send(xml);
-    } catch (err: any) {
-      res.status(500).json({ error: `JSON to XML conversion failed: ${err.message}` });
+    } catch (err) {
+      console.error("Invalid invoice JSON:", err);
+      res.status(400).json({ success: false, error: "Invalid invoice JSON" });
     }
   });
+
+  // Express 5 forwards synchronous throws and rejected async handlers here, including
+  // body-parser errors. Never expose exception messages or stacks to callers.
+  const errorHandler: ErrorRequestHandler = (err, _req, res, next) => {
+    console.error("PDF service error:", err);
+    if (res.headersSent) return next(err);
+    const status = Number.isInteger(err?.status) && err.status >= 400 && err.status < 500
+      ? err.status : 500;
+    const error = status === 413 ? "Request body too large"
+      : status < 500 ? "Invalid request body" : "Internal server error";
+    res.status(status).json({ success: false, error });
+  };
+  app.use(errorHandler);
 
   return app;
 }

@@ -34,9 +34,13 @@ WORKDIR /app
 
 RUN apt-get update && apt-get install -y --no-install-recommends curl && rm -rf /var/lib/apt/lists/*
 
+# Render runtime Secret Files are readable by group 1000.
+RUN groupadd --gid 1000 render-secrets && usermod -a -G render-secrets app
+
 COPY --from=build /app/publish .
 
 ENV ASPNETCORE_URLS=http://+:8080
 EXPOSE 8080
+USER app
 
 ENTRYPOINT ["dotnet", "KSeFGateway.Api.dll"]

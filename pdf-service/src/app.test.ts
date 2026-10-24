@@ -1,6 +1,7 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi } from "vitest";
 import { readFileSync } from "fs";
 import request from "supertest";
+import pdfMake from "pdfmake/build/pdfmake.js";
 import { js2xml, xml2js } from "xml-js";
 import { createApp } from "./app.js";
 
@@ -110,14 +111,14 @@ describe("POST /pdf/invoice", () => {
     expect(res.body.error).toBe("Unsupported schema: FA (99)");
   });
 
-  it("returns 500 with an error message on malformed XML", async () => {
+  it("rejects malformed XML with a safe 400 response", async () => {
     const res = await request(app)
       .post("/pdf/invoice")
       .set("Content-Type", "application/xml")
       .send("<Faktura><Unclosed></Faktura>");
 
-    expect(res.status).toBe(500);
-    expect(res.body.error).toMatch(/PDF generation failed/);
+    expect(res.status).toBe(400);
+    expect(res.body).toEqual({ success: false, error: "Invalid invoice XML" });
   });
 });
 
@@ -164,11 +165,11 @@ describe("POST /json-to-xml", () => {
     expect(reparsed.Faktura.Podmiot1.DaneIdentyfikacyjne.NIP._text).toBe("1234567890");
   });
 
-  it("rejects a body without a Faktura root with 400 and an example payload", async () => {
+  it("rejects a body without a Faktura root with a concise 400 response", async () => {
     const res = await request(app).post("/json-to-xml").send({ notFaktura: true });
     expect(res.status).toBe(400);
     expect(res.body.error).toMatch(/Missing root "Faktura" element/);
-    expect(res.body.example.Faktura).toBeDefined();
+    expect(res.body).toEqual({ success: false, error: 'Missing root "Faktura" element. Send JSON in xml-js compact format.' });
   });
 
   it("rejects an empty body with 400", async () => {
@@ -226,5 +227,70 @@ describe("PDF_SERVICE_SECRET gate (opt-in)", () => {
       .set("Content-Type", "application/xml")
       .send(fixtureXml);
     expect(res.status).toBe(200);
+  });
+});
+
+describe("safe error responses", () => {
+  function expectError(res: request.Response, status: number, error: string) {
+    expect(res.text).not.toMatch(/<pre>|\bat |\/(?:app|Users)\/|node_modules|RangeError/);
+    expect(res.status).toBe(status);
+    expect(res.headers["content-type"]).toContain("application/json");
+    expect(res.body).toEqual({ success: false, error });
+  }
+
+  it.each([false, true])("rejects malformed XML (auto QR: %s) without an HTML stack", async (autoQr) => {
+    const res = await request(app).post("/pdf/invoice").send({
+      xml: "<Faktura><Unclosed></Faktura>",
+      ...(autoQr ? { nrKSeF: "1234567890-20260324-ABCDEF" } : {}),
+    });
+    expectError(res, 400, "Invalid invoice XML");
+  });
+
+  it.each([false, true])("handles deeply nested XML (auto QR: %s) without leaking RangeError", async (autoQr) => {
+    const res = await request(app).post("/pdf/invoice").send({
+      xml: "<Faktura>" + "<a>".repeat(12000) + "</a>".repeat(12000) + "</Faktura>",
+      ...(autoQr ? { nrKSeF: "1234567890-20260324-ABCDEF" } : {}),
+    });
+    expectError(res, 400, "Invalid invoice XML");
+  });
+
+  it.each([42, { path: "/app/private.xml" }])("rejects non-string XML: %j", async (xml) => {
+    const res = await request(app).post("/pdf/invoice").send({ xml, nrKSeF: "123" });
+    expectError(res, 400, "Invoice XML must be a string");
+  });
+
+  it("handles malformed JSON from the body parser", async () => {
+    const res = await request(app).post("/pdf/invoice").type("json").send('{"xml":');
+    expectError(res, 400, "Invalid request body");
+  });
+
+  it("preserves 415 for an unsupported request charset", async () => {
+    const res = await request(app).post("/pdf/invoice")
+      .set("Content-Type", "application/xml; charset=unsupported").send("<Faktura/>");
+    expectError(res, 415, "Invalid request body");
+  });
+
+  it("handles oversized XML from the body parser", async () => {
+    const res = await request(app).post("/pdf/invoice").type("application/xml").send("x".repeat(10 * 1024 * 1024 + 1));
+    expectError(res, 413, "Request body too large");
+  });
+
+  it("hides unexpected renderer failures while logging the original error", async () => {
+    const error = new Error("private renderer detail at /app/lib/internal.ts");
+    const log = vi.spyOn(console, "error").mockImplementation(() => {});
+    const render = vi.spyOn(pdfMake, "createPdf").mockImplementationOnce(() => { throw error; });
+    try {
+      const res = await request(app).post("/pdf/invoice").type("application/xml").send(fixtureXml);
+      expectError(res, 500, "Internal server error");
+      expect(log).toHaveBeenCalledWith("PDF service error:", error);
+    } finally {
+      render.mockRestore();
+      log.mockRestore();
+    }
+  });
+
+  it("rejects invalid JSON-to-XML input", async () => {
+    const res = await request(app).post("/json-to-xml").send({ Faktura: { _cdata: {} } });
+    expectError(res, 400, "Invalid invoice JSON");
   });
 });

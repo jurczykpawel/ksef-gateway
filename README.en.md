@@ -690,6 +690,8 @@ Or per-context in `contexts.json`:
 
 Mount the cert/key files read-only, same idea as `contexts.json`:
 
+Containers run without root: API as `app` (UID 1654, supplementary group 1000 for Render Secret Files), PDF as `node` (UID 1000). Mounted `contexts.json`, certificates and keys must be readable by the API user; keep mounts read-only (`:ro`). On a Linux host, assign files to UID 1654 with mode `0400` (directories `0500`), or GID 1000 with mode `0440` (directories `0550`). Do not make private keys world-readable. Bind-mount permissions are controlled by the host; the image cannot change read-only mounted files.
+
 ```yaml
 volumes:
   - ./certs:/app/certs:ro

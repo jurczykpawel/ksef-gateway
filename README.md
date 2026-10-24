@@ -749,6 +749,8 @@ Albo per-kontekst w `contexts.json`:
 
 Zamontuj pliki cert/klucz tylko do odczytu, tak samo jak `contexts.json`:
 
+Kontenery działają bez roota: API jako `app` (UID 1654, dodatkowa grupa 1000 dla Render Secret Files), PDF jako `node` (UID 1000). Montowane `contexts.json`, certyfikaty i klucze muszą być czytelne dla użytkownika API; zachowaj montowanie `:ro`. Na hoście Linux możesz nadać plikom właściciela UID 1654 i tryb `0400` (katalogom `0500`) albo grupę GID 1000 i tryb `0440` (katalogom `0550`). Nie dawaj kluczom odczytu dla wszystkich. Uprawnienia bind mountów ustawia host; obraz nie może zmienić plików zamontowanych tylko do odczytu.
+
 ```yaml
 volumes:
   - ./certs:/app/certs:ro

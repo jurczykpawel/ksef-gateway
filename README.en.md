@@ -360,7 +360,7 @@ No `P_14` fields are emitted for `zw`/`np`; `P_15` still sums the same rounded n
 
 Corrections require `type: "KOR"`, a nonempty `correctionReason`, and `correctedInvoice`: `issueDate` (YYYY-MM-DD), `invoiceNumber`, and exactly one of `ksefNumber` or `outsideKsef: true`. Items express **differences**, rather than full corrected values: `quantity × unitPrice` is the net change. KOR quantities may be negative (but not zero), and prices may be negative; ordinary invoices still require positive quantities and nonnegative prices. For example, quantity 1 and price -10 at 23% means -10 net, -2.30 VAT, -12.30 gross. A rate change can use a negative line at the old rate and a positive line at the new rate. The builder omits `StanPrzed` because it uses the difference representation explicitly permitted by the FA(3) `FaWiersz` documentation. Discounts and advances have no dedicated model.
 
-Complete examples: [exempt](examples/invoice-exempt.json) and [correction](examples/invoice-correction.json). Replace `SELLER_NIP` with your NIP before sending:
+Complete examples: [exempt](examples/invoice-exempt.json) and [correction](examples/invoice-correction.json). The examples use the TEST demo NIP (`3202004132`); replace it with your own NIP before sending:
 
 ```bash
 curl -X POST http://localhost:8080/ksef/invoice \

@@ -412,7 +412,7 @@ Dla `zw`/`np` nie powstają pola `P_14`; `P_15` nadal sumuje te same zaokrąglon
 
 Korekta wymaga `type: "KOR"`, niepustego `correctionReason` oraz `correctedInvoice`: `issueDate` (YYYY-MM-DD), `invoiceNumber` i dokładnie jednego wariantu: `ksefNumber` albo `outsideKsef: true`. Pozycje zawierają **różnice**, nie pełne wartości po korekcie: `quantity × unitPrice` to zmiana netto. W KOR ilość może być ujemna (lecz nie zerowa), a cena ujemna; dla zwykłych faktur ilość pozostaje dodatnia i cena nieujemna. Np. ilość 1 i cena -10 przy 23% oznacza -10 netto, -2,30 VAT, -12,30 brutto. Zmianę stawki można zapisać jako ujemną pozycję starej stawki i dodatnią nowej. Builder nie emituje `StanPrzed`, bo korzysta z wariantu różnicowego dopuszczonego w dokumentacji `FaWiersz` schematu FA(3). Rabaty i zaliczki nie mają osobnego modelu.
 
-Pełne przykłady: [zw](examples/invoice-exempt.json) i [korekta](examples/invoice-correction.json). Zastąp `SELLER_NIP` własnym NIP przed wysłaniem:
+Pełne przykłady: [zw](examples/invoice-exempt.json) i [korekta](examples/invoice-correction.json). Przykłady używają NIP demo środowiska TEST (`3202004132`); zastąp go własnym NIP-em przed wysłaniem:
 
 ```bash
 curl -X POST http://localhost:8080/ksef/invoice \

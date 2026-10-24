@@ -14,6 +14,7 @@
 ### Fixed
 
 - Restore clean landing installs by using TypeScript 6, compatible with `@astrojs/check`; build the landing in CI, including Dependabot PRs.
+- Stabilize PDF service tests with per-test ephemeral IPv4 servers and restore environment variables without leaking the string `"undefined"`.
 - Derive PDF invoice QR verification hosts from the shared KSeF environment (TEST/DEMO/PRODUCTION/PRD), preserving explicit `KSEF_QR_URL` overrides.
 - Validate and normalize `KSEF_ENV` at startup (including production aliases `PRD`/`PROD`); reject unknown values instead of silently using TEST, and report the canonical environment in `/health` and `/ksef/status`.
 - Validate `X-KSeF-NIP` before rate limiting (400 for malformed/multiple values); reject unconfigured header or selected seller NIPs with 404 before allocating token state or logging their values.

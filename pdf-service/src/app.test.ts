@@ -1,4 +1,5 @@
-import { describe, it, expect, vi } from "vitest";
+import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
+import { createServer, type Server } from "node:http";
 import { readFileSync } from "fs";
 import request from "supertest";
 import pdfMake from "pdfmake/build/pdfmake.js";
@@ -13,7 +14,31 @@ const fixtureJson = JSON.parse(
   readFileSync(new URL("../test/fixtures/invoice-fa3.json", import.meta.url), "utf8")
 );
 
-const app = createApp();
+const originalSecret = process.env.PDF_SERVICE_SECRET;
+let app: ReturnType<typeof createApp>;
+let server: Server;
+
+beforeEach(async () => {
+  vi.stubEnv("PDF_SERVICE_SECRET", undefined);
+  app = createApp();
+  // Dispatch to the current test's app, including the gated fixture set up below.
+  server = createServer((req, res) => app(req, res));
+  await new Promise<void>((resolve, reject) => {
+    server.once("error", reject);
+    server.listen(0, "127.0.0.1", resolve);
+  });
+});
+
+afterEach(async () => {
+  try {
+    await new Promise<void>((resolve, reject) => {
+      server.close((error) => error ? reject(error) : resolve());
+    });
+  } finally {
+    vi.unstubAllEnvs(); // Deletes absent keys and restores pre-existing values, even on failure.
+    expect(process.env.PDF_SERVICE_SECRET).toBe(originalSecret);
+  }
+});
 
 function withKodSystemowy(xml: string, kod: string): string {
   return xml.replace('kodSystemowy="FA (3)"', `kodSystemowy="${kod}"`);
@@ -21,7 +46,7 @@ function withKodSystemowy(xml: string, kod: string): string {
 
 describe("GET /health", () => {
   it("returns ok status", async () => {
-    const res = await request(app).get("/health");
+    const res = await request(server).get("/health");
     expect(res.status).toBe(200);
     expect(res.body).toEqual({ status: "ok" });
   });
@@ -29,7 +54,7 @@ describe("GET /health", () => {
 
 describe("POST /pdf/invoice", () => {
   it("generates a PDF from a raw XML body (FA(3))", async () => {
-    const res = await request(app)
+    const res = await request(server)
       .post("/pdf/invoice")
       .set("Content-Type", "application/xml")
       .send(fixtureXml);
@@ -42,7 +67,7 @@ describe("POST /pdf/invoice", () => {
   });
 
   it("generates a PDF for FA(2)", async () => {
-    const res = await request(app)
+    const res = await request(server)
       .post("/pdf/invoice")
       .set("Content-Type", "application/xml")
       .send(withKodSystemowy(fixtureXml, "FA (2)"));
@@ -52,7 +77,7 @@ describe("POST /pdf/invoice", () => {
   });
 
   it("generates a PDF for FA(1)", async () => {
-    const res = await request(app)
+    const res = await request(server)
       .post("/pdf/invoice")
       .set("Content-Type", "application/xml")
       .send(withKodSystemowy(fixtureXml, "FA (1)"));
@@ -62,7 +87,7 @@ describe("POST /pdf/invoice", () => {
   });
 
   it("generates a PDF from a JSON body with xml + nrKSeF (auto QR)", async () => {
-    const res = await request(app)
+    const res = await request(server)
       .post("/pdf/invoice")
       .send({ xml: fixtureXml, nrKSeF: "1234567890-20260324-ABCDEF" });
 
@@ -71,7 +96,7 @@ describe("POST /pdf/invoice", () => {
   });
 
   it("generates a PDF from a JSON body with an explicit qrCode (no auto-generation)", async () => {
-    const res = await request(app)
+    const res = await request(server)
       .post("/pdf/invoice")
       .send({ xml: fixtureXml, qrCode: "https://example.com/manual-qr" });
 
@@ -80,19 +105,19 @@ describe("POST /pdf/invoice", () => {
   });
 
   it("rejects an empty body with 400", async () => {
-    const res = await request(app).post("/pdf/invoice").send();
+    const res = await request(server).post("/pdf/invoice").send();
     expect(res.status).toBe(400);
     expect(res.body.error).toMatch(/Missing invoice XML/);
   });
 
   it("rejects JSON body without an xml field with 400", async () => {
-    const res = await request(app).post("/pdf/invoice").send({ nrKSeF: "123" });
+    const res = await request(server).post("/pdf/invoice").send({ nrKSeF: "123" });
     expect(res.status).toBe(400);
     expect(res.body.error).toMatch(/Missing invoice XML/);
   });
 
   it("rejects XML without a <Faktura> root element with 400", async () => {
-    const res = await request(app)
+    const res = await request(server)
       .post("/pdf/invoice")
       .set("Content-Type", "application/xml")
       .send("<NotAnInvoice><Foo>bar</Foo></NotAnInvoice>");
@@ -102,7 +127,7 @@ describe("POST /pdf/invoice", () => {
   });
 
   it("rejects an unsupported kodSystemowy with 400", async () => {
-    const res = await request(app)
+    const res = await request(server)
       .post("/pdf/invoice")
       .set("Content-Type", "application/xml")
       .send(withKodSystemowy(fixtureXml, "FA (99)"));
@@ -112,7 +137,7 @@ describe("POST /pdf/invoice", () => {
   });
 
   it("rejects malformed XML with a safe 400 response", async () => {
-    const res = await request(app)
+    const res = await request(server)
       .post("/pdf/invoice")
       .set("Content-Type", "application/xml")
       .send("<Faktura><Unclosed></Faktura>");
@@ -124,7 +149,7 @@ describe("POST /pdf/invoice", () => {
 
 describe("POST /json-to-xml", () => {
   it("converts a Faktura JSON document to XML", async () => {
-    const res = await request(app).post("/json-to-xml").send(fixtureJson);
+    const res = await request(server).post("/json-to-xml").send(fixtureJson);
 
     expect(res.status).toBe(200);
     expect(res.headers["content-type"]).toContain("application/xml");
@@ -134,7 +159,7 @@ describe("POST /json-to-xml", () => {
   });
 
   it("injects the default xmlns when the input has none", async () => {
-    const res = await request(app).post("/json-to-xml").send(fixtureJson);
+    const res = await request(server).post("/json-to-xml").send(fixtureJson);
     expect(res.status).toBe(200);
     expect(res.text).toContain('xmlns="http://crd.gov.pl/wzor/2025/06/25/13775/"');
   });
@@ -146,7 +171,7 @@ describe("POST /json-to-xml", () => {
         Naglowek: { SystemInfo: { _text: "x" } },
       },
     };
-    const res = await request(app).post("/json-to-xml").send(customJson);
+    const res = await request(server).post("/json-to-xml").send(customJson);
     expect(res.status).toBe(200);
     expect(res.text).toContain('xmlns="urn:custom"');
 
@@ -156,7 +181,7 @@ describe("POST /json-to-xml", () => {
   });
 
   it("produces XML that round-trips back to the same structure via xml2js", async () => {
-    const res = await request(app).post("/json-to-xml").send(fixtureJson);
+    const res = await request(server).post("/json-to-xml").send(fixtureJson);
     expect(res.status).toBe(200);
 
     const reparsed = xml2js(res.text, { compact: true }) as any;
@@ -166,36 +191,33 @@ describe("POST /json-to-xml", () => {
   });
 
   it("rejects a body without a Faktura root with a concise 400 response", async () => {
-    const res = await request(app).post("/json-to-xml").send({ notFaktura: true });
+    const res = await request(server).post("/json-to-xml").send({ notFaktura: true });
     expect(res.status).toBe(400);
     expect(res.body.error).toMatch(/Missing root "Faktura" element/);
     expect(res.body).toEqual({ success: false, error: 'Missing root "Faktura" element. Send JSON in xml-js compact format.' });
   });
 
   it("rejects an empty body with 400", async () => {
-    const res = await request(app).post("/json-to-xml").send();
+    const res = await request(server).post("/json-to-xml").send();
     expect(res.status).toBe(400);
   });
 });
 
 describe("PDF_SERVICE_SECRET gate (opt-in)", () => {
   const SECRET = "test-pdf-secret-123";
-  // createApp() reads PDF_SERVICE_SECRET at construction, so build a gated instance with it set.
-  const gatedApp = (() => {
-    const prev = process.env.PDF_SERVICE_SECRET;
-    process.env.PDF_SERVICE_SECRET = SECRET;
-    const a = createApp();
-    process.env.PDF_SERVICE_SECRET = prev;
-    return a;
-  })();
+  // createApp() captures the secret; each test gets a fresh gated instance.
+  beforeEach(() => {
+    vi.stubEnv("PDF_SERVICE_SECRET", SECRET);
+    app = createApp();
+  });
 
   it("lets /health through without the secret", async () => {
-    const res = await request(gatedApp).get("/health");
+    const res = await request(server).get("/health");
     expect(res.status).toBe(200);
   });
 
   it("rejects a protected route with no secret (403)", async () => {
-    const res = await request(gatedApp)
+    const res = await request(server)
       .post("/pdf/invoice")
       .set("Content-Type", "application/xml")
       .send(fixtureXml);
@@ -203,7 +225,7 @@ describe("PDF_SERVICE_SECRET gate (opt-in)", () => {
   });
 
   it("rejects a wrong secret (403)", async () => {
-    const res = await request(gatedApp)
+    const res = await request(server)
       .post("/pdf/invoice")
       .set("Content-Type", "application/xml")
       .set("X-Pdf-Secret", "nope")
@@ -212,7 +234,7 @@ describe("PDF_SERVICE_SECRET gate (opt-in)", () => {
   });
 
   it("accepts the correct secret", async () => {
-    const res = await request(gatedApp)
+    const res = await request(server)
       .post("/pdf/invoice")
       .set("Content-Type", "application/xml")
       .set("X-Pdf-Secret", SECRET)
@@ -220,14 +242,27 @@ describe("PDF_SERVICE_SECRET gate (opt-in)", () => {
     expect(res.status).toBe(200);
     expect(res.headers["content-type"]).toContain("application/pdf");
   });
+});
 
-  it("stays open when no secret is configured (default app)", async () => {
-    const res = await request(app)
-      .post("/pdf/invoice")
-      .set("Content-Type", "application/xml")
-      .send(fixtureXml);
-    expect(res.status).toBe(200);
-  });
+it("stays open when no secret is configured (default app)", async () => {
+  const res = await request(server)
+    .post("/pdf/invoice")
+    .set("Content-Type", "application/xml")
+    .send(fixtureXml);
+  expect(res.status).toBe(200);
+});
+
+// A gated fixture must not turn an absent env variable into the string "undefined".
+it("does not leak PDF_SERVICE_SECRET from gated app setup", () => {
+  expect(process.env.PDF_SERVICE_SECRET).toBeUndefined();
+});
+
+it.each(["", "   "])("stays open with a blank secret (%j)", async (secret) => {
+  vi.stubEnv("PDF_SERVICE_SECRET", secret);
+  app = createApp();
+  const res = await request(server).post("/json-to-xml").send(fixtureJson);
+  expect(res.status).toBe(200);
+  expect(res.text).toContain("<Faktura");
 });
 
 describe("safe error responses", () => {
@@ -239,7 +274,7 @@ describe("safe error responses", () => {
   }
 
   it.each([false, true])("rejects malformed XML (auto QR: %s) without an HTML stack", async (autoQr) => {
-    const res = await request(app).post("/pdf/invoice").send({
+    const res = await request(server).post("/pdf/invoice").send({
       xml: "<Faktura><Unclosed></Faktura>",
       ...(autoQr ? { nrKSeF: "1234567890-20260324-ABCDEF" } : {}),
     });
@@ -247,7 +282,7 @@ describe("safe error responses", () => {
   });
 
   it.each([false, true])("handles deeply nested XML (auto QR: %s) without leaking RangeError", async (autoQr) => {
-    const res = await request(app).post("/pdf/invoice").send({
+    const res = await request(server).post("/pdf/invoice").send({
       xml: "<Faktura>" + "<a>".repeat(12000) + "</a>".repeat(12000) + "</Faktura>",
       ...(autoQr ? { nrKSeF: "1234567890-20260324-ABCDEF" } : {}),
     });
@@ -255,23 +290,23 @@ describe("safe error responses", () => {
   });
 
   it.each([42, { path: "/app/private.xml" }])("rejects non-string XML: %j", async (xml) => {
-    const res = await request(app).post("/pdf/invoice").send({ xml, nrKSeF: "123" });
+    const res = await request(server).post("/pdf/invoice").send({ xml, nrKSeF: "123" });
     expectError(res, 400, "Invoice XML must be a string");
   });
 
   it("handles malformed JSON from the body parser", async () => {
-    const res = await request(app).post("/pdf/invoice").type("json").send('{"xml":');
+    const res = await request(server).post("/pdf/invoice").type("json").send('{"xml":');
     expectError(res, 400, "Invalid request body");
   });
 
   it("preserves 415 for an unsupported request charset", async () => {
-    const res = await request(app).post("/pdf/invoice")
+    const res = await request(server).post("/pdf/invoice")
       .set("Content-Type", "application/xml; charset=unsupported").send("<Faktura/>");
     expectError(res, 415, "Invalid request body");
   });
 
   it("handles oversized XML from the body parser", async () => {
-    const res = await request(app).post("/pdf/invoice").type("application/xml").send("x".repeat(10 * 1024 * 1024 + 1));
+    const res = await request(server).post("/pdf/invoice").type("application/xml").send("x".repeat(10 * 1024 * 1024 + 1));
     expectError(res, 413, "Request body too large");
   });
 
@@ -280,7 +315,7 @@ describe("safe error responses", () => {
     const log = vi.spyOn(console, "error").mockImplementation(() => {});
     const render = vi.spyOn(pdfMake, "createPdf").mockImplementationOnce(() => { throw error; });
     try {
-      const res = await request(app).post("/pdf/invoice").type("application/xml").send(fixtureXml);
+      const res = await request(server).post("/pdf/invoice").type("application/xml").send(fixtureXml);
       expectError(res, 500, "Internal server error");
       expect(log).toHaveBeenCalledWith("PDF service error:", error);
     } finally {
@@ -290,7 +325,7 @@ describe("safe error responses", () => {
   });
 
   it("rejects invalid JSON-to-XML input", async () => {
-    const res = await request(app).post("/json-to-xml").send({ Faktura: { _cdata: {} } });
+    const res = await request(server).post("/json-to-xml").send({ Faktura: { _cdata: {} } });
     expectError(res, 400, "Invalid invoice JSON");
   });
 });

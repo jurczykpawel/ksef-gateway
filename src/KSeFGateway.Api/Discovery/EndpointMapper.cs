@@ -4,7 +4,7 @@ using KSeF.Client.Core.Interfaces.Clients;
 using KSeFGateway.Api.Auth;
 using KSeFGateway.Api.Middleware;
 using KSeFGateway.Api.Models;
-using System.IO;
+using System.Text.Json.Serialization.Metadata;
 
 namespace KSeFGateway.Api.Discovery;
 
@@ -45,8 +45,19 @@ public static class EndpointMapper
             if (accessToken is null)
                 return Results.Json(ApiResponse.Fail($"Not authenticated with KSeF for NIP {nip}"), statusCode: 503);
 
-            var args = await BuildArguments(
-                endpoint, context, accessToken);
+            object?[] args;
+            try
+            {
+                args = await BuildArguments(endpoint, context, accessToken);
+            }
+            catch (JsonException)
+            {
+                return Results.Json(ApiResponse.Fail("Invalid JSON request body or parameter type."), statusCode: 400);
+            }
+            catch (BadHttpRequestException ex)
+            {
+                return Results.Json(ApiResponse.Fail(ex.Message), statusCode: ex.StatusCode);
+            }
 
             var result = endpoint.SdkMethod.Invoke(ksefClient, args);
 
@@ -78,13 +89,21 @@ public static class EndpointMapper
         var sdkParams = endpoint.SdkMethod.GetParameters();
         var args = new object?[sdkParams.Length];
 
-        // Read body once if there are business parameters
+        // ContentLength can be unknown (chunked). Read once, including empty bodies.
         JsonElement? body = null;
-        if (endpoint.BusinessParameters.Count > 0 && context.Request.ContentLength > 0)
+        if (endpoint.BusinessParameters.Count > 0)
         {
-            body = await JsonSerializer.DeserializeAsync<JsonElement>(
-                context.Request.Body, JsonOptions);
+            using var reader = new StreamReader(context.Request.Body, leaveOpen: true);
+            var json = await reader.ReadToEndAsync(context.RequestAborted);
+            if (!string.IsNullOrWhiteSpace(json))
+            {
+                body = JsonSerializer.Deserialize<JsonElement>(json, JsonOptions);
+                if (body.Value.ValueKind is not (JsonValueKind.Object or JsonValueKind.Null))
+                    throw new BadHttpRequestException("JSON request body must be an object.");
+            }
         }
+        var allowWholeBody = endpoint.BusinessParameters.Count == 1 &&
+            JsonSerializerOptions.Default.GetTypeInfo(endpoint.BusinessParameters[0].ParameterType).Kind == JsonTypeInfoKind.Object;
 
         for (int i = 0; i < sdkParams.Length; i++)
         {
@@ -98,47 +117,33 @@ public static class EndpointMapper
             {
                 args[i] = accessToken;
             }
-            else if (body.HasValue)
-            {
-                args[i] = ResolveParameter(param, body.Value);
-            }
-            else if (param.HasDefaultValue)
-            {
-                args[i] = param.DefaultValue;
-            }
             else
             {
-                args[i] = null;
+                args[i] = ResolveParameter(param, body, allowWholeBody);
             }
         }
 
         return args;
     }
 
-    private static object? ResolveParameter(ParameterInfo param, JsonElement body)
+    private static object? ResolveParameter(ParameterInfo param, JsonElement? body, bool allowWholeBody)
     {
-        // If the body has a property matching the parameter name, use it
-        if (body.ValueKind == JsonValueKind.Object &&
-            body.TryGetProperty(param.Name!, out var propValue))
+        if (body is { ValueKind: JsonValueKind.Object } value)
         {
-            return JsonSerializer.Deserialize(
-                propValue.GetRawText(), param.ParameterType, JsonOptions);
-        }
-
-        // If there's only one business parameter, try deserializing the whole body as that type
-        if (body.ValueKind == JsonValueKind.Object)
-        {
-            try
+            if (value.TryGetProperty(param.Name!, out var property))
             {
-                return JsonSerializer.Deserialize(
-                    body.GetRawText(), param.ParameterType, JsonOptions);
+                if (property.ValueKind != JsonValueKind.Null || param.HasDefaultValue)
+                    return property.Deserialize(param.ParameterType, JsonOptions);
             }
-            catch
+            else if (allowWholeBody)
             {
-                // Fall through to default
+                return value.Deserialize(param.ParameterType, JsonOptions);
             }
         }
 
-        return param.HasDefaultValue ? param.DefaultValue : null;
+        if (param.HasDefaultValue)
+            return param.DefaultValue;
+
+        throw new BadHttpRequestException($"Missing required parameter '{param.Name}'.");
     }
 }

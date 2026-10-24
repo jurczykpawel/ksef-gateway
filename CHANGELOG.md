@@ -2,6 +2,10 @@
 
 ## [Unreleased]
 
+### Added
+
+- Approve the complete reflected SDK 2.9.0 route/signature manifest in tests; SDK contract changes require explicit review and a changelog entry.
+
 ### Security
 
 - Fix licensing trust endpoints to Sellf HTTPS URLs; bound JWKS/CRL requests to 10 seconds and dispose responses.
@@ -15,6 +19,8 @@
 - PDF image installs production dependencies only (`tsx` remains a runtime dependency) and sets `NODE_ENV=production`.
 
 ### Fixed
+
+- Bind chunked JSON bodies on SDK routes, return 400 for invalid JSON or missing required arguments, and limit whole-body binding to a single composite business parameter.
 
 - Serialize per-NIP token authentication and refresh, publish immutable snapshots, refresh at 80% of actual lifetime, and preserve valid tokens on transient refresh failures without swallowing cancellation.
 - Count each SDK HTTP attempt against per-NIP operation budgets (anonymous calls per IP), honor upstream Retry-After, update session-close/export limits, and exclude local diagnostics regardless of route casing.

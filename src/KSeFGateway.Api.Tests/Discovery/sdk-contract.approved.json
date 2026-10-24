@@ -1,0 +1,2202 @@
+[
+  {
+    "route": "/ksef/active-sessions/get-active-sessions",
+    "group": "active-sessions",
+    "method": "get-active-sessions",
+    "sdkMethod": "GetActiveSessions",
+    "parameters": [
+      {
+        "name": "accessToken",
+        "type": "System.String",
+        "business": false,
+        "optional": false,
+        "defaultValue": null
+      },
+      {
+        "name": "pageSize",
+        "type": "System.Nullable\u00601[System.Int32]",
+        "business": true,
+        "optional": false,
+        "defaultValue": null
+      },
+      {
+        "name": "continuationToken",
+        "type": "System.String",
+        "business": true,
+        "optional": false,
+        "defaultValue": null
+      },
+      {
+        "name": "cancellationToken",
+        "type": "System.Threading.CancellationToken",
+        "business": false,
+        "optional": true,
+        "defaultValue": null
+      }
+    ],
+    "returnType": "System.Threading.Tasks.Task\u00601[KSeF.Client.Core.Models.Sessions.ActiveSessions.AuthenticationListResponse]"
+  },
+  {
+    "route": "/ksef/active-sessions/revoke-current-session",
+    "group": "active-sessions",
+    "method": "revoke-current-session",
+    "sdkMethod": "RevokeCurrentSessionAsync",
+    "parameters": [
+      {
+        "name": "token",
+        "type": "System.String",
+        "business": true,
+        "optional": false,
+        "defaultValue": null
+      },
+      {
+        "name": "cancellationToken",
+        "type": "System.Threading.CancellationToken",
+        "business": false,
+        "optional": true,
+        "defaultValue": null
+      }
+    ],
+    "returnType": "System.Threading.Tasks.Task"
+  },
+  {
+    "route": "/ksef/active-sessions/revoke-session",
+    "group": "active-sessions",
+    "method": "revoke-session",
+    "sdkMethod": "RevokeSessionAsync",
+    "parameters": [
+      {
+        "name": "sessionReferenceNumber",
+        "type": "System.String",
+        "business": true,
+        "optional": false,
+        "defaultValue": null
+      },
+      {
+        "name": "accessToken",
+        "type": "System.String",
+        "business": false,
+        "optional": false,
+        "defaultValue": null
+      },
+      {
+        "name": "cancellationToken",
+        "type": "System.Threading.CancellationToken",
+        "business": false,
+        "optional": true,
+        "defaultValue": null
+      }
+    ],
+    "returnType": "System.Threading.Tasks.Task"
+  },
+  {
+    "route": "/ksef/authorization/get-access-token",
+    "group": "authorization",
+    "method": "get-access-token",
+    "sdkMethod": "GetAccessTokenAsync",
+    "parameters": [
+      {
+        "name": "authenticationToken",
+        "type": "System.String",
+        "business": true,
+        "optional": false,
+        "defaultValue": null
+      },
+      {
+        "name": "cancellationToken",
+        "type": "System.Threading.CancellationToken",
+        "business": false,
+        "optional": true,
+        "defaultValue": null
+      }
+    ],
+    "returnType": "System.Threading.Tasks.Task\u00601[KSeF.Client.Core.Models.Authorization.AuthenticationOperationStatusResponse]"
+  },
+  {
+    "route": "/ksef/authorization/get-auth-challenge",
+    "group": "authorization",
+    "method": "get-auth-challenge",
+    "sdkMethod": "GetAuthChallengeAsync",
+    "parameters": [
+      {
+        "name": "cancellationToken",
+        "type": "System.Threading.CancellationToken",
+        "business": false,
+        "optional": true,
+        "defaultValue": null
+      }
+    ],
+    "returnType": "System.Threading.Tasks.Task\u00601[KSeF.Client.Core.Models.Authorization.AuthenticationChallengeResponse]"
+  },
+  {
+    "route": "/ksef/authorization/get-auth-status",
+    "group": "authorization",
+    "method": "get-auth-status",
+    "sdkMethod": "GetAuthStatusAsync",
+    "parameters": [
+      {
+        "name": "authOperationReferenceNumber",
+        "type": "System.String",
+        "business": true,
+        "optional": false,
+        "defaultValue": null
+      },
+      {
+        "name": "authenticationToken",
+        "type": "System.String",
+        "business": true,
+        "optional": false,
+        "defaultValue": null
+      },
+      {
+        "name": "cancellationToken",
+        "type": "System.Threading.CancellationToken",
+        "business": false,
+        "optional": true,
+        "defaultValue": null
+      }
+    ],
+    "returnType": "System.Threading.Tasks.Task\u00601[KSeF.Client.Core.Models.AuthStatus]"
+  },
+  {
+    "route": "/ksef/authorization/refresh-access-token",
+    "group": "authorization",
+    "method": "refresh-access-token",
+    "sdkMethod": "RefreshAccessTokenAsync",
+    "parameters": [
+      {
+        "name": "refreshToken",
+        "type": "System.String",
+        "business": true,
+        "optional": false,
+        "defaultValue": null
+      },
+      {
+        "name": "cancellationToken",
+        "type": "System.Threading.CancellationToken",
+        "business": false,
+        "optional": true,
+        "defaultValue": null
+      }
+    ],
+    "returnType": "System.Threading.Tasks.Task\u00601[KSeF.Client.Core.Models.Authorization.RefreshTokenResponse]"
+  },
+  {
+    "route": "/ksef/authorization/submit-ksef-token-auth-request",
+    "group": "authorization",
+    "method": "submit-ksef-token-auth-request",
+    "sdkMethod": "SubmitKsefTokenAuthRequestAsync",
+    "parameters": [
+      {
+        "name": "requestPayload",
+        "type": "KSeF.Client.Core.Models.Authorization.AuthenticationKsefTokenRequest",
+        "business": true,
+        "optional": false,
+        "defaultValue": null
+      },
+      {
+        "name": "cancellationToken",
+        "type": "System.Threading.CancellationToken",
+        "business": false,
+        "optional": true,
+        "defaultValue": null
+      }
+    ],
+    "returnType": "System.Threading.Tasks.Task\u00601[KSeF.Client.Core.Models.Authorization.SignatureResponse]"
+  },
+  {
+    "route": "/ksef/authorization/submit-xades-auth-request",
+    "group": "authorization",
+    "method": "submit-xades-auth-request",
+    "sdkMethod": "SubmitXadesAuthRequestAsync",
+    "parameters": [
+      {
+        "name": "signedXML",
+        "type": "System.String",
+        "business": true,
+        "optional": false,
+        "defaultValue": null
+      },
+      {
+        "name": "verifyCertificateChain",
+        "type": "System.Boolean",
+        "business": true,
+        "optional": true,
+        "defaultValue": "False"
+      },
+      {
+        "name": "enforceXadesCompliance",
+        "type": "System.Boolean",
+        "business": true,
+        "optional": true,
+        "defaultValue": "False"
+      },
+      {
+        "name": "cancellationToken",
+        "type": "System.Threading.CancellationToken",
+        "business": false,
+        "optional": true,
+        "defaultValue": null
+      }
+    ],
+    "returnType": "System.Threading.Tasks.Task\u00601[KSeF.Client.Core.Models.Authorization.SignatureResponse]"
+  },
+  {
+    "route": "/ksef/batch-session/close-batch-session",
+    "group": "batch-session",
+    "method": "close-batch-session",
+    "sdkMethod": "CloseBatchSessionAsync",
+    "parameters": [
+      {
+        "name": "batchSessionReferenceNumber",
+        "type": "System.String",
+        "business": true,
+        "optional": false,
+        "defaultValue": null
+      },
+      {
+        "name": "accessToken",
+        "type": "System.String",
+        "business": false,
+        "optional": false,
+        "defaultValue": null
+      },
+      {
+        "name": "cancellationToken",
+        "type": "System.Threading.CancellationToken",
+        "business": false,
+        "optional": true,
+        "defaultValue": null
+      }
+    ],
+    "returnType": "System.Threading.Tasks.Task"
+  },
+  {
+    "route": "/ksef/batch-session/open-batch-session",
+    "group": "batch-session",
+    "method": "open-batch-session",
+    "sdkMethod": "OpenBatchSessionAsync",
+    "parameters": [
+      {
+        "name": "requestPayload",
+        "type": "KSeF.Client.Core.Models.Sessions.BatchSession.OpenBatchSessionRequest",
+        "business": true,
+        "optional": false,
+        "defaultValue": null
+      },
+      {
+        "name": "accessToken",
+        "type": "System.String",
+        "business": false,
+        "optional": false,
+        "defaultValue": null
+      },
+      {
+        "name": "feature",
+        "type": "System.String",
+        "business": true,
+        "optional": true,
+        "defaultValue": null
+      },
+      {
+        "name": "cancellationToken",
+        "type": "System.Threading.CancellationToken",
+        "business": false,
+        "optional": true,
+        "defaultValue": null
+      }
+    ],
+    "returnType": "System.Threading.Tasks.Task\u00601[KSeF.Client.Core.Models.Sessions.BatchSession.OpenBatchSessionResponse]"
+  },
+  {
+    "route": "/ksef/batch-session/send-batch-parts",
+    "group": "batch-session",
+    "method": "send-batch-parts",
+    "sdkMethod": "SendBatchPartsAsync",
+    "parameters": [
+      {
+        "name": "openBatchSessionResponse",
+        "type": "KSeF.Client.Core.Models.Sessions.BatchSession.OpenBatchSessionResponse",
+        "business": true,
+        "optional": false,
+        "defaultValue": null
+      },
+      {
+        "name": "parts",
+        "type": "System.Collections.Generic.ICollection\u00601[KSeF.Client.Core.Models.Sessions.BatchSession.BatchPartSendingInfo]",
+        "business": true,
+        "optional": false,
+        "defaultValue": null
+      },
+      {
+        "name": "cancellationToken",
+        "type": "System.Threading.CancellationToken",
+        "business": false,
+        "optional": true,
+        "defaultValue": null
+      }
+    ],
+    "returnType": "System.Threading.Tasks.Task"
+  },
+  {
+    "route": "/ksef/batch-session/send-batch-parts-with-stream",
+    "group": "batch-session",
+    "method": "send-batch-parts-with-stream",
+    "sdkMethod": "SendBatchPartsWithStreamAsync",
+    "parameters": [
+      {
+        "name": "openBatchSessionResponse",
+        "type": "KSeF.Client.Core.Models.Sessions.BatchSession.OpenBatchSessionResponse",
+        "business": true,
+        "optional": false,
+        "defaultValue": null
+      },
+      {
+        "name": "parts",
+        "type": "System.Collections.Generic.ICollection\u00601[KSeF.Client.Core.Models.Sessions.BatchSession.BatchPartStreamSendingInfo]",
+        "business": true,
+        "optional": false,
+        "defaultValue": null
+      },
+      {
+        "name": "cancellationToken",
+        "type": "System.Threading.CancellationToken",
+        "business": false,
+        "optional": true,
+        "defaultValue": null
+      }
+    ],
+    "returnType": "System.Threading.Tasks.Task"
+  },
+  {
+    "route": "/ksef/certificate/get-certificate-enrollment-data",
+    "group": "certificate",
+    "method": "get-certificate-enrollment-data",
+    "sdkMethod": "GetCertificateEnrollmentDataAsync",
+    "parameters": [
+      {
+        "name": "accessToken",
+        "type": "System.String",
+        "business": false,
+        "optional": false,
+        "defaultValue": null
+      },
+      {
+        "name": "cancellationToken",
+        "type": "System.Threading.CancellationToken",
+        "business": false,
+        "optional": true,
+        "defaultValue": null
+      }
+    ],
+    "returnType": "System.Threading.Tasks.Task\u00601[KSeF.Client.Core.Models.Certificates.CertificateEnrollmentsInfoResponse]"
+  },
+  {
+    "route": "/ksef/certificate/get-certificate-enrollment-status",
+    "group": "certificate",
+    "method": "get-certificate-enrollment-status",
+    "sdkMethod": "GetCertificateEnrollmentStatusAsync",
+    "parameters": [
+      {
+        "name": "certificateRequestReferenceNumber",
+        "type": "System.String",
+        "business": true,
+        "optional": false,
+        "defaultValue": null
+      },
+      {
+        "name": "accessToken",
+        "type": "System.String",
+        "business": false,
+        "optional": false,
+        "defaultValue": null
+      },
+      {
+        "name": "cancellationToken",
+        "type": "System.Threading.CancellationToken",
+        "business": false,
+        "optional": true,
+        "defaultValue": null
+      }
+    ],
+    "returnType": "System.Threading.Tasks.Task\u00601[KSeF.Client.Core.Models.Certificates.CertificateEnrollmentStatusResponse]"
+  },
+  {
+    "route": "/ksef/certificate/get-certificate-limits",
+    "group": "certificate",
+    "method": "get-certificate-limits",
+    "sdkMethod": "GetCertificateLimitsAsync",
+    "parameters": [
+      {
+        "name": "accessToken",
+        "type": "System.String",
+        "business": false,
+        "optional": false,
+        "defaultValue": null
+      },
+      {
+        "name": "cancellationToken",
+        "type": "System.Threading.CancellationToken",
+        "business": false,
+        "optional": true,
+        "defaultValue": null
+      }
+    ],
+    "returnType": "System.Threading.Tasks.Task\u00601[KSeF.Client.Core.Models.Certificates.CertificateLimitResponse]"
+  },
+  {
+    "route": "/ksef/certificate/get-certificate-list",
+    "group": "certificate",
+    "method": "get-certificate-list",
+    "sdkMethod": "GetCertificateListAsync",
+    "parameters": [
+      {
+        "name": "requestPayload",
+        "type": "KSeF.Client.Core.Models.Certificates.CertificateListRequest",
+        "business": true,
+        "optional": false,
+        "defaultValue": null
+      },
+      {
+        "name": "accessToken",
+        "type": "System.String",
+        "business": false,
+        "optional": false,
+        "defaultValue": null
+      },
+      {
+        "name": "cancellationToken",
+        "type": "System.Threading.CancellationToken",
+        "business": false,
+        "optional": true,
+        "defaultValue": null
+      }
+    ],
+    "returnType": "System.Threading.Tasks.Task\u00601[KSeF.Client.Core.Models.Certificates.CertificateListResponse]"
+  },
+  {
+    "route": "/ksef/certificate/get-certificate-metadata-list",
+    "group": "certificate",
+    "method": "get-certificate-metadata-list",
+    "sdkMethod": "GetCertificateMetadataListAsync",
+    "parameters": [
+      {
+        "name": "accessToken",
+        "type": "System.String",
+        "business": false,
+        "optional": false,
+        "defaultValue": null
+      },
+      {
+        "name": "requestPayload",
+        "type": "KSeF.Client.Core.Models.Certificates.CertificateMetadataListRequest",
+        "business": true,
+        "optional": true,
+        "defaultValue": null
+      },
+      {
+        "name": "pageSize",
+        "type": "System.Nullable\u00601[System.Int32]",
+        "business": true,
+        "optional": true,
+        "defaultValue": null
+      },
+      {
+        "name": "pageOffset",
+        "type": "System.Nullable\u00601[System.Int32]",
+        "business": true,
+        "optional": true,
+        "defaultValue": null
+      },
+      {
+        "name": "cancellationToken",
+        "type": "System.Threading.CancellationToken",
+        "business": false,
+        "optional": true,
+        "defaultValue": null
+      }
+    ],
+    "returnType": "System.Threading.Tasks.Task\u00601[KSeF.Client.Core.Models.Certificates.CertificateMetadataListResponse]"
+  },
+  {
+    "route": "/ksef/certificate/revoke-certificate",
+    "group": "certificate",
+    "method": "revoke-certificate",
+    "sdkMethod": "RevokeCertificateAsync",
+    "parameters": [
+      {
+        "name": "requestPayload",
+        "type": "KSeF.Client.Core.Models.Certificates.CertificateRevokeRequest",
+        "business": true,
+        "optional": false,
+        "defaultValue": null
+      },
+      {
+        "name": "serialNumber",
+        "type": "System.String",
+        "business": true,
+        "optional": false,
+        "defaultValue": null
+      },
+      {
+        "name": "accessToken",
+        "type": "System.String",
+        "business": false,
+        "optional": false,
+        "defaultValue": null
+      },
+      {
+        "name": "cancellationToken",
+        "type": "System.Threading.CancellationToken",
+        "business": false,
+        "optional": true,
+        "defaultValue": null
+      }
+    ],
+    "returnType": "System.Threading.Tasks.Task"
+  },
+  {
+    "route": "/ksef/certificate/send-certificate-enrollment",
+    "group": "certificate",
+    "method": "send-certificate-enrollment",
+    "sdkMethod": "SendCertificateEnrollmentAsync",
+    "parameters": [
+      {
+        "name": "requestPayload",
+        "type": "KSeF.Client.Core.Models.Certificates.SendCertificateEnrollmentRequest",
+        "business": true,
+        "optional": false,
+        "defaultValue": null
+      },
+      {
+        "name": "accessToken",
+        "type": "System.String",
+        "business": false,
+        "optional": false,
+        "defaultValue": null
+      },
+      {
+        "name": "cancellationToken",
+        "type": "System.Threading.CancellationToken",
+        "business": false,
+        "optional": true,
+        "defaultValue": null
+      }
+    ],
+    "returnType": "System.Threading.Tasks.Task\u00601[KSeF.Client.Core.Models.Certificates.CertificateEnrollmentResponse]"
+  },
+  {
+    "route": "/ksef/collective-identifiers/generate-collective-identifier",
+    "group": "collective-identifiers",
+    "method": "generate-collective-identifier",
+    "sdkMethod": "GenerateCollectiveIdentifierAsync",
+    "parameters": [
+      {
+        "name": "request",
+        "type": "KSeF.Client.Core.Models.CollectiveIdentifiers.GenerateCollectiveIdentifierRequest",
+        "business": true,
+        "optional": false,
+        "defaultValue": null
+      },
+      {
+        "name": "accessToken",
+        "type": "System.String",
+        "business": false,
+        "optional": false,
+        "defaultValue": null
+      },
+      {
+        "name": "cancellationToken",
+        "type": "System.Threading.CancellationToken",
+        "business": false,
+        "optional": true,
+        "defaultValue": null
+      }
+    ],
+    "returnType": "System.Threading.Tasks.Task\u00601[KSeF.Client.Core.Models.CollectiveIdentifiers.GenerateCollectiveIdentifierResponse]"
+  },
+  {
+    "route": "/ksef/collective-identifiers/get-collective-identifier-invoices",
+    "group": "collective-identifiers",
+    "method": "get-collective-identifier-invoices",
+    "sdkMethod": "GetCollectiveIdentifierInvoicesAsync",
+    "parameters": [
+      {
+        "name": "request",
+        "type": "KSeF.Client.Core.Models.CollectiveIdentifiers.CollectiveIdentifierInvoicesQueryRequest",
+        "business": true,
+        "optional": false,
+        "defaultValue": null
+      },
+      {
+        "name": "accessToken",
+        "type": "System.String",
+        "business": false,
+        "optional": false,
+        "defaultValue": null
+      },
+      {
+        "name": "continuationToken",
+        "type": "System.String",
+        "business": true,
+        "optional": true,
+        "defaultValue": null
+      },
+      {
+        "name": "pageSize",
+        "type": "System.Nullable\u00601[System.Int32]",
+        "business": true,
+        "optional": true,
+        "defaultValue": null
+      },
+      {
+        "name": "cancellationToken",
+        "type": "System.Threading.CancellationToken",
+        "business": false,
+        "optional": true,
+        "defaultValue": null
+      }
+    ],
+    "returnType": "System.Threading.Tasks.Task\u00601[KSeF.Client.Core.Models.CollectiveIdentifiers.CollectiveIdentifierInvoicesQueryResponse]"
+  },
+  {
+    "route": "/ksef/collective-identifiers/get-collective-identifiers-by-ksef-number",
+    "group": "collective-identifiers",
+    "method": "get-collective-identifiers-by-ksef-number",
+    "sdkMethod": "GetCollectiveIdentifiersByKsefNumberAsync",
+    "parameters": [
+      {
+        "name": "ksefNumber",
+        "type": "System.String",
+        "business": true,
+        "optional": false,
+        "defaultValue": null
+      },
+      {
+        "name": "accessToken",
+        "type": "System.String",
+        "business": false,
+        "optional": false,
+        "defaultValue": null
+      },
+      {
+        "name": "continuationToken",
+        "type": "System.String",
+        "business": true,
+        "optional": true,
+        "defaultValue": null
+      },
+      {
+        "name": "pageSize",
+        "type": "System.Nullable\u00601[System.Int32]",
+        "business": true,
+        "optional": true,
+        "defaultValue": null
+      },
+      {
+        "name": "cancellationToken",
+        "type": "System.Threading.CancellationToken",
+        "business": false,
+        "optional": true,
+        "defaultValue": null
+      }
+    ],
+    "returnType": "System.Threading.Tasks.Task\u00601[KSeF.Client.Core.Models.CollectiveIdentifiers.CollectiveIdentifiersByKsefNumberQueryResponse]"
+  },
+  {
+    "route": "/ksef/collective-identifiers/query-collective-identifiers",
+    "group": "collective-identifiers",
+    "method": "query-collective-identifiers",
+    "sdkMethod": "QueryCollectiveIdentifiersAsync",
+    "parameters": [
+      {
+        "name": "request",
+        "type": "KSeF.Client.Core.Models.CollectiveIdentifiers.CollectiveIdentifiersQueryRequest",
+        "business": true,
+        "optional": false,
+        "defaultValue": null
+      },
+      {
+        "name": "accessToken",
+        "type": "System.String",
+        "business": false,
+        "optional": false,
+        "defaultValue": null
+      },
+      {
+        "name": "pageSize",
+        "type": "System.Nullable\u00601[System.Int32]",
+        "business": true,
+        "optional": true,
+        "defaultValue": null
+      },
+      {
+        "name": "continuationToken",
+        "type": "System.String",
+        "business": true,
+        "optional": true,
+        "defaultValue": null
+      },
+      {
+        "name": "cancellationToken",
+        "type": "System.Threading.CancellationToken",
+        "business": false,
+        "optional": true,
+        "defaultValue": null
+      }
+    ],
+    "returnType": "System.Threading.Tasks.Task\u00601[KSeF.Client.Core.Models.CollectiveIdentifiers.CollectiveIdentifiersQueryResponse]"
+  },
+  {
+    "route": "/ksef/grant-permission/grants-authorization-permission",
+    "group": "grant-permission",
+    "method": "grants-authorization-permission",
+    "sdkMethod": "GrantsAuthorizationPermissionAsync",
+    "parameters": [
+      {
+        "name": "requestPayload",
+        "type": "KSeF.Client.Core.Models.Permissions.Authorizations.GrantPermissionsAuthorizationRequest",
+        "business": true,
+        "optional": false,
+        "defaultValue": null
+      },
+      {
+        "name": "accessToken",
+        "type": "System.String",
+        "business": false,
+        "optional": false,
+        "defaultValue": null
+      },
+      {
+        "name": "cancellationToken",
+        "type": "System.Threading.CancellationToken",
+        "business": false,
+        "optional": true,
+        "defaultValue": null
+      }
+    ],
+    "returnType": "System.Threading.Tasks.Task\u00601[KSeF.Client.Core.Models.OperationResponse]"
+  },
+  {
+    "route": "/ksef/grant-permission/grants-permission-entity",
+    "group": "grant-permission",
+    "method": "grants-permission-entity",
+    "sdkMethod": "GrantsPermissionEntityAsync",
+    "parameters": [
+      {
+        "name": "requestPayload",
+        "type": "KSeF.Client.Core.Models.Permissions.Entity.GrantPermissionsEntityRequest",
+        "business": true,
+        "optional": false,
+        "defaultValue": null
+      },
+      {
+        "name": "accessToken",
+        "type": "System.String",
+        "business": false,
+        "optional": false,
+        "defaultValue": null
+      },
+      {
+        "name": "cancellationToken",
+        "type": "System.Threading.CancellationToken",
+        "business": false,
+        "optional": true,
+        "defaultValue": null
+      }
+    ],
+    "returnType": "System.Threading.Tasks.Task\u00601[KSeF.Client.Core.Models.OperationResponse]"
+  },
+  {
+    "route": "/ksef/grant-permission/grants-permission-euentity",
+    "group": "grant-permission",
+    "method": "grants-permission-euentity",
+    "sdkMethod": "GrantsPermissionEUEntityAsync",
+    "parameters": [
+      {
+        "name": "requestPayload",
+        "type": "KSeF.Client.Core.Models.Permissions.EUEntity.GrantPermissionsEuEntityRequest",
+        "business": true,
+        "optional": false,
+        "defaultValue": null
+      },
+      {
+        "name": "accessToken",
+        "type": "System.String",
+        "business": false,
+        "optional": false,
+        "defaultValue": null
+      },
+      {
+        "name": "cancellationToken",
+        "type": "System.Threading.CancellationToken",
+        "business": false,
+        "optional": true,
+        "defaultValue": null
+      }
+    ],
+    "returnType": "System.Threading.Tasks.Task\u00601[KSeF.Client.Core.Models.OperationResponse]"
+  },
+  {
+    "route": "/ksef/grant-permission/grants-permission-euentity-representative",
+    "group": "grant-permission",
+    "method": "grants-permission-euentity-representative",
+    "sdkMethod": "GrantsPermissionEUEntityRepresentativeAsync",
+    "parameters": [
+      {
+        "name": "requestPayload",
+        "type": "KSeF.Client.Core.Models.Permissions.EuEntityRepresentative.GrantPermissionsEuEntityRepresentativeRequest",
+        "business": true,
+        "optional": false,
+        "defaultValue": null
+      },
+      {
+        "name": "accessToken",
+        "type": "System.String",
+        "business": false,
+        "optional": false,
+        "defaultValue": null
+      },
+      {
+        "name": "cancellationToken",
+        "type": "System.Threading.CancellationToken",
+        "business": false,
+        "optional": true,
+        "defaultValue": null
+      }
+    ],
+    "returnType": "System.Threading.Tasks.Task\u00601[KSeF.Client.Core.Models.OperationResponse]"
+  },
+  {
+    "route": "/ksef/grant-permission/grants-permission-indirect-entity",
+    "group": "grant-permission",
+    "method": "grants-permission-indirect-entity",
+    "sdkMethod": "GrantsPermissionIndirectEntityAsync",
+    "parameters": [
+      {
+        "name": "requestPayload",
+        "type": "KSeF.Client.Core.Models.Permissions.IndirectEntity.GrantPermissionsIndirectEntityRequest",
+        "business": true,
+        "optional": false,
+        "defaultValue": null
+      },
+      {
+        "name": "accessToken",
+        "type": "System.String",
+        "business": false,
+        "optional": false,
+        "defaultValue": null
+      },
+      {
+        "name": "cancellationToken",
+        "type": "System.Threading.CancellationToken",
+        "business": false,
+        "optional": true,
+        "defaultValue": null
+      }
+    ],
+    "returnType": "System.Threading.Tasks.Task\u00601[KSeF.Client.Core.Models.OperationResponse]"
+  },
+  {
+    "route": "/ksef/grant-permission/grants-permission-person",
+    "group": "grant-permission",
+    "method": "grants-permission-person",
+    "sdkMethod": "GrantsPermissionPersonAsync",
+    "parameters": [
+      {
+        "name": "requestPayload",
+        "type": "KSeF.Client.Core.Models.Permissions.Person.GrantPermissionsPersonRequest",
+        "business": true,
+        "optional": false,
+        "defaultValue": null
+      },
+      {
+        "name": "accessToken",
+        "type": "System.String",
+        "business": false,
+        "optional": false,
+        "defaultValue": null
+      },
+      {
+        "name": "cancellationToken",
+        "type": "System.Threading.CancellationToken",
+        "business": false,
+        "optional": true,
+        "defaultValue": null
+      }
+    ],
+    "returnType": "System.Threading.Tasks.Task\u00601[KSeF.Client.Core.Models.OperationResponse]"
+  },
+  {
+    "route": "/ksef/grant-permission/grants-permission-sub-unit",
+    "group": "grant-permission",
+    "method": "grants-permission-sub-unit",
+    "sdkMethod": "GrantsPermissionSubUnitAsync",
+    "parameters": [
+      {
+        "name": "requestPayload",
+        "type": "KSeF.Client.Core.Models.Permissions.SubUnit.GrantPermissionsSubunitRequest",
+        "business": true,
+        "optional": false,
+        "defaultValue": null
+      },
+      {
+        "name": "accessToken",
+        "type": "System.String",
+        "business": false,
+        "optional": false,
+        "defaultValue": null
+      },
+      {
+        "name": "cancellationToken",
+        "type": "System.Threading.CancellationToken",
+        "business": false,
+        "optional": true,
+        "defaultValue": null
+      }
+    ],
+    "returnType": "System.Threading.Tasks.Task\u00601[KSeF.Client.Core.Models.OperationResponse]"
+  },
+  {
+    "route": "/ksef/invoice-download/export-invoices",
+    "group": "invoice-download",
+    "method": "export-invoices",
+    "sdkMethod": "ExportInvoicesAsync",
+    "parameters": [
+      {
+        "name": "requestPayload",
+        "type": "KSeF.Client.Core.Models.Invoices.InvoiceExportRequest",
+        "business": true,
+        "optional": false,
+        "defaultValue": null
+      },
+      {
+        "name": "accessToken",
+        "type": "System.String",
+        "business": false,
+        "optional": false,
+        "defaultValue": null
+      },
+      {
+        "name": "includeMetadata",
+        "type": "System.Boolean",
+        "business": true,
+        "optional": true,
+        "defaultValue": "True"
+      },
+      {
+        "name": "cancellationToken",
+        "type": "System.Threading.CancellationToken",
+        "business": false,
+        "optional": true,
+        "defaultValue": null
+      }
+    ],
+    "returnType": "System.Threading.Tasks.Task\u00601[KSeF.Client.Core.Models.OperationResponse]"
+  },
+  {
+    "route": "/ksef/invoice-download/get-invoice",
+    "group": "invoice-download",
+    "method": "get-invoice",
+    "sdkMethod": "GetInvoiceAsync",
+    "parameters": [
+      {
+        "name": "ksefNumber",
+        "type": "System.String",
+        "business": true,
+        "optional": false,
+        "defaultValue": null
+      },
+      {
+        "name": "accessToken",
+        "type": "System.String",
+        "business": false,
+        "optional": false,
+        "defaultValue": null
+      },
+      {
+        "name": "cancellationToken",
+        "type": "System.Threading.CancellationToken",
+        "business": false,
+        "optional": true,
+        "defaultValue": null
+      }
+    ],
+    "returnType": "System.Threading.Tasks.Task\u00601[System.String]"
+  },
+  {
+    "route": "/ksef/invoice-download/get-invoice-export-status",
+    "group": "invoice-download",
+    "method": "get-invoice-export-status",
+    "sdkMethod": "GetInvoiceExportStatusAsync",
+    "parameters": [
+      {
+        "name": "referenceNumber",
+        "type": "System.String",
+        "business": true,
+        "optional": false,
+        "defaultValue": null
+      },
+      {
+        "name": "accessToken",
+        "type": "System.String",
+        "business": false,
+        "optional": false,
+        "defaultValue": null
+      },
+      {
+        "name": "cancellationToken",
+        "type": "System.Threading.CancellationToken",
+        "business": false,
+        "optional": true,
+        "defaultValue": null
+      }
+    ],
+    "returnType": "System.Threading.Tasks.Task\u00601[KSeF.Client.Core.Models.Invoices.InvoiceExportStatusResponse]"
+  },
+  {
+    "route": "/ksef/invoice-download/query-invoice-metadata",
+    "group": "invoice-download",
+    "method": "query-invoice-metadata",
+    "sdkMethod": "QueryInvoiceMetadataAsync",
+    "parameters": [
+      {
+        "name": "requestPayload",
+        "type": "KSeF.Client.Core.Models.Invoices.InvoiceQueryFilters",
+        "business": true,
+        "optional": false,
+        "defaultValue": null
+      },
+      {
+        "name": "accessToken",
+        "type": "System.String",
+        "business": false,
+        "optional": false,
+        "defaultValue": null
+      },
+      {
+        "name": "pageOffset",
+        "type": "System.Nullable\u00601[System.Int32]",
+        "business": true,
+        "optional": true,
+        "defaultValue": null
+      },
+      {
+        "name": "pageSize",
+        "type": "System.Nullable\u00601[System.Int32]",
+        "business": true,
+        "optional": true,
+        "defaultValue": null
+      },
+      {
+        "name": "sortOrder",
+        "type": "KSeF.Client.Core.Models.Invoices.SortOrder",
+        "business": true,
+        "optional": true,
+        "defaultValue": "Asc"
+      },
+      {
+        "name": "cancellationToken",
+        "type": "System.Threading.CancellationToken",
+        "business": false,
+        "optional": true,
+        "defaultValue": null
+      }
+    ],
+    "returnType": "System.Threading.Tasks.Task\u00601[KSeF.Client.Core.Models.Invoices.PagedInvoiceResponse]"
+  },
+  {
+    "route": "/ksef/ksef-token/generate-ksef-token",
+    "group": "ksef-token",
+    "method": "generate-ksef-token",
+    "sdkMethod": "GenerateKsefTokenAsync",
+    "parameters": [
+      {
+        "name": "requestPayload",
+        "type": "KSeF.Client.Core.Models.Authorization.KsefTokenRequest",
+        "business": true,
+        "optional": false,
+        "defaultValue": null
+      },
+      {
+        "name": "accessToken",
+        "type": "System.String",
+        "business": false,
+        "optional": false,
+        "defaultValue": null
+      },
+      {
+        "name": "cancellationToken",
+        "type": "System.Threading.CancellationToken",
+        "business": false,
+        "optional": true,
+        "defaultValue": null
+      }
+    ],
+    "returnType": "System.Threading.Tasks.Task\u00601[KSeF.Client.Core.Models.Authorization.KsefTokenResponse]"
+  },
+  {
+    "route": "/ksef/ksef-token/get-ksef-token",
+    "group": "ksef-token",
+    "method": "get-ksef-token",
+    "sdkMethod": "GetKsefTokenAsync",
+    "parameters": [
+      {
+        "name": "tokenReferenceNumber",
+        "type": "System.String",
+        "business": true,
+        "optional": false,
+        "defaultValue": null
+      },
+      {
+        "name": "accessToken",
+        "type": "System.String",
+        "business": false,
+        "optional": false,
+        "defaultValue": null
+      },
+      {
+        "name": "cancellationToken",
+        "type": "System.Threading.CancellationToken",
+        "business": false,
+        "optional": true,
+        "defaultValue": null
+      }
+    ],
+    "returnType": "System.Threading.Tasks.Task\u00601[KSeF.Client.Core.Models.Authorization.AuthenticationKsefToken]"
+  },
+  {
+    "route": "/ksef/ksef-token/query-ksef-tokens",
+    "group": "ksef-token",
+    "method": "query-ksef-tokens",
+    "sdkMethod": "QueryKsefTokensAsync",
+    "parameters": [
+      {
+        "name": "accessToken",
+        "type": "System.String",
+        "business": false,
+        "optional": false,
+        "defaultValue": null
+      },
+      {
+        "name": "statuses",
+        "type": "System.Collections.Generic.ICollection\u00601[KSeF.Client.Core.Models.Authorization.AuthenticationKsefTokenStatus]",
+        "business": true,
+        "optional": true,
+        "defaultValue": null
+      },
+      {
+        "name": "authorIdentifier",
+        "type": "System.String",
+        "business": true,
+        "optional": true,
+        "defaultValue": null
+      },
+      {
+        "name": "authorIdentifierType",
+        "type": "System.Nullable\u00601[KSeF.Client.Core.Models.Token.TokenContextIdentifierType]",
+        "business": true,
+        "optional": true,
+        "defaultValue": null
+      },
+      {
+        "name": "description",
+        "type": "System.String",
+        "business": true,
+        "optional": true,
+        "defaultValue": null
+      },
+      {
+        "name": "continuationToken",
+        "type": "System.String",
+        "business": true,
+        "optional": true,
+        "defaultValue": null
+      },
+      {
+        "name": "pageSize",
+        "type": "System.Nullable\u00601[System.Int32]",
+        "business": true,
+        "optional": true,
+        "defaultValue": null
+      },
+      {
+        "name": "cancellationToken",
+        "type": "System.Threading.CancellationToken",
+        "business": false,
+        "optional": true,
+        "defaultValue": null
+      }
+    ],
+    "returnType": "System.Threading.Tasks.Task\u00601[KSeF.Client.Core.Models.Authorization.QueryKsefTokensResponse]"
+  },
+  {
+    "route": "/ksef/ksef-token/revoke-ksef-token",
+    "group": "ksef-token",
+    "method": "revoke-ksef-token",
+    "sdkMethod": "RevokeKsefTokenAsync",
+    "parameters": [
+      {
+        "name": "tokenReferenceNumber",
+        "type": "System.String",
+        "business": true,
+        "optional": false,
+        "defaultValue": null
+      },
+      {
+        "name": "accessToken",
+        "type": "System.String",
+        "business": false,
+        "optional": false,
+        "defaultValue": null
+      },
+      {
+        "name": "cancellationToken",
+        "type": "System.Threading.CancellationToken",
+        "business": false,
+        "optional": true,
+        "defaultValue": null
+      }
+    ],
+    "returnType": "System.Threading.Tasks.Task"
+  },
+  {
+    "route": "/ksef/online-session/close-online-session",
+    "group": "online-session",
+    "method": "close-online-session",
+    "sdkMethod": "CloseOnlineSessionAsync",
+    "parameters": [
+      {
+        "name": "sessionReferenceNumber",
+        "type": "System.String",
+        "business": true,
+        "optional": false,
+        "defaultValue": null
+      },
+      {
+        "name": "accessToken",
+        "type": "System.String",
+        "business": false,
+        "optional": false,
+        "defaultValue": null
+      },
+      {
+        "name": "cancellationToken",
+        "type": "System.Threading.CancellationToken",
+        "business": false,
+        "optional": true,
+        "defaultValue": null
+      }
+    ],
+    "returnType": "System.Threading.Tasks.Task"
+  },
+  {
+    "route": "/ksef/online-session/open-online-session",
+    "group": "online-session",
+    "method": "open-online-session",
+    "sdkMethod": "OpenOnlineSessionAsync",
+    "parameters": [
+      {
+        "name": "requestPayload",
+        "type": "KSeF.Client.Core.Models.Sessions.OnlineSession.OpenOnlineSessionRequest",
+        "business": true,
+        "optional": false,
+        "defaultValue": null
+      },
+      {
+        "name": "accessToken",
+        "type": "System.String",
+        "business": false,
+        "optional": false,
+        "defaultValue": null
+      },
+      {
+        "name": "feature",
+        "type": "System.String",
+        "business": true,
+        "optional": true,
+        "defaultValue": null
+      },
+      {
+        "name": "cancellationToken",
+        "type": "System.Threading.CancellationToken",
+        "business": false,
+        "optional": true,
+        "defaultValue": null
+      }
+    ],
+    "returnType": "System.Threading.Tasks.Task\u00601[KSeF.Client.Core.Models.Sessions.OnlineSession.OpenOnlineSessionResponse]"
+  },
+  {
+    "route": "/ksef/online-session/send-online-session-invoice",
+    "group": "online-session",
+    "method": "send-online-session-invoice",
+    "sdkMethod": "SendOnlineSessionInvoiceAsync",
+    "parameters": [
+      {
+        "name": "requestPayload",
+        "type": "KSeF.Client.Core.Models.Sessions.SendInvoiceRequest",
+        "business": true,
+        "optional": false,
+        "defaultValue": null
+      },
+      {
+        "name": "sessionReferenceNumber",
+        "type": "System.String",
+        "business": true,
+        "optional": false,
+        "defaultValue": null
+      },
+      {
+        "name": "accessToken",
+        "type": "System.String",
+        "business": false,
+        "optional": false,
+        "defaultValue": null
+      },
+      {
+        "name": "cancellationToken",
+        "type": "System.Threading.CancellationToken",
+        "business": false,
+        "optional": true,
+        "defaultValue": null
+      }
+    ],
+    "returnType": "System.Threading.Tasks.Task\u00601[KSeF.Client.Core.Models.Sessions.OnlineSession.SendInvoiceResponse]"
+  },
+  {
+    "route": "/ksef/peppol/query-peppol-providers",
+    "group": "peppol",
+    "method": "query-peppol-providers",
+    "sdkMethod": "QueryPeppolProvidersAsync",
+    "parameters": [
+      {
+        "name": "accessToken",
+        "type": "System.String",
+        "business": false,
+        "optional": false,
+        "defaultValue": null
+      },
+      {
+        "name": "pageOffset",
+        "type": "System.Nullable\u00601[System.Int32]",
+        "business": true,
+        "optional": true,
+        "defaultValue": null
+      },
+      {
+        "name": "pageSize",
+        "type": "System.Nullable\u00601[System.Int32]",
+        "business": true,
+        "optional": true,
+        "defaultValue": null
+      },
+      {
+        "name": "cancellationToken",
+        "type": "System.Threading.CancellationToken",
+        "business": false,
+        "optional": true,
+        "defaultValue": null
+      }
+    ],
+    "returnType": "System.Threading.Tasks.Task\u00601[KSeF.Client.Core.Models.Peppol.QueryPeppolProvidersResponse]"
+  },
+  {
+    "route": "/ksef/permission-operation/get-attachment-permission-status",
+    "group": "permission-operation",
+    "method": "get-attachment-permission-status",
+    "sdkMethod": "GetAttachmentPermissionStatusAsync",
+    "parameters": [
+      {
+        "name": "accessToken",
+        "type": "System.String",
+        "business": false,
+        "optional": false,
+        "defaultValue": null
+      },
+      {
+        "name": "cancellationToken",
+        "type": "System.Threading.CancellationToken",
+        "business": false,
+        "optional": true,
+        "defaultValue": null
+      }
+    ],
+    "returnType": "System.Threading.Tasks.Task\u00601[KSeF.Client.Core.Models.Permissions.PermissionsAttachmentAllowedResponse]"
+  },
+  {
+    "route": "/ksef/permission-operation/operations-status",
+    "group": "permission-operation",
+    "method": "operations-status",
+    "sdkMethod": "OperationsStatusAsync",
+    "parameters": [
+      {
+        "name": "operationReferenceNumber",
+        "type": "System.String",
+        "business": true,
+        "optional": false,
+        "defaultValue": null
+      },
+      {
+        "name": "accessToken",
+        "type": "System.String",
+        "business": false,
+        "optional": false,
+        "defaultValue": null
+      },
+      {
+        "name": "cancellationToken",
+        "type": "System.Threading.CancellationToken",
+        "business": false,
+        "optional": true,
+        "defaultValue": null
+      }
+    ],
+    "returnType": "System.Threading.Tasks.Task\u00601[KSeF.Client.Core.Models.Permissions.PermissionsOperationStatusResponse]"
+  },
+  {
+    "route": "/ksef/revoke-permission/revoke-authorizations-permission",
+    "group": "revoke-permission",
+    "method": "revoke-authorizations-permission",
+    "sdkMethod": "RevokeAuthorizationsPermissionAsync",
+    "parameters": [
+      {
+        "name": "permissionId",
+        "type": "System.String",
+        "business": true,
+        "optional": false,
+        "defaultValue": null
+      },
+      {
+        "name": "accessToken",
+        "type": "System.String",
+        "business": false,
+        "optional": false,
+        "defaultValue": null
+      },
+      {
+        "name": "cancellationToken",
+        "type": "System.Threading.CancellationToken",
+        "business": false,
+        "optional": true,
+        "defaultValue": null
+      }
+    ],
+    "returnType": "System.Threading.Tasks.Task\u00601[KSeF.Client.Core.Models.OperationResponse]"
+  },
+  {
+    "route": "/ksef/revoke-permission/revoke-common-permission",
+    "group": "revoke-permission",
+    "method": "revoke-common-permission",
+    "sdkMethod": "RevokeCommonPermissionAsync",
+    "parameters": [
+      {
+        "name": "permissionId",
+        "type": "System.String",
+        "business": true,
+        "optional": false,
+        "defaultValue": null
+      },
+      {
+        "name": "accessToken",
+        "type": "System.String",
+        "business": false,
+        "optional": false,
+        "defaultValue": null
+      },
+      {
+        "name": "cancellationToken",
+        "type": "System.Threading.CancellationToken",
+        "business": false,
+        "optional": true,
+        "defaultValue": null
+      }
+    ],
+    "returnType": "System.Threading.Tasks.Task\u00601[KSeF.Client.Core.Models.OperationResponse]"
+  },
+  {
+    "route": "/ksef/search-permission/query-entities-grants",
+    "group": "search-permission",
+    "method": "query-entities-grants",
+    "sdkMethod": "QueryEntitiesGrantsAsync",
+    "parameters": [
+      {
+        "name": "requestPayload",
+        "type": "KSeF.Client.Core.Models.Permissions.Entity.EntityPermissionGrantQueryRequest",
+        "business": true,
+        "optional": false,
+        "defaultValue": null
+      },
+      {
+        "name": "accessToken",
+        "type": "System.String",
+        "business": false,
+        "optional": false,
+        "defaultValue": null
+      },
+      {
+        "name": "pageOffset",
+        "type": "System.Nullable\u00601[System.Int32]",
+        "business": true,
+        "optional": true,
+        "defaultValue": null
+      },
+      {
+        "name": "pageSize",
+        "type": "System.Nullable\u00601[System.Int32]",
+        "business": true,
+        "optional": true,
+        "defaultValue": null
+      },
+      {
+        "name": "cancellationToken",
+        "type": "System.Threading.CancellationToken",
+        "business": false,
+        "optional": true,
+        "defaultValue": null
+      }
+    ],
+    "returnType": "System.Threading.Tasks.Task\u00601[KSeF.Client.Core.Models.Permissions.Entity.EntityPermissionGrantResponse]"
+  },
+  {
+    "route": "/ksef/search-permission/search-entity-authorization-grants",
+    "group": "search-permission",
+    "method": "search-entity-authorization-grants",
+    "sdkMethod": "SearchEntityAuthorizationGrantsAsync",
+    "parameters": [
+      {
+        "name": "requestPayload",
+        "type": "KSeF.Client.Core.Models.Permissions.Entity.EntityAuthorizationsQueryRequest",
+        "business": true,
+        "optional": false,
+        "defaultValue": null
+      },
+      {
+        "name": "accessToken",
+        "type": "System.String",
+        "business": false,
+        "optional": false,
+        "defaultValue": null
+      },
+      {
+        "name": "pageOffset",
+        "type": "System.Nullable\u00601[System.Int32]",
+        "business": true,
+        "optional": true,
+        "defaultValue": null
+      },
+      {
+        "name": "pageSize",
+        "type": "System.Nullable\u00601[System.Int32]",
+        "business": true,
+        "optional": true,
+        "defaultValue": null
+      },
+      {
+        "name": "cancellationToken",
+        "type": "System.Threading.CancellationToken",
+        "business": false,
+        "optional": true,
+        "defaultValue": null
+      }
+    ],
+    "returnType": "System.Threading.Tasks.Task\u00601[KSeF.Client.Core.Models.Permissions.PagedAuthorizationsResponse\u00601[KSeF.Client.Core.Models.Permissions.AuthorizationGrant]]"
+  },
+  {
+    "route": "/ksef/search-permission/search-entity-invoice-roles",
+    "group": "search-permission",
+    "method": "search-entity-invoice-roles",
+    "sdkMethod": "SearchEntityInvoiceRolesAsync",
+    "parameters": [
+      {
+        "name": "accessToken",
+        "type": "System.String",
+        "business": false,
+        "optional": false,
+        "defaultValue": null
+      },
+      {
+        "name": "pageOffset",
+        "type": "System.Nullable\u00601[System.Int32]",
+        "business": true,
+        "optional": true,
+        "defaultValue": null
+      },
+      {
+        "name": "pageSize",
+        "type": "System.Nullable\u00601[System.Int32]",
+        "business": true,
+        "optional": true,
+        "defaultValue": null
+      },
+      {
+        "name": "cancellationToken",
+        "type": "System.Threading.CancellationToken",
+        "business": false,
+        "optional": true,
+        "defaultValue": null
+      }
+    ],
+    "returnType": "System.Threading.Tasks.Task\u00601[KSeF.Client.Core.Models.Permissions.PagedRolesResponse\u00601[KSeF.Client.Core.Models.Permissions.EntityRole]]"
+  },
+  {
+    "route": "/ksef/search-permission/search-granted-eu-entity-permissions",
+    "group": "search-permission",
+    "method": "search-granted-eu-entity-permissions",
+    "sdkMethod": "SearchGrantedEuEntityPermissionsAsync",
+    "parameters": [
+      {
+        "name": "requestPayload",
+        "type": "KSeF.Client.Core.Models.Permissions.EUEntity.EuEntityPermissionsQueryRequest",
+        "business": true,
+        "optional": false,
+        "defaultValue": null
+      },
+      {
+        "name": "accessToken",
+        "type": "System.String",
+        "business": false,
+        "optional": false,
+        "defaultValue": null
+      },
+      {
+        "name": "pageOffset",
+        "type": "System.Nullable\u00601[System.Int32]",
+        "business": true,
+        "optional": true,
+        "defaultValue": null
+      },
+      {
+        "name": "pageSize",
+        "type": "System.Nullable\u00601[System.Int32]",
+        "business": true,
+        "optional": true,
+        "defaultValue": null
+      },
+      {
+        "name": "cancellationToken",
+        "type": "System.Threading.CancellationToken",
+        "business": false,
+        "optional": true,
+        "defaultValue": null
+      }
+    ],
+    "returnType": "System.Threading.Tasks.Task\u00601[KSeF.Client.Core.Models.Permissions.PagedPermissionsResponse\u00601[KSeF.Client.Core.Models.Permissions.EuEntityPermission]]"
+  },
+  {
+    "route": "/ksef/search-permission/search-granted-person-permissions",
+    "group": "search-permission",
+    "method": "search-granted-person-permissions",
+    "sdkMethod": "SearchGrantedPersonPermissionsAsync",
+    "parameters": [
+      {
+        "name": "requestPayload",
+        "type": "KSeF.Client.Core.Models.Permissions.Person.PersonPermissionsQueryRequest",
+        "business": true,
+        "optional": false,
+        "defaultValue": null
+      },
+      {
+        "name": "accessToken",
+        "type": "System.String",
+        "business": false,
+        "optional": false,
+        "defaultValue": null
+      },
+      {
+        "name": "pageOffset",
+        "type": "System.Nullable\u00601[System.Int32]",
+        "business": true,
+        "optional": true,
+        "defaultValue": null
+      },
+      {
+        "name": "pageSize",
+        "type": "System.Nullable\u00601[System.Int32]",
+        "business": true,
+        "optional": true,
+        "defaultValue": null
+      },
+      {
+        "name": "cancellationToken",
+        "type": "System.Threading.CancellationToken",
+        "business": false,
+        "optional": true,
+        "defaultValue": null
+      }
+    ],
+    "returnType": "System.Threading.Tasks.Task\u00601[KSeF.Client.Core.Models.Permissions.PagedPermissionsResponse\u00601[KSeF.Client.Core.Models.Permissions.PersonPermission]]"
+  },
+  {
+    "route": "/ksef/search-permission/search-granted-personal-permissions",
+    "group": "search-permission",
+    "method": "search-granted-personal-permissions",
+    "sdkMethod": "SearchGrantedPersonalPermissionsAsync",
+    "parameters": [
+      {
+        "name": "requestPayload",
+        "type": "KSeF.Client.Core.Models.Permissions.Person.PersonalPermissionsQueryRequest",
+        "business": true,
+        "optional": false,
+        "defaultValue": null
+      },
+      {
+        "name": "accessToken",
+        "type": "System.String",
+        "business": false,
+        "optional": false,
+        "defaultValue": null
+      },
+      {
+        "name": "pageOffset",
+        "type": "System.Nullable\u00601[System.Int32]",
+        "business": true,
+        "optional": true,
+        "defaultValue": null
+      },
+      {
+        "name": "pageSize",
+        "type": "System.Nullable\u00601[System.Int32]",
+        "business": true,
+        "optional": true,
+        "defaultValue": null
+      },
+      {
+        "name": "cancellationToken",
+        "type": "System.Threading.CancellationToken",
+        "business": false,
+        "optional": true,
+        "defaultValue": null
+      }
+    ],
+    "returnType": "System.Threading.Tasks.Task\u00601[KSeF.Client.Core.Models.Permissions.Person.PersonalPermissionsQueryResponse]"
+  },
+  {
+    "route": "/ksef/search-permission/search-subordinate-entity-invoice-roles",
+    "group": "search-permission",
+    "method": "search-subordinate-entity-invoice-roles",
+    "sdkMethod": "SearchSubordinateEntityInvoiceRolesAsync",
+    "parameters": [
+      {
+        "name": "requestPayload",
+        "type": "KSeF.Client.Core.Models.Permissions.SubUnit.SubordinateEntityRolesQueryRequest",
+        "business": true,
+        "optional": false,
+        "defaultValue": null
+      },
+      {
+        "name": "accessToken",
+        "type": "System.String",
+        "business": false,
+        "optional": false,
+        "defaultValue": null
+      },
+      {
+        "name": "pageOffset",
+        "type": "System.Nullable\u00601[System.Int32]",
+        "business": true,
+        "optional": true,
+        "defaultValue": null
+      },
+      {
+        "name": "pageSize",
+        "type": "System.Nullable\u00601[System.Int32]",
+        "business": true,
+        "optional": true,
+        "defaultValue": null
+      },
+      {
+        "name": "cancellationToken",
+        "type": "System.Threading.CancellationToken",
+        "business": false,
+        "optional": true,
+        "defaultValue": null
+      }
+    ],
+    "returnType": "System.Threading.Tasks.Task\u00601[KSeF.Client.Core.Models.Permissions.PagedRolesResponse\u00601[KSeF.Client.Core.Models.Permissions.SubordinateEntityRole]]"
+  },
+  {
+    "route": "/ksef/search-permission/search-subunit-admin-permissions",
+    "group": "search-permission",
+    "method": "search-subunit-admin-permissions",
+    "sdkMethod": "SearchSubunitAdminPermissionsAsync",
+    "parameters": [
+      {
+        "name": "requestPayload",
+        "type": "KSeF.Client.Core.Models.Permissions.SubUnit.SubunitPermissionsQueryRequest",
+        "business": true,
+        "optional": false,
+        "defaultValue": null
+      },
+      {
+        "name": "accessToken",
+        "type": "System.String",
+        "business": false,
+        "optional": false,
+        "defaultValue": null
+      },
+      {
+        "name": "pageOffset",
+        "type": "System.Nullable\u00601[System.Int32]",
+        "business": true,
+        "optional": true,
+        "defaultValue": null
+      },
+      {
+        "name": "pageSize",
+        "type": "System.Nullable\u00601[System.Int32]",
+        "business": true,
+        "optional": true,
+        "defaultValue": null
+      },
+      {
+        "name": "cancellationToken",
+        "type": "System.Threading.CancellationToken",
+        "business": false,
+        "optional": true,
+        "defaultValue": null
+      }
+    ],
+    "returnType": "System.Threading.Tasks.Task\u00601[KSeF.Client.Core.Models.Permissions.PagedPermissionsResponse\u00601[KSeF.Client.Core.Models.Permissions.SubunitPermission]]"
+  },
+  {
+    "route": "/ksef/session-status/get-session-failed-invoices",
+    "group": "session-status",
+    "method": "get-session-failed-invoices",
+    "sdkMethod": "GetSessionFailedInvoicesAsync",
+    "parameters": [
+      {
+        "name": "sessionReferenceNumber",
+        "type": "System.String",
+        "business": true,
+        "optional": false,
+        "defaultValue": null
+      },
+      {
+        "name": "accessToken",
+        "type": "System.String",
+        "business": false,
+        "optional": false,
+        "defaultValue": null
+      },
+      {
+        "name": "pageSize",
+        "type": "System.Nullable\u00601[System.Int32]",
+        "business": true,
+        "optional": false,
+        "defaultValue": null
+      },
+      {
+        "name": "continuationToken",
+        "type": "System.String",
+        "business": true,
+        "optional": false,
+        "defaultValue": null
+      },
+      {
+        "name": "cancellationToken",
+        "type": "System.Threading.CancellationToken",
+        "business": false,
+        "optional": true,
+        "defaultValue": null
+      }
+    ],
+    "returnType": "System.Threading.Tasks.Task\u00601[KSeF.Client.Core.Models.Sessions.SessionInvoicesResponse]"
+  },
+  {
+    "route": "/ksef/session-status/get-session-invoice",
+    "group": "session-status",
+    "method": "get-session-invoice",
+    "sdkMethod": "GetSessionInvoiceAsync",
+    "parameters": [
+      {
+        "name": "sessionReferenceNumber",
+        "type": "System.String",
+        "business": true,
+        "optional": false,
+        "defaultValue": null
+      },
+      {
+        "name": "invoiceReferenceNumber",
+        "type": "System.String",
+        "business": true,
+        "optional": false,
+        "defaultValue": null
+      },
+      {
+        "name": "accessToken",
+        "type": "System.String",
+        "business": false,
+        "optional": false,
+        "defaultValue": null
+      },
+      {
+        "name": "cancellationToken",
+        "type": "System.Threading.CancellationToken",
+        "business": false,
+        "optional": true,
+        "defaultValue": null
+      }
+    ],
+    "returnType": "System.Threading.Tasks.Task\u00601[KSeF.Client.Core.Models.Sessions.SessionInvoice]"
+  },
+  {
+    "route": "/ksef/session-status/get-session-invoice-upo-by-ksef-number",
+    "group": "session-status",
+    "method": "get-session-invoice-upo-by-ksef-number",
+    "sdkMethod": "GetSessionInvoiceUpoByKsefNumberAsync",
+    "parameters": [
+      {
+        "name": "sessionReferenceNumber",
+        "type": "System.String",
+        "business": true,
+        "optional": false,
+        "defaultValue": null
+      },
+      {
+        "name": "ksefNumber",
+        "type": "System.String",
+        "business": true,
+        "optional": false,
+        "defaultValue": null
+      },
+      {
+        "name": "accessToken",
+        "type": "System.String",
+        "business": false,
+        "optional": false,
+        "defaultValue": null
+      },
+      {
+        "name": "cancellationToken",
+        "type": "System.Threading.CancellationToken",
+        "business": false,
+        "optional": true,
+        "defaultValue": null
+      }
+    ],
+    "returnType": "System.Threading.Tasks.Task\u00601[System.String]"
+  },
+  {
+    "route": "/ksef/session-status/get-session-invoice-upo-by-reference-number",
+    "group": "session-status",
+    "method": "get-session-invoice-upo-by-reference-number",
+    "sdkMethod": "GetSessionInvoiceUpoByReferenceNumberAsync",
+    "parameters": [
+      {
+        "name": "sessionReferenceNumber",
+        "type": "System.String",
+        "business": true,
+        "optional": false,
+        "defaultValue": null
+      },
+      {
+        "name": "invoiceReferenceNumber",
+        "type": "System.String",
+        "business": true,
+        "optional": false,
+        "defaultValue": null
+      },
+      {
+        "name": "accessToken",
+        "type": "System.String",
+        "business": false,
+        "optional": false,
+        "defaultValue": null
+      },
+      {
+        "name": "cancellationToken",
+        "type": "System.Threading.CancellationToken",
+        "business": false,
+        "optional": true,
+        "defaultValue": null
+      }
+    ],
+    "returnType": "System.Threading.Tasks.Task\u00601[System.String]"
+  },
+  {
+    "route": "/ksef/session-status/get-session-invoices",
+    "group": "session-status",
+    "method": "get-session-invoices",
+    "sdkMethod": "GetSessionInvoicesAsync",
+    "parameters": [
+      {
+        "name": "sessionReferenceNumber",
+        "type": "System.String",
+        "business": true,
+        "optional": false,
+        "defaultValue": null
+      },
+      {
+        "name": "accessToken",
+        "type": "System.String",
+        "business": false,
+        "optional": false,
+        "defaultValue": null
+      },
+      {
+        "name": "pageSize",
+        "type": "System.Nullable\u00601[System.Int32]",
+        "business": true,
+        "optional": true,
+        "defaultValue": null
+      },
+      {
+        "name": "continuationToken",
+        "type": "System.String",
+        "business": true,
+        "optional": true,
+        "defaultValue": null
+      },
+      {
+        "name": "cancellationToken",
+        "type": "System.Threading.CancellationToken",
+        "business": false,
+        "optional": true,
+        "defaultValue": null
+      }
+    ],
+    "returnType": "System.Threading.Tasks.Task\u00601[KSeF.Client.Core.Models.Sessions.SessionInvoicesResponse]"
+  },
+  {
+    "route": "/ksef/session-status/get-session-status",
+    "group": "session-status",
+    "method": "get-session-status",
+    "sdkMethod": "GetSessionStatusAsync",
+    "parameters": [
+      {
+        "name": "sessionReferenceNumber",
+        "type": "System.String",
+        "business": true,
+        "optional": false,
+        "defaultValue": null
+      },
+      {
+        "name": "accessToken",
+        "type": "System.String",
+        "business": false,
+        "optional": false,
+        "defaultValue": null
+      },
+      {
+        "name": "cancellationToken",
+        "type": "System.Threading.CancellationToken",
+        "business": false,
+        "optional": true,
+        "defaultValue": null
+      }
+    ],
+    "returnType": "System.Threading.Tasks.Task\u00601[KSeF.Client.Core.Models.Sessions.SessionStatusResponse]"
+  },
+  {
+    "route": "/ksef/session-status/get-session-upo",
+    "group": "session-status",
+    "method": "get-session-upo",
+    "sdkMethod": "GetSessionUpoAsync",
+    "parameters": [
+      {
+        "name": "sessionReferenceNumber",
+        "type": "System.String",
+        "business": true,
+        "optional": false,
+        "defaultValue": null
+      },
+      {
+        "name": "upoReferenceNumber",
+        "type": "System.String",
+        "business": true,
+        "optional": false,
+        "defaultValue": null
+      },
+      {
+        "name": "accessToken",
+        "type": "System.String",
+        "business": false,
+        "optional": false,
+        "defaultValue": null
+      },
+      {
+        "name": "cancellationToken",
+        "type": "System.Threading.CancellationToken",
+        "business": false,
+        "optional": true,
+        "defaultValue": null
+      }
+    ],
+    "returnType": "System.Threading.Tasks.Task\u00601[System.String]"
+  },
+  {
+    "route": "/ksef/session-status/get-sessions",
+    "group": "session-status",
+    "method": "get-sessions",
+    "sdkMethod": "GetSessionsAsync",
+    "parameters": [
+      {
+        "name": "sessionType",
+        "type": "KSeF.Client.Core.Models.Sessions.SessionType",
+        "business": true,
+        "optional": false,
+        "defaultValue": null
+      },
+      {
+        "name": "accessToken",
+        "type": "System.String",
+        "business": false,
+        "optional": false,
+        "defaultValue": null
+      },
+      {
+        "name": "pageSize",
+        "type": "System.Nullable\u00601[System.Int32]",
+        "business": true,
+        "optional": false,
+        "defaultValue": null
+      },
+      {
+        "name": "continuationToken",
+        "type": "System.String",
+        "business": true,
+        "optional": false,
+        "defaultValue": null
+      },
+      {
+        "name": "sessionsFilter",
+        "type": "KSeF.Client.Core.Models.Sessions.SessionsFilter",
+        "business": true,
+        "optional": true,
+        "defaultValue": null
+      },
+      {
+        "name": "cancellationToken",
+        "type": "System.Threading.CancellationToken",
+        "business": false,
+        "optional": true,
+        "defaultValue": null
+      }
+    ],
+    "returnType": "System.Threading.Tasks.Task\u00601[KSeF.Client.Core.Models.Sessions.SessionsListResponse]"
+  },
+  {
+    "route": "/ksef/session-status/get-upo",
+    "group": "session-status",
+    "method": "get-upo",
+    "sdkMethod": "GetUpoAsync",
+    "parameters": [
+      {
+        "name": "uri",
+        "type": "System.Uri",
+        "business": true,
+        "optional": false,
+        "defaultValue": null
+      },
+      {
+        "name": "cancellationToken",
+        "type": "System.Threading.CancellationToken",
+        "business": false,
+        "optional": true,
+        "defaultValue": null
+      }
+    ],
+    "returnType": "System.Threading.Tasks.Task\u00601[System.String]"
+  }
+]

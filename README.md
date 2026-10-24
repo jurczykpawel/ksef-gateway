@@ -363,6 +363,12 @@ Interaktywna dokumentacja wystawionych tras pod `/scalar/v1`.
 
 ---
 
+### Aktualizacja SDK
+
+Kontrakt wszystkich 64 odkrytych tras SDK 2.9.0 (także ukrytych przez `KSEF_SDK_ENDPOINTS`) zapisano w `src/KSeFGateway.Api.Tests/Discovery/sdk-contract.approved.json`. Test `SdkContract_MatchesApprovedManifest` porównuje trasy, nazwy i typy argumentów, ich kolejność i wartości domyślne oraz typy zwrotne z wynikiem refleksji. Przy aktualizacji przypiętego SDK uruchom testy; różnica zapisuje `sdk-contract.actual.json` w katalogu wynikowym testów (`bin/Release/net10.0`). Porównaj pliki, oceń zgodność API, świadomie zastąp manifest zatwierdzony plikiem wygenerowanym, opisz zmianę w CHANGELOG i ponownie uruchom testy. Przy testach w Dockerze zachowaj kontener (bez `--rm`), aby skopiować plik przez `docker cp`.
+
+Body JSON działa również przy transferze chunked. Brak wymaganego argumentu (także jawne `null`) zwraca 400 z jego nazwą; nieprawidłowy JSON lub typ argumentu również zwraca 400. Argumenty podawaj pod ich nazwami SDK; całe body może zastąpić argument tylko dla metody z dokładnie jednym złożonym parametrem biznesowym. Parametry opcjonalne zachowują wartości domyślne SDK.
+
 ## Wysyłanie Faktur
 
 ### Opcja 1: Przyjazny JSON (zalecane)

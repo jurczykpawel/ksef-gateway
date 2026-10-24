@@ -311,6 +311,12 @@ Interactive documentation of exposed routes is available at `/scalar/v1`.
 
 ---
 
+### Updating the SDK
+
+The contract of all 64 discovered SDK 2.9.0 routes (including those hidden by `KSEF_SDK_ENDPOINTS`) is stored in `src/KSeFGateway.Api.Tests/Discovery/sdk-contract.approved.json`. `SdkContract_MatchesApprovedManifest` compares routes, argument names and types, argument order and defaults, and return types against reflection. When updating the pinned SDK, run the tests; a mismatch writes `sdk-contract.actual.json` to the test output directory (`bin/Release/net10.0`). Compare the files, review API compatibility, explicitly replace the approved manifest with the generated file, document the change in CHANGELOG, and rerun tests. For Docker tests, retain the container (omit `--rm`) to retrieve the file with `docker cp`.
+
+JSON bodies also work with chunked transfer. Missing required arguments (including explicit `null`) return 400 with the argument name; malformed JSON or an invalid argument type also returns 400. Supply arguments under their SDK names; the entire body can replace an argument only for a method with exactly one composite business parameter. Optional parameters retain SDK defaults.
+
 ## Sending Invoices
 
 ### Option 1: Friendly JSON (recommended)

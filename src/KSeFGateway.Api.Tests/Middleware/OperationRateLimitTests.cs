@@ -45,7 +45,7 @@ public class OperationRateLimitTests
     {
         await using var f = await Fixture.Create();
         for (var i = 0; i < 120; i++) await f.Operation("/sessions/online");
-        var response = await f.Gateway.PostAsync(path, new StringContent(path.Contains("online-session") ? "{}" : "<Faktura/>", Encoding.UTF8, path.Contains("online-session") ? "application/json" : "application/xml"));
+        var response = await f.Gateway.PostAsync(path, new StringContent(path.Contains("online-session") ? "{\"requestPayload\":{}}" : "<Faktura/>", Encoding.UTF8, path.Contains("online-session") ? "application/json" : "application/xml"));
         Assert.Equal(HttpStatusCode.TooManyRequests, response.StatusCode);
         Assert.True(int.Parse(response.Headers.GetValues("Retry-After").Single()) > 0);
         using var json = JsonDocument.Parse(await response.Content.ReadAsStringAsync());

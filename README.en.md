@@ -304,7 +304,11 @@ Full interactive docs at `/scalar/v1`.
 
 ### Option 1: Friendly JSON (recommended)
 
-Simple JSON with human-readable fields. Gateway builds FA(3) XML, calculates VAT totals, handles all KSeF fields automatically.
+Simple JSON with human-readable fields. Gateway builds FA(3) XML and calculates VAT totals automatically.
+
+Each line's net amount is rounded to 2 decimal places using commercial rounding (midpoints away from zero). For each VAT rate, these net amounts are summed (`P_13_x`), then VAT is calculated from that sum and rounded the same way (`P_14_x`). The gross total (`P_15`) sums those same net and VAT summary amounts; e.g. two lines at PLN 0.03 net with 23% VAT produce PLN 0.06 net + PLN 0.01 VAT = PLN 0.07 gross.
+
+`vatRate: 0` means domestic 0% sales only, excluding intra-community supplies (WDT) and exports (`P_13_6_1`, no `P_14_6`; line `P_12 = 0 KR`). WDT and exports at 0% require raw XML via `POST /ksef/send`; the friendly format does not support them.
 
 ```bash
 curl -X POST http://localhost:8080/ksef/invoice \

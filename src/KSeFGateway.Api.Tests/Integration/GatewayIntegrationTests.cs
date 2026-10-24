@@ -78,6 +78,50 @@ public class GatewayIntegrationTests
     }
 
     [Fact]
+    public async Task SendFriendlyJson_TwoThreeGroszLines_DownloadsConsistentTotals()
+    {
+        var invoice = SampleInvoice(UniqueNumber("FV/INT/VAT")) with
+        {
+            Items = [
+                new InvoiceItem { Name = "Grosz A", Quantity = 1, UnitPrice = 0.03m, VatRate = 23 },
+                new InvoiceItem { Name = "Grosz B", Quantity = 1, UnitPrice = 0.03m, VatRate = 23 }
+            ]
+        };
+        using var response = await Http.PostAsJsonAsync($"{BaseUrl}/ksef/invoice", invoice);
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var body = await response.Content.ReadFromJsonAsync<JsonElement>();
+        Assert.True(body.GetProperty("success").GetBoolean());
+        Assert.Equal("accepted", body.GetProperty("data").GetProperty("status").GetString());
+        var number = body.GetProperty("data").GetProperty("ksefNumber").GetString();
+        Assert.False(string.IsNullOrEmpty(number));
+
+        // One download, no metadata queries or polling: preserve the shared TEST quota.
+        using var download = await Http.GetAsync($"{BaseUrl}/ksef/invoice/{number}");
+        Assert.Equal(HttpStatusCode.OK, download.StatusCode);
+        XNamespace ns = "http://crd.gov.pl/wzor/2025/06/25/13775/";
+        var fa = XDocument.Parse(await download.Content.ReadAsStringAsync()).Root!.Element(ns + "Fa")!;
+        Assert.Equal(0.06m, (decimal)fa.Element(ns + "P_13_1")!);
+        Assert.Equal(0.01m, (decimal)fa.Element(ns + "P_14_1")!);
+        Assert.Equal(0.07m, (decimal)fa.Element(ns + "P_15")!);
+    }
+
+    [Fact]
+    public async Task SendFriendlyJson_DomesticZeroVat_IsAccepted()
+    {
+        var invoice = SampleInvoice(UniqueNumber("FV/INT/ZERO")) with
+        {
+            Items = [new InvoiceItem { Name = "Domestic zero VAT", Quantity = 1, UnitPrice = 100m, VatRate = 0 }]
+        };
+        // Acceptance is returned by the send flow; no extra status/download calls needed.
+        using var response = await Http.PostAsJsonAsync($"{BaseUrl}/ksef/invoice", invoice);
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var body = await response.Content.ReadFromJsonAsync<JsonElement>();
+        Assert.True(body.GetProperty("success").GetBoolean());
+        Assert.Equal("accepted", body.GetProperty("data").GetProperty("status").GetString());
+        Assert.False(string.IsNullOrEmpty(body.GetProperty("data").GetProperty("ksefNumber").GetString()));
+    }
+
+    [Fact]
     public async Task SendRawXml_ReturnsKsefNumber()
     {
         var invoice = SampleInvoice(UniqueNumber("FV/INT/XML"));

@@ -67,15 +67,19 @@ public static class InvoiceXmlBuilder
             item.Quantity,
             item.UnitPrice,
             item.VatRate,
-            NetValue = Math.Round(item.Quantity * item.UnitPrice, 2)
+            NetValue = Math.Round(item.Quantity * item.UnitPrice, 2, MidpointRounding.AwayFromZero)
         }).ToList();
 
-        var totalNet = lines.Sum(l => l.NetValue);
-        var totalVat = lines.Sum(l => Math.Round(l.NetValue * l.VatRate / 100m, 2));
-        var totalGross = totalNet + totalVat;
-
-        // Group by VAT rate for P_13/P_14 fields
-        var vatGroups = lines.GroupBy(l => l.VatRate).OrderByDescending(g => g.Key).ToList();
+        // Calculate each VAT summary once; P_15 uses the same rounded amounts as P_13/P_14.
+        var vatGroups = lines.GroupBy(l => l.VatRate).OrderByDescending(g => g.Key)
+            .Select(g => new { Rate = g.Key, Net = g.Sum(l => l.NetValue) })
+            .Select(g => new
+            {
+                g.Rate,
+                g.Net,
+                Vat = Math.Round(g.Net * g.Rate / 100m, 2, MidpointRounding.AwayFromZero)
+            }).ToList();
+        var totalGross = vatGroups.Sum(g => g.Net + g.Vat);
 
         using var ms = new MemoryStream();
         using var writer = XmlWriter.Create(ms, new XmlWriterSettings
@@ -130,14 +134,11 @@ public static class InvoiceXmlBuilder
         // VAT summary fields (P_13_1/P_14_1 for 23%, P_13_2/P_14_2 for 8%, etc.)
         foreach (var group in vatGroups)
         {
-            var suffix = VatRateToSuffix(group.Key);
-            if (suffix != null)
-            {
-                var groupNet = group.Sum(l => l.NetValue);
-                var groupVat = Math.Round(groupNet * group.Key / 100m, 2);
-                WriteElement(writer, $"P_13_{suffix}", FormatDecimal(groupNet));
-                WriteElement(writer, $"P_14_{suffix}", FormatDecimal(groupVat));
-            }
+            var suffix = VatRateToSuffix(group.Rate);
+            WriteElement(writer, $"P_13_{suffix}", FormatDecimal(group.Net));
+            // Domestic 0% has P_13_6_1 only, with no corresponding P_14 element.
+            if (group.Rate != 0)
+                WriteElement(writer, $"P_14_{suffix}", FormatDecimal(group.Vat));
         }
 
         WriteElement(writer, "P_15", FormatDecimal(totalGross));
@@ -172,7 +173,7 @@ public static class InvoiceXmlBuilder
             WriteElement(writer, "P_8B", FormatDecimal(line.Quantity));
             WriteElement(writer, "P_9A", FormatDecimal(line.UnitPrice));
             WriteElement(writer, "P_11", FormatDecimal(line.NetValue));
-            WriteElement(writer, "P_12", line.VatRate.ToString());
+            WriteElement(writer, "P_12", line.VatRate == 0 ? "0 KR" : line.VatRate.ToString());
             writer.WriteEndElement();
         }
 
@@ -236,14 +237,14 @@ public static class InvoiceXmlBuilder
 
     /// <summary>
     /// Maps VAT rate to P_13/P_14 suffix per FA(3) schema:
-    /// 23% → 1, 8% → 2, 5% → 3, 0% → 6
+    /// 23% → 1, 8% → 2, 5% → 3, domestic 0% → 6_1 (P_13 only)
     /// </summary>
     private static string? VatRateToSuffix(int vatRate) => vatRate switch
     {
         22 or 23 => "1",
         7 or 8 => "2",
         5 => "3",
-        0 => "6",
+        0 => "6_1",
         _ => null
     };
 }

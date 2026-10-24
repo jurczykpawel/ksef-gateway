@@ -45,7 +45,7 @@ public record InvoiceItem
     public string Unit { get; init; } = "szt.";
     public required decimal Quantity { get; init; }
     public required decimal UnitPrice { get; init; }
-    public required int VatRate { get; init; }               // 23, 8, 5, 0
+    public required int VatRate { get; init; }               // 23, 8, 5, 0 (domestic only; WDT/export require raw XML via /ksef/send)
 }
 
 public record PaymentData

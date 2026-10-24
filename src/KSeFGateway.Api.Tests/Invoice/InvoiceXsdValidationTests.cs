@@ -40,7 +40,7 @@ public class InvoiceXsdValidationTests
         return schemaSet;
     }
 
-    private static List<string> ValidateXml(string xml)
+    internal static List<string> ValidateXml(string xml)
     {
         var errors = new List<string>();
 

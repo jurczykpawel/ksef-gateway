@@ -356,7 +356,11 @@ Pełna interaktywna dokumentacja pod `/scalar/v1`.
 
 ### Opcja 1: Przyjazny JSON (zalecane)
 
-Prosty JSON z czytelnymi polami. Usługa buduje XML FA(3), liczy sumy VAT, obsługuje wszystkie pola KSeF automatycznie.
+Prosty JSON z czytelnymi polami. Usługa buduje XML FA(3) i automatycznie liczy sumy VAT.
+
+Netto każdej pozycji jest zaokrąglane do 2 miejsc po przecinku metodą kupiecką (połowy od zera). Dla każdej stawki sumujemy te kwoty netto (`P_13_x`) i od tej sumy liczymy VAT, również zaokrąglany kupiecko (`P_14_x`). Kwota brutto (`P_15`) to suma tych samych kwot netto i VAT z podsumowania stawek; np. dwie pozycje po 0,03 PLN netto przy 23% dają 0,06 PLN netto + 0,01 PLN VAT = 0,07 PLN brutto.
+
+`vatRate: 0` oznacza wyłącznie krajową sprzedaż 0% z wyłączeniem WDT i eksportu (`P_13_6_1`, bez `P_14_6`; w pozycji `P_12 = 0 KR`). WDT i eksport ze stawką 0% wymagają surowego XML przez `POST /ksef/send`; format przyjazny ich nie obsługuje.
 
 ```bash
 curl -X POST http://localhost:8080/ksef/invoice \

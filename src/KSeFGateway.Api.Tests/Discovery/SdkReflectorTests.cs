@@ -19,6 +19,20 @@ public class SdkReflectorTests
     }
 
     [Fact]
+    public void DiscoverEndpoints_PreservesSdk290Surface()
+    {
+        Assert.Equal(64, _endpoints.Count);
+        var groups = _endpoints.Select(e => e.GroupName).Distinct().OrderBy(name => name).ToArray();
+        Assert.Equal(new[]
+        {
+            "active-sessions", "authorization", "batch-session", "certificate",
+            "collective-identifiers", "grant-permission", "invoice-download", "ksef-token",
+            "online-session", "peppol", "permission-operation", "revoke-permission",
+            "search-permission", "session-status"
+        }, groups);
+    }
+
+    [Fact]
     public void DiscoverEndpoints_ContainsOnlineSessionGroup()
     {
         var group = _endpoints.Where(e => e.GroupName == "online-session").ToList();

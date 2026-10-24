@@ -47,7 +47,6 @@ public static class WorkflowEndpoints
         })
         .WithTags("Workflows")
         .WithName("send_invoice")
-        .WithOpenApi()
         .Accepts<string>("application/xml");
 
         // GET /ksef/invoice/{ksefNumber} - download invoice XML
@@ -67,8 +66,7 @@ public static class WorkflowEndpoints
             return Results.Content(xml, "application/xml");
         })
         .WithTags("Workflows")
-        .WithName("get_invoice")
-        .WithOpenApi();
+        .WithName("get_invoice");
 
         // GET /ksef/invoice/{ksefNumber}/pdf
         app.MapGet("/ksef/invoice/{ksefNumber}/pdf", async (
@@ -107,8 +105,7 @@ public static class WorkflowEndpoints
             });
         })
         .WithTags("Workflows")
-        .WithName("get_invoice_pdf")
-        .WithOpenApi();
+        .WithName("get_invoice_pdf");
 
         // POST /ksef/send/json - xml-js compact format
         app.MapPost("/ksef/send/json", async (HttpContext httpContext) =>
@@ -160,8 +157,7 @@ public static class WorkflowEndpoints
             }, logger, $"JSON invoice send failed for NIP {nip}");
         })
         .WithTags("Workflows")
-        .WithName("send_invoice_json")
-        .WithOpenApi();
+        .WithName("send_invoice_json");
 
         // POST /ksef/invoice - friendly JSON
         app.MapPost("/ksef/invoice", async (HttpContext httpContext) =>
@@ -201,8 +197,7 @@ public static class WorkflowEndpoints
             }, logger, $"Invoice send failed for NIP {nip}");
         })
         .WithTags("Workflows")
-        .WithName("send_invoice_friendly")
-        .WithOpenApi();
+        .WithName("send_invoice_friendly");
 
         // GET /ksef/contexts - list configured contexts and their auth status
         app.MapGet("/ksef/contexts", (
@@ -224,8 +219,7 @@ public static class WorkflowEndpoints
             return Results.Json(ApiResponse.Ok(contexts));
         })
         .WithTags("System")
-        .WithName("list_contexts")
-        .WithOpenApi();
+        .WithName("list_contexts");
     }
 
     /// <summary>

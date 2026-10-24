@@ -1,4 +1,4 @@
-FROM mcr.microsoft.com/dotnet/sdk:9.0 AS build
+FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build
 WORKDIR /src
 
 # GitHub PAT (read:packages) for the CIRFMF NuGet feed on GitHub Packages.
@@ -29,13 +29,14 @@ RUN --mount=type=secret,id=GITHUB_PAT,required=false \
 ENTRYPOINT ["dotnet", "test", "KSeFGateway.Api.Tests/KSeFGateway.Api.Tests.csproj", "-c", "Release", "--filter", "Category!=Integration"]
 
 # Runtime
-FROM mcr.microsoft.com/dotnet/aspnet:9.0 AS runtime
+FROM mcr.microsoft.com/dotnet/aspnet:10.0 AS runtime
 WORKDIR /app
 
 RUN apt-get update && apt-get install -y --no-install-recommends curl && rm -rf /var/lib/apt/lists/*
 
 # Render runtime Secret Files are readable by group 1000.
-RUN groupadd --gid 1000 render-secrets && usermod -a -G render-secrets app
+RUN (getent group 1000 >/dev/null || groupadd --gid 1000 render-secrets) \
+    && usermod -a -G 1000 app
 
 COPY --from=build /app/publish .
 

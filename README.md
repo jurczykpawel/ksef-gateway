@@ -23,7 +23,7 @@ curl -X POST https://your-gateway/ksef/invoice \
 
 ![License](https://img.shields.io/badge/License-AGPL%20v3-blue)
 ![Status](https://img.shields.io/badge/Status-Beta-yellow)
-![.NET](https://img.shields.io/badge/.NET-9.0-512BD4)
+![.NET](https://img.shields.io/badge/.NET-10.0-512BD4)
 ![Open Source](https://img.shields.io/badge/Open%20Source-100%25-brightgreen)
 [![CI](https://github.com/jurczykpawel/ksef-gateway/actions/workflows/ci.yml/badge.svg)](https://github.com/jurczykpawel/ksef-gateway/actions/workflows/ci.yml)
 
@@ -864,7 +864,7 @@ Jeśli `contexts.json` konfiguruje więcej NIP-ów niż pozwala Twoja licencja, 
 docker compose up
        |
   ksef-api:8080            ksef-pdf:3000
-  (ASP.NET 9)              (Node.js + tsx)
+  (ASP.NET 10)              (Node.js + tsx)
        |                        |
   CIRFMF C# SDK           CIRFMF ksef-pdf-generator
   (NuGet, GitHub Pkgs)     (submoduł git)
@@ -901,7 +901,7 @@ Dwa kontenery, bez bazy danych, bez Redis. Stan autoryzacji w pamięci (restart 
 
 | Technologia | Rola |
 |------------|------|
-| [ASP.NET 9 Minimal API](https://learn.microsoft.com/en-us/aspnet/core/fundamentals/minimal-apis) | Warstwa HTTP usługi |
+| [ASP.NET 10 Minimal API](https://learn.microsoft.com/en-us/aspnet/core/fundamentals/minimal-apis) | Warstwa HTTP usługi |
 | [CIRFMF KSeF.Client](https://github.com/CIRFMF/ksef-client-csharp) | Oficjalne SDK KSeF (Ministerstwo Finansów) |
 | [CIRFMF ksef-pdf-generator](https://github.com/CIRFMF/ksef-pdf-generator) | Oficjalne generowanie PDF z XML FA(3) |
 | [xml-js](https://www.npmjs.com/package/xml-js) | Dwukierunkowa konwersja JSON/XML |

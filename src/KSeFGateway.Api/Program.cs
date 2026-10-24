@@ -55,8 +55,8 @@ builder.Services.AddHostedService(sp => sp.GetRequiredService<TokenPool>());
 // HTTP client for PDF service
 builder.Services.AddHttpClient();
 
-// OpenAPI (.NET 9 built-in)
-builder.Services.AddOpenApi();
+// OpenAPI: preserve the existing document contract across runtime upgrades.
+builder.Services.AddGatewayOpenApi();
 
 // Configure request size for large invoices (Kestrel only, Lambda has its own limits)
 if (!isLambda)

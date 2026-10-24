@@ -25,7 +25,7 @@ curl -X POST https://twoj-gateway/ksef/invoice \
 
 ![License](https://img.shields.io/badge/License-AGPL%20v3-blue)
 ![Status](https://img.shields.io/badge/Status-Beta-yellow)
-![.NET](https://img.shields.io/badge/.NET-9.0-512BD4)
+![.NET](https://img.shields.io/badge/.NET-10.0-512BD4)
 ![Open Source](https://img.shields.io/badge/Open%20Source-100%25-brightgreen)
 [![CI](https://github.com/jurczykpawel/ksef-gateway/actions/workflows/ci.yml/badge.svg)](https://github.com/jurczykpawel/ksef-gateway/actions/workflows/ci.yml)
 
@@ -805,7 +805,7 @@ If `contexts.json` configures more NIPs than your license allows, the gateway do
 docker compose up
        |
   ksef-api:8080            ksef-pdf:3000
-  (ASP.NET 9)              (Node.js + tsx)
+  (ASP.NET 10)              (Node.js + tsx)
        |                        |
   CIRFMF C# SDK           CIRFMF ksef-pdf-generator
   (NuGet, GitHub Pkgs)     (git submodule)
@@ -842,7 +842,7 @@ Two containers, no database, no Redis. Auth state in memory (restart = re-auth i
 
 | Technology | Role |
 |------------|------|
-| [ASP.NET 9 Minimal API](https://learn.microsoft.com/en-us/aspnet/core/fundamentals/minimal-apis) | Gateway HTTP layer |
+| [ASP.NET 10 Minimal API](https://learn.microsoft.com/en-us/aspnet/core/fundamentals/minimal-apis) | Gateway HTTP layer |
 | [CIRFMF KSeF.Client](https://github.com/CIRFMF/ksef-client-csharp) | Official KSeF SDK (Ministry of Finance) |
 | [CIRFMF ksef-pdf-generator](https://github.com/CIRFMF/ksef-pdf-generator) | Official PDF generation from FA(3) XML |
 | [xml-js](https://www.npmjs.com/package/xml-js) | JSON/XML bidirectional conversion |

@@ -8,7 +8,7 @@ Thanks for your interest in contributing!
 
 - Docker & Docker Compose
 - GitHub PAT with `read:packages` (for CIRFMF SDK)
-- Optionally: .NET 9 SDK (for local development without Docker)
+- Optionally: .NET 10 SDK (for local development without Docker)
 
 ### Running locally
 

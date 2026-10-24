@@ -29,6 +29,46 @@ public class ProjectFilesTests
             "PackageReference versions must be exact:\n" + string.Join("\n", invalid));
     }
 
+    [Fact]
+    public void TargetFrameworks_RequireNet10OrNewer()
+    {
+        var root = FindProjectRoot();
+        var projects = Directory.GetFiles(root, "*.csproj", SearchOption.AllDirectories);
+        Assert.NotEmpty(projects);
+
+        var invalid = projects.SelectMany(path => XDocument.Load(path).Descendants()
+            .Where(element => element.Name.LocalName is "TargetFramework" or "TargetFrameworks")
+            .SelectMany(element => element.Value.Split(';'))
+            .DefaultIfEmpty("")
+            .Where(framework => !IsNet10OrNewer(framework))
+            .Select(framework => $"{Path.GetRelativePath(root, path)}: {framework}"))
+            .ToArray();
+
+        Assert.True(invalid.Length == 0,
+            "All projects must target .NET 10 or newer:\n" + string.Join("\n", invalid));
+    }
+
+    [Theory]
+    [InlineData("net9.0", false)]
+    [InlineData("net8.0", false)]
+    [InlineData("net10.0", true)]
+    [InlineData("net11.0", true)]
+    [InlineData("net10.0-windows", true)]
+    [InlineData("netstandard2.1", false)]
+    [InlineData("net48", false)]
+    [InlineData("$(TargetFramework)", false)]
+    [InlineData("", false)]
+    public void MinimumFramework_RejectsOlderAndUnresolvedTargets(string framework, bool expected)
+    {
+        Assert.Equal(expected, IsNet10OrNewer(framework));
+    }
+
+    private static bool IsNet10OrNewer(string framework)
+    {
+        var match = Regex.Match(framework, @"\Anet([0-9]+)\.([0-9]+)(?:-[0-9A-Za-z.-]+)?\z");
+        return match.Success && int.TryParse(match.Groups[1].Value, out var major) && major >= 10;
+    }
+
     [Theory]
     [InlineData("2.9.0", true)]
     [InlineData("2.9.0-rc.1", true)]

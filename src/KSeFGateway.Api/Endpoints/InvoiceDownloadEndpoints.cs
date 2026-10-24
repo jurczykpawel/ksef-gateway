@@ -78,8 +78,7 @@ public static class InvoiceDownloadEndpoints
             }, logger, $"List received invoices failed for NIP {nip}");
         })
         .WithTags("Workflows")
-        .WithName("list_received_invoices")
-        .WithOpenApi();
+        .WithName("list_received_invoices");
 
         // GET /ksef/invoices/issued - browse invoices where the caller is the seller
         app.MapGet("/ksef/invoices/issued", async (
@@ -126,8 +125,7 @@ public static class InvoiceDownloadEndpoints
             }, logger, $"List issued invoices failed for NIP {nip}");
         })
         .WithTags("Workflows")
-        .WithName("list_issued_invoices")
-        .WithOpenApi();
+        .WithName("list_issued_invoices");
 
         // GET /ksef/invoices/received/new - poll for invoices received since a checkpoint
         // (returned as nextSince; pass it back as ?since= on the next call for continuous sync)
@@ -209,7 +207,6 @@ public static class InvoiceDownloadEndpoints
             }, logger, $"List new received invoices failed for NIP {nip}");
         })
         .WithTags("Workflows")
-        .WithName("list_new_received_invoices")
-        .WithOpenApi();
+        .WithName("list_new_received_invoices");
     }
 }

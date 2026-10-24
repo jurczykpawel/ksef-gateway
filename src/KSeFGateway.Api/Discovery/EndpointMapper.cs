@@ -24,8 +24,7 @@ public static class EndpointMapper
         {
             app.MapPost(endpoint.Route, CreateHandler(endpoint))
                 .WithTags(endpoint.Tag)
-                .WithName($"{endpoint.GroupName}_{endpoint.MethodName}")
-                .WithOpenApi();
+                .WithName($"{endpoint.GroupName}_{endpoint.MethodName}");
         }
     }
 

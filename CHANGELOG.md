@@ -9,6 +9,7 @@
 
 ### Changed
 
+- Migrate the API, tests, tools, CI, and container deployments to .NET 10 LTS while retaining the OpenAPI 3.0 contract and KSeF SDK 2.9.0.
 - Pin all NuGet PackageReference versions in the API, tests, and tools to their currently resolved versions, including KSeF SDK 2.9.0.
 - PDF image installs production dependencies only (`tsx` remains a runtime dependency) and sets `NODE_ENV=production`.
 

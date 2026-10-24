@@ -47,7 +47,7 @@ Leave `KSeFToken` unset in that case (both work, but pick one - see README "Cert
 ## Architecture
 
 ```
-Client → Lambda Function URL → KSeF Gateway (.NET 9) → KSeF API
+Client → Lambda Function URL → KSeF Gateway (.NET 10) → KSeF API
                                      ↓ (optional)
                                PDF Service URL
 ```
@@ -66,7 +66,7 @@ Set `PdfServiceUrl` to the deployed PDF service URL.
 
 ## Notes
 
-- **Cold start**: ~3-5s for the .NET 9 container Lambda
+- **Cold start**: ~3-5s for the .NET 10 container Lambda
 - **TokenPool**: re-authenticates with KSeF on cold start (~2s), then caches in memory for the instance lifetime
 - **Rate limiting**: per-instance only (acceptable for serverless workloads)
 - **Multi-NIP**: use `KSEF_TOKEN` + `KSEF_NIP` env vars (single NIP). For multi-NIP, bundle `contexts.json` in the image or mount from S3

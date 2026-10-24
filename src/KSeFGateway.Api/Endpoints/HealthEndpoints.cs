@@ -66,7 +66,6 @@ public static class HealthEndpoints
             }));
         })
         .WithTags("System")
-        .WithName("ksef_status")
-        .WithOpenApi();
+        .WithName("ksef_status");
     }
 }

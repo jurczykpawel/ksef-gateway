@@ -403,7 +403,7 @@ curl -H "X-Api-Key: $GATEWAY_API_KEY" -X POST http://localhost:8080/ksef/send \
 
 ### Option 3: JSON mirroring XML (xml-js format)
 
-1:1 JSON representation of FA(3) XML using [xml-js compact format](https://www.npmjs.com/package/xml-js#compact-notation). When XSD changes, adapt input data and validate the resulting XML. See [`examples/invoice.json`](examples/invoice.json) for full example.
+1:1 JSON representation of FA(3) XML using [xml-js compact format](https://www.npmjs.com/package/xml-js#compact-notation). When XSD changes, adapt input data and validate the resulting XML. See [`examples/invoice.json`](examples/invoice.json) for full example. The converter accepts one `Faktura` object, element/attribute names matching `^[A-Za-z_][A-Za-z0-9._-]*$` (no namespace prefixes; default `xmlns` is allowed), and `_text` / `_attributes` metadata. DOCTYPE, instructions, declarations, comments and CDATA are rejected with 400. Input is limited to 100 JSON nesting levels and 100,000 values (including objects, arrays, attributes and text); attribute values are escaped.
 
 ```bash
 curl -H "X-Api-Key: $GATEWAY_API_KEY" -X POST http://localhost:8080/ksef/send/json \

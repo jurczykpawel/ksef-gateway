@@ -3,7 +3,7 @@ import crypto from "node:crypto";
 import { js2xml } from "xml-js";
 import pdfMake from "pdfmake/build/pdfmake.js";
 import pdfFonts from "pdfmake/build/vfs_fonts.js";
-import { parseXmlString, buildVerificationUrl } from "./xml-utils.js";
+import { parseXmlString, buildVerificationUrl, validateInvoiceJson, escapeXmlAttribute } from "./xml-utils.js";
 import { i18nReady } from "../lib/src/lib-public/i18n/i18n-init.js";
 
 pdfMake.addVirtualFileSystem(pdfFonts);
@@ -163,6 +163,7 @@ export function createApp() {
     }
 
     try {
+      validateInvoiceJson(json);
       // Inject namespace if missing
       if (!json.Faktura._attributes?.xmlns) {
         json.Faktura._attributes = {
@@ -173,7 +174,12 @@ export function createApp() {
 
       const xml =
         '<?xml version="1.0" encoding="utf-8"?>' +
-        js2xml(json, { compact: true, spaces: 0 });
+        js2xml(json, { compact: true, spaces: 0,
+          // xml-js calls this after escaping quotes; read the raw value to avoid
+          // double escaping generated entities while preserving literal entities.
+          attributeValueFn: (_value, name, _elementName, element) =>
+            escapeXmlAttribute((element as { _attributes: Record<string, unknown> })._attributes[name]),
+        });
 
       res.contentType("application/xml").send(xml);
     } catch (err) {

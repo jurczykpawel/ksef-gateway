@@ -5,6 +5,7 @@
 ### Security
 
 - Add `Cache-Control: no-store` and `X-Content-Type-Options: nosniff` to API and PDF service responses, including errors; exempt health and API documentation.
+- Validate JSON-to-XML names and compact metadata, escape attribute values, and cap JSON depth at 100 and values at 100,000 before serialization.
 - Pin container base digests and Azure release tags; expand Dependabot coverage to Docker, submodules, tests and tools with authenticated NuGet access.
 - Gate image publication on CI for the same ref, attach SPDX SBOMs and sign image digests with keyless cosign.
 - Pin all external GitHub Actions to verified commit SHAs.
@@ -20,7 +21,6 @@
 ### Changed
 
 - Upgrade the PDF generator to CIRFMF release 1.1.46, initialize bundled Polish translations and retain pdfmake 0.3 Promise rendering; verify invoice amounts, zero totals, pagination and environment QR links from real PDF content.
-
 - Migrate the API, tests, tools, CI, and container deployments to .NET 10 LTS while retaining the OpenAPI 3.0 contract and KSeF SDK 2.9.0.
 - Pin all NuGet PackageReference versions in the API, tests, and tools to their currently resolved versions, including KSeF SDK 2.9.0.
 - PDF image installs production dependencies only (`tsx` remains a runtime dependency) and sets `NODE_ENV=production`.

@@ -455,7 +455,7 @@ curl -H "X-Api-Key: $GATEWAY_API_KEY" -X POST http://localhost:8080/ksef/send \
 
 ### Opcja 3: JSON odzwierciedlający XML (format xml-js)
 
-Reprezentacja JSON 1:1 XML-a FA(3) w [formacie compact xml-js](https://www.npmjs.com/package/xml-js#compact-notation). Po zmianie XSD trzeba dostosować dane wejściowe i ponownie sprawdzić zgodność XML. Pełny przykład w [`examples/invoice.json`](examples/invoice.json).
+Reprezentacja JSON 1:1 XML-a FA(3) w [formacie compact xml-js](https://www.npmjs.com/package/xml-js#compact-notation). Po zmianie XSD trzeba dostosować dane wejściowe i ponownie sprawdzić zgodność XML. Pełny przykład w [`examples/invoice.json`](examples/invoice.json). Konwerter przyjmuje jeden obiekt `Faktura`, nazwy elementów/atrybutów zgodne z `^[A-Za-z_][A-Za-z0-9._-]*$` (bez prefiksów namespace; domyślne `xmlns` jest dozwolone) oraz metadane `_text` i `_attributes`. DOCTYPE, instrukcje, deklaracje, komentarze i CDATA są odrzucane kodem 400. Limit wynosi 100 poziomów zagnieżdżenia JSON i 100 000 wartości (łącznie z obiektami, tablicami, atrybutami i tekstem); atrybuty są escapowane.
 
 ```bash
 curl -H "X-Api-Key: $GATEWAY_API_KEY" -X POST http://localhost:8080/ksef/send/json \

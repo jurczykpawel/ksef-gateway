@@ -203,6 +203,88 @@ describe("POST /json-to-xml", () => {
   });
 });
 
+describe("JSON-to-XML input safety", () => {
+  async function expectInvalid(json: object) {
+    const res = await request(server).post("/json-to-xml").send(json);
+    expect(res.status).toBe(400);
+    expect(res.body).toEqual({ success: false, error: "Invalid invoice JSON" });
+  }
+
+  it.each(["_doctype", "_instruction", "_declaration", "_comment", "_cdata", "_parent"])(
+    "rejects reserved key %s at document and element level", async (key) => {
+      const value = key === "_doctype" ? 'Faktura [<!ENTITY e SYSTEM "file:///private.xml">]' : "injected";
+      await expectInvalid({ [key]: value, Faktura: {} });
+      await expectInvalid({ Faktura: { Child: { [key]: value } } });
+    }
+  );
+
+  it.each(["bad name", "a><b", "a<b", "1name", "ns:Child", ""])(
+    "rejects invalid element name %j", async (key) => {
+      await expectInvalid({ Faktura: { [key]: { _text: "private input" } } });
+    }
+  );
+
+  it.each(["bad name", "a><b", "a<b", "1name", "xmlns:evil", ""])(
+    "rejects invalid attribute name %j", async (key) => {
+      await expectInvalid({ Faktura: { _attributes: { [key]: "private input" } } });
+    }
+  );
+
+  it("escapes attribute and text metacharacters without changing their values", async () => {
+    const value = `a" evil="1 & <x> ' &amp;\t\n\r`;
+    const res = await request(server).post("/json-to-xml").send({
+      Faktura: { _attributes: { label: value }, Child: { _text: '<x> & "quoted"' } },
+    });
+    expect(res.status).toBe(200);
+    expect(res.text).toContain('label="a&quot; evil=&quot;1 &amp; &lt;x&gt;');
+    const parsed = xml2js(res.text, { compact: true }) as any;
+    expect(parsed.Faktura._attributes.label).toBe(value);
+    expect(parsed.Faktura.Child._text).toBe('<x> & "quoted"');
+  });
+
+  it("preserves the fixture XML byte for byte", async () => {
+    const json = structuredClone(fixtureJson);
+    json.Faktura._attributes = { xmlns: "http://crd.gov.pl/wzor/2025/06/25/13775/" };
+    const expected = '<?xml version="1.0" encoding="utf-8"?>' + js2xml(json, { compact: true, spaces: 0 });
+    const res = await request(server).post("/json-to-xml").send(fixtureJson);
+    expect(res.status).toBe(200);
+    expect(res.text).toBe(expected);
+  });
+
+  it.each([101, 12000])("rejects JSON nested %i levels before serialization", async (depth) => {
+    // Avoid JSON.stringify's own recursion limit in the HTTP test client.
+    const body = '{"Faktura":' + '{"Child":'.repeat(depth - 1) + '{}' + '}'.repeat(depth);
+    const res = await request(server).post("/json-to-xml").type("json").send(body);
+    expect(res.status).toBe(400);
+    expect(res.body).toEqual({ success: false, error: "Invalid invoice JSON" });
+  });
+
+  it("accepts 100 levels of JSON nesting", async () => {
+    const body = '{"Faktura":' + '{"Child":'.repeat(99) + '{}' + '}'.repeat(100);
+    const res = await request(server).post("/json-to-xml").type("json").send(body);
+    expect(res.status).toBe(200);
+    expect((res.text.match(/<Child[/>]/g) ?? []).length).toBe(99);
+  });
+
+  it("rejects more than 100000 JSON values, including repeated elements", async () => {
+    await expectInvalid({ Faktura: { Child: Array(100000).fill(null) } });
+  });
+
+  it("accepts exactly 100000 JSON values", async () => {
+    const res = await request(server).post("/json-to-xml").send({ Faktura: { Child: Array(99997).fill(null) } });
+    expect(res.status).toBe(200);
+    expect((res.text.match(/<Child\/>/g) ?? []).length).toBe(99997);
+  });
+
+  it.each([[true], ["text"], [[]], [42]])("rejects non-object Faktura: %j", async (Faktura) => {
+    await expectInvalid({ Faktura });
+  });
+
+  it.each([{ _attributes: "bad" }, { _attributes: { a: {} } }, { _text: {} }, { _text: "bad\u0000text" }])(
+    "rejects malformed node contents %j", async (Faktura) => { await expectInvalid({ Faktura }); }
+  );
+});
+
 describe("PDF_SERVICE_SECRET gate (opt-in)", () => {
   const SECRET = "test-pdf-secret-123";
   // createApp() captures the secret; each test gets a fresh gated instance.

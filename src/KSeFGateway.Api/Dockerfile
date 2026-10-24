@@ -39,6 +39,7 @@ RUN (getent group 1000 >/dev/null || groupadd --gid 1000 render-secrets) \
     && usermod -a -G 1000 app
 
 COPY --from=build /app/publish .
+COPY LICENSE THIRD_PARTY_NOTICES.md /app/licenses/
 
 ENV ASPNETCORE_URLS=http://+:8080
 EXPOSE 8080

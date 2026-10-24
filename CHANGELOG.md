@@ -4,6 +4,8 @@
 
 ### Security
 
+- Add private vulnerability reporting, ownership templates and third-party license notices in API/PDF images.
+
 - Return minimal public health status and generic server errors with logged correlation IDs.
 - Dependency updates resolving 5 advisories in the PDF service.
 - Dependency updates resolving 39 advisories across the PDF service and landing page.

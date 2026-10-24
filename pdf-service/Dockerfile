@@ -9,6 +9,8 @@ RUN npm ci --omit=dev
 
 # Copy CIRFMF pdf-generator library source
 COPY lib/src/ lib/src/
+COPY lib/LICENSE /app/licenses/ksef-pdf-generator.LICENSE
+COPY LICENSE THIRD_PARTY_NOTICES.md /app/licenses/
 
 # Copy app source
 COPY src/ src/

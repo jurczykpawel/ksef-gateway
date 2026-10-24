@@ -1,5 +1,6 @@
 using System.Collections.Concurrent;
 using KSeFGateway.Api.Models;
+using KSeFGateway.Api.Auth;
 
 namespace KSeFGateway.Api.Middleware;
 
@@ -29,6 +30,8 @@ public class RateLimitMiddleware
             await _next(context);
             return;
         }
+
+        ContextResolver.ValidateHeader(context, context.RequestServices.GetRequiredService<ContextProvider>());
 
         var limit = KsefRateLimits.GetLimit(path);
         var counter = _counters.GetOrAdd(limit.Key, _ => new SlidingWindowCounter());

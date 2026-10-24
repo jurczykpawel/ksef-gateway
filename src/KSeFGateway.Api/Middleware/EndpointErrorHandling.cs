@@ -33,7 +33,7 @@ public static class EndpointErrorHandling
                 ? wrapped.InnerException!
                 : ex;
 
-            if (real is KsefApiException or KsefCircuitBreakerOpenException)
+            if (real is KsefApiException or KsefCircuitBreakerOpenException or BadHttpRequestException)
                 ExceptionDispatchInfo.Capture(real).Throw();
 
             logger?.LogError(real, "{Context}: {Message}", logContext, real.Message);

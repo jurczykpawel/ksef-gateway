@@ -21,6 +21,11 @@ public class ErrorHandlingMiddleware
         {
             await _next(context);
         }
+        catch (BadHttpRequestException ex)
+        {
+            context.Response.StatusCode = ex.StatusCode;
+            await WriteResponse(context, ApiResponse.Fail(ex.Message));
+        }
         catch (KsefRateLimitException ex)
         {
             _logger.LogWarning("KSeF rate limit hit: {Message}", ex.Message);

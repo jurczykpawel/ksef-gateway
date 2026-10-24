@@ -756,6 +756,8 @@ The gateway auto-detects which NIP to use based on:
 2. Seller NIP from the invoice body
 3. Default context (first in list or from `KSEF_NIP` env var)
 
+The `X-KSeF-NIP` header must contain exactly one value: 10 ASCII digits without spaces (no checksum validation). Invalid format, an empty value, or multiple values returns HTTP **400** with `{ "success": false, "error": "..." }`, before consuming rate-limit budget. A correctly formatted NIP without an active context in `ContextProvider` returns HTTP **404** with `No context configured for NIP ...`; this also applies to a seller NIP selected from the invoice body. Rejected NIPs do not allocate authentication state.
+
 Check authenticated contexts: `GET /ksef/contexts`
 
 > **Note:** `KSEF_TOKEN` + `KSEF_NIP` env vars still work for single-NIP mode. If both env vars and `contexts.json` are present, the env var context is added to the list.

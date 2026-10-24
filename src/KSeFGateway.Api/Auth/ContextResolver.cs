@@ -16,23 +16,51 @@ public static partial class ContextResolver
     public static string? ResolveNip(HttpContext httpContext, ContextProvider provider, string? bodyContent = null)
     {
         // 1. Explicit header (highest priority)
-        if (httpContext.Request.Headers.TryGetValue(NipHeader, out var headerNip)
-            && !string.IsNullOrEmpty(headerNip))
-        {
-            return headerNip.ToString();
-        }
+        var headerNip = ValidateHeader(httpContext, provider);
+        if (headerNip != null)
+            return headerNip;
 
         // 2. Extract seller NIP from body (XML or JSON)
         if (bodyContent != null)
         {
             var nipFromBody = ExtractSellerNip(bodyContent);
             if (nipFromBody != null)
-                return nipFromBody;
+                return ValidateNip(nipFromBody, provider);
         }
 
         // 3. Default context
-        return provider.GetDefault()?.Nip;
+        var defaultNip = provider.GetDefault()?.Nip;
+        return defaultNip != null ? ValidateNip(defaultNip, provider) : null;
     }
+
+    /// <summary>Validates an explicit header before rate limiting or endpoint execution.</summary>
+    public static string? ValidateHeader(HttpContext httpContext, ContextProvider provider)
+    {
+        if (!httpContext.Request.Headers.TryGetValue(NipHeader, out var values))
+            return null;
+
+        if (values.Count != 1)
+            throw InvalidNip();
+
+        return ValidateNip(values[0], provider);
+    }
+
+    /// <summary>Rejects untrusted NIPs before any per-NIP state is allocated.</summary>
+    public static string ValidateNip(string? nip, ContextProvider provider)
+    {
+        // Length first: bounded work and no copies/logging of arbitrary header values.
+        if (nip is null || nip.Length != 10 || nip.Any(c => c < '0' || c > '9'))
+            throw InvalidNip();
+
+        if (provider.GetByNip(nip) is null)
+            throw new BadHttpRequestException($"No context configured for NIP {nip}", StatusCodes.Status404NotFound);
+
+        return nip;
+    }
+
+    private static BadHttpRequestException InvalidNip() => new(
+        "NIP must contain exactly 10 ASCII digits; X-KSeF-NIP must have a single value.",
+        StatusCodes.Status400BadRequest);
 
     /// <summary>
     /// Extracts seller NIP from invoice XML or JSON body.

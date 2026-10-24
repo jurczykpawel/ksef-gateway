@@ -74,8 +74,8 @@ await app.Services.GetRequiredService<LicenseService>().RefreshAsync();
 // API-key check so direct-to-origin traffic that bypasses the configured proxy is rejected first.
 app.UseMiddleware<TrustedProxyMiddleware>();
 app.UseMiddleware<ApiKeyMiddleware>();
-app.UseMiddleware<RateLimitMiddleware>();
 app.UseMiddleware<ErrorHandlingMiddleware>();
+app.UseMiddleware<RateLimitMiddleware>();
 
 // OpenAPI JSON + Scalar UI
 app.MapOpenApi();

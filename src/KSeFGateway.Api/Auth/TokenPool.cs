@@ -36,6 +36,7 @@ public class TokenPool : BackgroundService
     /// </summary>
     public async Task<string?> GetAccessTokenAsync(string nip, CancellationToken ct = default)
     {
+        ContextResolver.ValidateNip(nip, _contextProvider);
         var state = _states.GetOrAdd(nip, _ => new AuthState());
 
         if (state.IsAuthenticated)
@@ -76,8 +77,11 @@ public class TokenPool : BackgroundService
     /// <summary>
     /// Gets auth state for a given NIP (for health/status endpoints).
     /// </summary>
-    public AuthState GetState(string nip) =>
-        _states.GetOrAdd(nip, _ => new AuthState());
+    public AuthState GetState(string nip)
+    {
+        ContextResolver.ValidateNip(nip, _contextProvider);
+        return _states.GetOrAdd(nip, _ => new AuthState());
+    }
 
     /// <summary>
     /// Gets default auth state. Backward compatible.

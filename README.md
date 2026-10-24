@@ -815,6 +815,8 @@ Usługa automatycznie wykrywa, którego NIP-u użyć, na podstawie:
 2. NIP-u sprzedawcy z ciała faktury
 3. Kontekstu domyślnego (pierwszy na liście albo ze zmiennej środowiskowej `KSEF_NIP`)
 
+Nagłówek `X-KSeF-NIP` musi zawierać dokładnie jedną wartość: 10 cyfr ASCII, bez spacji (bez sprawdzania sumy kontrolnej). Błędny format, pusta wartość lub wiele wartości oznacza HTTP **400** z `{ "success": false, "error": "..." }`, przed zużyciem limitu żądań. NIP poprawny formatem, ale bez aktywnego kontekstu w `ContextProvider`, oznacza HTTP **404** z błędem `No context configured for NIP ...`; dotyczy to również NIP-u sprzedawcy wybranego z treści faktury. Odrzucone NIP-y nie tworzą stanu uwierzytelniania.
+
 Sprawdź uwierzytelnione konteksty: `GET /ksef/contexts`
 
 > **Uwaga:** Zmienne środowiskowe `KSEF_TOKEN` + `KSEF_NIP` nadal działają w trybie single-NIP. Jeśli obecne są jednocześnie zmienne środowiskowe i `contexts.json`, kontekst ze zmiennych środowiskowych jest dodawany do listy.

@@ -6,6 +6,7 @@
 
 - Derive PDF invoice QR verification hosts from the shared KSeF environment (TEST/DEMO/PRODUCTION/PRD), preserving explicit `KSEF_QR_URL` overrides.
 - Validate and normalize `KSEF_ENV` at startup (including production aliases `PRD`/`PROD`); reject unknown values instead of silently using TEST, and report the canonical environment in `/health` and `/ksef/status`.
+- Validate `X-KSeF-NIP` before rate limiting (400 for malformed/multiple values); reject unconfigured header or selected seller NIPs with 404 before allocating token state or logging their values.
 - `POST /ksef/send/json` always returned 401: it called the gateway's own `http://localhost:8080/ksef/send` without `X-Api-Key` (and only worked on port 8080). It now uses the same in-process code path as `/ksef/send`. Regression test added (red on the old code: `Unauthorized`, green on the new)
 
 ## [0.2.1] - 2026-10-23

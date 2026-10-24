@@ -7,6 +7,24 @@ on:
     branches: [main, dev]
 
 jobs:
+  build-landing:
+    name: Build landing (Node)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: landing
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: landing/package-lock.json
+
+      - name: Install dependencies and build
+        run: npm ci && npm run build
+
   build-api:
     name: Build & Test API (.NET)
     if: github.actor != 'dependabot[bot]'

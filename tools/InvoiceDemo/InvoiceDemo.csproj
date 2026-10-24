@@ -8,8 +8,8 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="KSeF.Client" Version="*-*" />
-    <PackageReference Include="KSeF.Client.ClientFactory" Version="*-*" />
+    <PackageReference Include="KSeF.Client" Version="2.9.0" />
+    <PackageReference Include="KSeF.Client.ClientFactory" Version="2.9.0" />
   </ItemGroup>
 
 </Project>

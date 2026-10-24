@@ -8,12 +8,12 @@
 
   <ItemGroup>
     <!-- CIRFMF Official KSeF SDK (GitHub Packages) -->
-    <PackageReference Include="KSeF.Client" Version="*-*" />
-    <PackageReference Include="KSeF.Client.ClientFactory" Version="*-*" />
+    <PackageReference Include="KSeF.Client" Version="2.9.0" />
+    <PackageReference Include="KSeF.Client.ClientFactory" Version="2.9.0" />
 
     <!-- OpenAPI (built-in on .NET 9) -->
-    <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="9.0.*" />
-    <PackageReference Include="Scalar.AspNetCore" Version="2.*" />
+    <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="9.0.21" />
+    <PackageReference Include="Scalar.AspNetCore" Version="2.18.3" />
 
     <!-- AWS Lambda hosting (no-op when not running on Lambda) -->
     <PackageReference Include="Amazon.Lambda.AspNetCoreServer.Hosting" Version="1.10.0" />

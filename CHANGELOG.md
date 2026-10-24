@@ -2,6 +2,10 @@
 
 ## [Unreleased]
 
+### Changed
+
+- Pin all NuGet PackageReference versions in the API, tests, and tools to their currently resolved versions, including KSeF SDK 2.9.0.
+
 ### Fixed
 
 - Derive PDF invoice QR verification hosts from the shared KSeF environment (TEST/DEMO/PRODUCTION/PRD), preserving explicit `KSEF_QR_URL` overrides.

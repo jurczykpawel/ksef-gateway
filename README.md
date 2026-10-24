@@ -872,7 +872,7 @@ Dwa kontenery, bez bazy danych, bez Redis. Stan autoryzacji w pamięci (restart 
 
 ### Zasady Projektowe
 - **Cienki wrapper** - zero logiki biznesowej, tłumaczenie HTTP-na-SDK
-- **Auto-adaptacyjny** - zmiany SDK propagują się przy przebudowie (refleksja)
+- **Auto-adaptacyjny** - refleksja odkrywa endpointy przypiętej wersji SDK; zmiany wymagają świadomej aktualizacji zależności
 - **Przejrzysta kryptografia** - wywołujący wysyłają plaintext, usługa szyfruje
 - **JSON zero-utrzymania** - odzwierciedla XML 1:1, brak kodu mapującego
 - **Odporny** - błędy autoryzacji nie crashują, ponawiają automatycznie

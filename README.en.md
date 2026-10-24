@@ -813,7 +813,7 @@ Two containers, no database, no Redis. Auth state in memory (restart = re-auth i
 
 ### Design Principles
 - **Thin wrapper** - zero business logic, HTTP-to-SDK translation
-- **Auto-adaptive** - SDK changes propagate on rebuild (reflection)
+- **Auto-adaptive** - reflection discovers endpoints from the pinned SDK version; changes require an explicit dependency update
 - **Transparent crypto** - callers send plaintext, gateway encrypts
 - **Zero-maintenance JSON** - mirrors XML 1:1, no mapping code
 - **Resilient** - auth failures don't crash, retry automatically

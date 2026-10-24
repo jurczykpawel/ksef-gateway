@@ -252,6 +252,11 @@ jobs:
             -f src/KSeFGateway.Api/Dockerfile \
             src/
 
+      - name: Build tools
+        env:
+          GITHUB_PAT: ${{ secrets.CIRFMF_PAT }}
+        run: docker compose --profile tools build token-generator cert-generator invoice-demo
+
       - name: Build ksef-pdf
         run: |
           docker build \

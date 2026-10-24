@@ -16,6 +16,8 @@ RUN --mount=type=secret,id=GITHUB_PAT,required=false \
 
 COPY Program.cs .
 
+RUN dotnet build --no-restore
+
 RUN mkdir -p /app/output
 
 ENTRYPOINT ["dotnet", "run"]

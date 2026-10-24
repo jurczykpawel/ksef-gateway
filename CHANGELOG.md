@@ -5,13 +5,9 @@
 ### Security
 
 - Pin container base digests and Azure release tags; expand Dependabot coverage to Docker, submodules, tests and tools with authenticated NuGet access.
-
 - Gate image publication on CI for the same ref, attach SPDX SBOMs and sign image digests with keyless cosign.
-
 - Pin all external GitHub Actions to verified commit SHAs.
-
 - Add private vulnerability reporting, ownership templates and third-party license notices in API/PDF images.
-
 - Return minimal public health status and generic server errors with logged correlation IDs.
 - Dependency updates resolving 5 advisories in the PDF service.
 - Dependency updates resolving 39 advisories across the PDF service and landing page.
@@ -29,13 +25,12 @@
 ### Added
 
 - Support exempt (`zw`) and outside-territory (`np I`/`np II`) friendly invoice rates, statutory exemption basis, and `KOR` invoices with signed line differences and original-invoice references.
-
 - Approve the complete reflected SDK 2.9.0 route/signature manifest in tests; SDK contract changes require explicit review and a changelog entry.
 
 ### Fixed
 
 - Restore commercial n8n webhook secret fallback for default n8n 2.x/Cloud; prefer environment secrets and document Configuration export exposure.
-
+- Fix InvoiceDemo compilation against KSeF SDK 2.9.0; compile all tools during Docker builds and gate them in CI.
 - Align bilingual invoice examples and landing claims with API contracts; validate documentation DTOs and FA(3) fixtures in tests.
 - Document deployment parameters, troubleshooting, digest-based rollback, secret rotation and backups.
 - Bind chunked JSON bodies on SDK routes, return 400 for invalid JSON or missing required arguments, and limit whole-body binding to a single composite business parameter.

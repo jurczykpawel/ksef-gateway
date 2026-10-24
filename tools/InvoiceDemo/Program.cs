@@ -108,7 +108,7 @@ Console.WriteLine();
 
 // ── Step 3: Get encryption data and open online session ───────────────────────
 Console.WriteLine("[5/9] Opening online session...");
-EncryptionData encryptionData = cryptoService.GetEncryptionData();
+var encryptionData = cryptoService.GetEncryptionData();
 
 OpenOnlineSessionRequest openReq = OpenOnlineSessionRequestBuilder
     .Create()
@@ -130,7 +130,7 @@ byte[] encrypted = cryptoService.EncryptBytesWithAES256(invoiceBytes, encryption
 var invoiceMeta = cryptoService.GetMetaData(invoiceBytes);
 var encryptedMeta = cryptoService.GetMetaData(encrypted);
 
-SendInvoiceRequest sendReq = SendInvoiceOnlineSessionRequestBuilder
+var sendReq = SendInvoiceOnlineSessionRequestBuilder
     .Create()
     .WithInvoiceHash(invoiceMeta.HashSHA, invoiceMeta.FileSize)
     .WithEncryptedDocumentHash(encryptedMeta.HashSHA, encryptedMeta.FileSize)
@@ -138,7 +138,7 @@ SendInvoiceRequest sendReq = SendInvoiceOnlineSessionRequestBuilder
     .Build();
 
 var sendResult = await ksefClient.SendOnlineSessionInvoiceAsync(sendReq, session.ReferenceNumber, accessToken);
-Console.WriteLine($"  Invoice element reference: {sendResult.ElementReferenceNumber}");
+Console.WriteLine($"  Invoice element reference: {sendResult.ReferenceNumber}");
 Console.WriteLine();
 
 // ── Step 5: Close session ─────────────────────────────────────────────────────
@@ -158,7 +158,7 @@ for (int i = 0; i < MaxPollAttempts; i++)
     {
         var invoiceStatus = await ksefClient.GetSessionInvoiceAsync(
             session.ReferenceNumber,
-            sendResult.ElementReferenceNumber,
+            sendResult.ReferenceNumber,
             accessToken);
 
         if (invoiceStatus?.KsefNumber is not null)
@@ -185,7 +185,7 @@ Console.WriteLine();
 
 // ── Step 7: Download and save invoice XML ─────────────────────────────────────
 Console.WriteLine("[9/9] Downloading invoice from KSeF...");
-var downloadedXml = await ksefClient.DownloadInvoiceAsync(ksefNumber, accessToken);
+var downloadedXml = await ksefClient.GetInvoiceAsync(ksefNumber, accessToken);
 
 // Ensure output directory exists
 Directory.CreateDirectory(Path.GetDirectoryName(OutputPath)!);

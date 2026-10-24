@@ -15,4 +15,6 @@ RUN --mount=type=secret,id=GITHUB_PAT,required=false \
     dotnet restore --configfile nuget.config
 
 COPY Program.cs .
+RUN dotnet build --no-restore
+
 ENTRYPOINT ["dotnet", "run"]

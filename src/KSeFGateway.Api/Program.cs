@@ -76,9 +76,9 @@ await app.Services.GetRequiredService<LicenseService>().RefreshAsync();
 // before spending any rate-limit budget or reaching an endpoint.
 // TrustedProxyMiddleware is opt-in (no-op unless TRUSTED_PROXY_SECRET is set) and runs before the
 // API-key check so direct-to-origin traffic that bypasses the configured proxy is rejected first.
+app.UseMiddleware<ErrorHandlingMiddleware>();
 app.UseMiddleware<TrustedProxyMiddleware>();
 app.UseMiddleware<ApiKeyMiddleware>();
-app.UseMiddleware<ErrorHandlingMiddleware>();
 app.UseMiddleware<RateLimitMiddleware>();
 
 // OpenAPI JSON + Scalar UI

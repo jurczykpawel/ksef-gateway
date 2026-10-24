@@ -15,6 +15,31 @@ namespace KSeFGateway.Api.Endpoints;
 /// </summary>
 public static class PdfService
 {
+    // Send and buffer inside the same deadline; ownership never escapes this helper.
+    public static async Task<(System.Net.HttpStatusCode Status, byte[] Body)> RequestAsync(
+        IHttpClientFactory factory, IConfiguration config, string path, string body, string contentType,
+        CancellationToken ct)
+    {
+        var seconds = config.GetValue<int?>("PDF_SERVICE_TIMEOUT_SECONDS") ?? 60;
+        if (seconds <= 0) throw new InvalidOperationException("PDF_SERVICE_TIMEOUT_SECONDS must be positive");
+        using var timeout = CancellationTokenSource.CreateLinkedTokenSource(ct);
+        timeout.CancelAfter(TimeSpan.FromSeconds(seconds));
+        using var client = factory.CreateClient();
+        client.Timeout = Timeout.InfiniteTimeSpan;
+        using var request = new HttpRequestMessage(HttpMethod.Post, BaseUrl(config) + path);
+        Authorize(request, config);
+        request.Content = new StringContent(body, System.Text.Encoding.UTF8, contentType);
+        try
+        {
+            using var response = await client.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, timeout.Token);
+            return (response.StatusCode, await response.Content.ReadAsByteArrayAsync(timeout.Token));
+        }
+        catch (OperationCanceledException ex) when (!ct.IsCancellationRequested)
+        {
+            throw new TimeoutException("PDF service timeout", ex);
+        }
+    }
+
     public const string SecretHeader = "X-Pdf-Secret";
 
     /// <summary>Reads <c>PDF_SERVICE_URL</c>, ensures it has an http/https scheme, trims a trailing slash.</summary>

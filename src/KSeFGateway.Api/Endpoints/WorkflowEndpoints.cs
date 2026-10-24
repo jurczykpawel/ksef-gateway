@@ -14,6 +14,20 @@ namespace KSeFGateway.Api.Endpoints;
 
 public static class WorkflowEndpoints
 {
+    // Let the validator report missing reference fields individually; keep required numeric
+    // properties enforced by the JSON reader (zero is a valid price/VAT value).
+    private static readonly JsonSerializerOptions InvoiceJsonOptions = new()
+    {
+        PropertyNameCaseInsensitive = true,
+        TypeInfoResolver = new System.Text.Json.Serialization.Metadata.DefaultJsonTypeInfoResolver
+        {
+            Modifiers = { type => {
+                foreach (var property in type.Properties)
+                    if (!property.PropertyType.IsValueType) property.IsRequired = false;
+            } }
+        }
+    };
+
     public static void MapWorkflowEndpoints(this WebApplication app)
     {
         // POST /ksef/send - accepts raw XML invoice
@@ -62,7 +76,7 @@ public static class WorkflowEndpoints
             if (accessToken is null)
                 return Results.Json(ApiResponse.Fail("Not authenticated"), statusCode: 503);
 
-            var xml = await ksefClient.GetInvoiceAsync(ksefNumber, accessToken);
+            var xml = await ksefClient.GetInvoiceAsync(ksefNumber, accessToken, httpContext.RequestAborted);
             return Results.Content(xml, "application/xml");
         })
         .WithTags("Workflows")
@@ -85,22 +99,13 @@ public static class WorkflowEndpoints
 
             return await EndpointErrorHandling.Guard(async () =>
             {
-                var xml = await ksefClient.GetInvoiceAsync(ksefNumber, accessToken);
-                var pdfServiceUrl = PdfService.BaseUrl(config);
-                var client = httpClientFactory.CreateClient();
-                var pdfRequest = new HttpRequestMessage(HttpMethod.Post,
-                    $"{pdfServiceUrl}/pdf/invoice?nrKSeF={Uri.EscapeDataString(ksefNumber)}");
-                PdfService.Authorize(pdfRequest, config);
-                pdfRequest.Content = new StringContent(xml, Encoding.UTF8, "application/xml");
+                var xml = await ksefClient.GetInvoiceAsync(ksefNumber, accessToken, httpContext.RequestAborted);
+                var pdfResponse = await PdfService.RequestAsync(httpClientFactory, config,
+                    $"/pdf/invoice?nrKSeF={Uri.EscapeDataString(ksefNumber)}", xml, "application/xml", httpContext.RequestAborted);
+                if ((int)pdfResponse.Status is < 200 or >= 300)
+                    return Results.Json(ApiResponse.Fail("PDF generation failed"), statusCode: 502);
 
-                var pdfResponse = await client.SendAsync(pdfRequest);
-                if (!pdfResponse.IsSuccessStatusCode)
-                {
-                    var error = await pdfResponse.Content.ReadAsStringAsync();
-                    return Results.Json(ApiResponse.Fail($"PDF generation failed: {error}"), statusCode: 502);
-                }
-
-                var pdfBytes = await pdfResponse.Content.ReadAsByteArrayAsync();
+                var pdfBytes = pdfResponse.Body;
                 return Results.File(pdfBytes, "application/pdf", $"faktura-{ksefNumber}.pdf");
             });
         })
@@ -134,21 +139,12 @@ public static class WorkflowEndpoints
 
             return await EndpointErrorHandling.Guard(async () =>
             {
-                var pdfServiceUrl = PdfService.BaseUrl(config);
-                var client = httpClientFactory.CreateClient();
+                var convertResponse = await PdfService.RequestAsync(httpClientFactory, config,
+                    "/json-to-xml", jsonBody, "application/json", httpContext.RequestAborted);
+                if ((int)convertResponse.Status is < 200 or >= 300)
+                    return Results.Json(ApiResponse.Fail("JSON to XML conversion failed"), statusCode: 400);
 
-                var convertRequest = new HttpRequestMessage(HttpMethod.Post, $"{pdfServiceUrl}/json-to-xml");
-                PdfService.Authorize(convertRequest, config);
-                convertRequest.Content = new StringContent(jsonBody, Encoding.UTF8, "application/json");
-
-                var convertResponse = await client.SendAsync(convertRequest, httpContext.RequestAborted);
-                if (!convertResponse.IsSuccessStatusCode)
-                {
-                    var error = await convertResponse.Content.ReadAsStringAsync(httpContext.RequestAborted);
-                    return Results.Json(ApiResponse.Fail($"JSON to XML conversion failed: {error}"), statusCode: 400);
-                }
-
-                var invoiceXml = await convertResponse.Content.ReadAsStringAsync(httpContext.RequestAborted);
+                var invoiceXml = Encoding.UTF8.GetString(convertResponse.Body);
 
                 // Same code path as POST /ksef/send. This used to call the gateway's own
                 // http://localhost:8080/ksef/send without X-Api-Key, so the API-key middleware
@@ -168,28 +164,33 @@ public static class WorkflowEndpoints
             var cryptoService = httpContext.RequestServices.GetRequiredService<ICryptographyService>();
             var logger = httpContext.RequestServices.GetRequiredService<ILogger<Program>>();
 
-            InvoiceRequest invoiceReq;
+            InvoiceRequest? invoiceReq;
             try
             {
                 using var reader = new StreamReader(httpContext.Request.Body, Encoding.UTF8);
                 var body = await reader.ReadToEndAsync(httpContext.RequestAborted);
                 invoiceReq = JsonSerializer.Deserialize<InvoiceRequest>(body,
-                    new JsonSerializerOptions { PropertyNameCaseInsensitive = true })
-                    ?? throw new InvalidOperationException("Empty request body");
+                    InvoiceJsonOptions);
             }
-            catch (Exception ex)
+            catch (JsonException)
             {
-                return Results.Json(ApiResponse.Fail($"Invalid invoice JSON: {ex.Message}"), statusCode: 400);
+                return Results.Json(ApiResponse.Fail("Validation failed") with {
+                    Errors = new[] { new FieldError("body", "Invalid invoice JSON or missing required fields") }
+                }, statusCode: 400);
             }
 
-            var nip = ContextResolver.ResolveNip(httpContext, ctxProvider) ?? invoiceReq.Seller.Nip;
+            var errors = InvoiceRequestValidator.Validate(invoiceReq);
+            if (errors.Count > 0)
+                return Results.Json(ApiResponse.Fail("Validation failed") with { Errors = errors }, statusCode: 400);
+
+            var nip = ContextResolver.ResolveNip(httpContext, ctxProvider) ?? invoiceReq!.Seller.Nip;
             var accessToken = await pool.GetAccessTokenAsync(nip, httpContext.RequestAborted);
             if (accessToken is null)
                 return Results.Json(ApiResponse.Fail($"Not authenticated with KSeF for NIP {nip}"), statusCode: 503);
 
             return await EndpointErrorHandling.Guard(async () =>
             {
-                var invoiceXml = InvoiceXmlBuilder.Build(invoiceReq);
+                var invoiceXml = InvoiceXmlBuilder.Build(invoiceReq!);
                 var invoiceBytes = Encoding.UTF8.GetBytes(invoiceXml);
                 logger.LogInformation("Built FA(3) XML ({Size} bytes) for NIP {Nip}", invoiceBytes.Length, nip);
 

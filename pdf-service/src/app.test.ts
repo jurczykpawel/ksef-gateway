@@ -329,3 +329,27 @@ describe("safe error responses", () => {
     expectError(res, 400, "Invalid invoice JSON");
   });
 });
+
+
+describe("render concurrency", () => {
+  it("rejects excess renders and releases the slot after completion", async () => {
+    vi.stubEnv("PDF_MAX_CONCURRENT_RENDERS", "1");
+    app = createApp();
+    let release!: (value: Uint8Array) => void;
+    let entered!: () => void;
+    const started = new Promise<void>(resolve => { entered = resolve; });
+    const render = vi.spyOn(pdfMake, "createPdf").mockImplementationOnce(() => ({
+      getBuffer: () => { entered(); return new Promise<Uint8Array>(resolve => { release = resolve; }); }
+    }) as any);
+    const first = request(server).post("/pdf/invoice").type("application/xml").send(fixtureXml).then(r => r);
+    await started;
+    try {
+      const excess = await request(server).post("/pdf/invoice").type("application/xml").send(fixtureXml);
+      expect(excess.status).toBe(503);
+      expect(excess.body.error).toBe("PDF renderer busy");
+      expect(excess.headers["retry-after"]).toBe("1");
+    } finally { release(new Uint8Array([1])); await first; render.mockRestore(); }
+    const next = await request(server).post("/pdf/invoice").type("application/xml").send(fixtureXml);
+    expect(next.status).toBe(200);
+  });
+});

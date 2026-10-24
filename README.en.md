@@ -305,7 +305,7 @@ Reflection discovers 64 methods in 14 groups in SDK 2.9.0. By default, 20 invoic
 
 **BREAKING (v0.3.0):** if you used `ksef-token`, `permissions` (now four separate groups) or `certificate`, explicitly set `KSEF_SDK_ENDPOINTS=all` or select only the required groups/methods. These operations can create persistent KSeF access outside the gateway. `lighthouse` is absent from SDK 2.9.0 reflection; if a newer SDK adds it, it belongs to `safe`.
 
-Hidden routes return 404 after passing authentication middleware and appear in neither `/openapi/v1.json` nor `/scalar/v1`. Gateway-owned endpoints (`/ksef/send`, `/ksef/send/json`, `/ksef/invoice`, `/ksef/invoice/{ksefNumber}` and `/pdf`, `/ksef/invoices/*`, `/ksef/status`, `/ksef/contexts`) and internal authentication always work independently of this setting. `/health` reports `exposedEndpoints` (exposed SDK methods) and `discoveredEndpoints` (all discovered methods); startup logs report both counts too.
+Hidden routes return 404 after passing authentication middleware and appear in neither `/openapi/v1.json` nor `/scalar/v1`. Gateway-owned endpoints (`/ksef/send`, `/ksef/send/json`, `/ksef/invoice`, `/ksef/invoice/{ksefNumber}` and `/pdf`, `/ksef/invoices/*`, `/ksef/status`, `/ksef/contexts`) and internal authentication always work independently of this setting. `/health` returns only `{"status":"ok"}`. API-key-protected `/ksef/status` reports environment, authentication state, `exposedEndpoints` and `discoveredEndpoints`; startup logs report both counts too.
 
 Interactive documentation of exposed routes is available at `/scalar/v1`.
 
@@ -974,3 +974,11 @@ If you modify KSeF Gateway and offer it as a service, AGPL-3.0 requires you to m
 - **[CIRFMF](https://github.com/CIRFMF)** (Centrum Informatyki Resortu Finansów) - official KSeF SDK, PDF generator, and documentation
 - **[KSeF Documentation](https://github.com/CIRFMF/ksef-docs)** - integration guide for KSeF 2.0
 - **[Scalar](https://scalar.com/)** - API documentation UI
+
+### Errors and request boundaries
+
+API errors use `{"success":false,"data":null,"error":"…","correlationId":"…"}`. The identifier matches the response header `X-Correlation-Id` and the identifier in logs. The gateway assigns it per request; 500 responses only expose `Internal server error`, with the full exception logged. KSeF status codes and `Retry-After` remain intact. Invalid JSON returns 400.
+
+`POST /ksef/invoice` validates before KSeF authentication or SDK calls: required parties, addresses, items, invoice number, valid `YYYY-MM-DD` dates, NIPs (10 ASCII digits), quantity > 0, price >= 0 and VAT 0/5/8/23. A 400 response includes `error: "Validation failed"` and `errors: [{"field":"items.0.quantity","message":"Must be greater than zero"}]`. Missing strings and objects identify the specific field. JSON syntax/type errors or missing required numeric properties detected during deserialization identify `body` as the field.
+
+`PDF_SERVICE_TIMEOUT_SECONDS` bounds sending and reading PDF responses (default 60 s, timeout → 504). Client disconnects cancel both KSeF invoice retrieval and the PDF request. The PDF service permits `PDF_MAX_CONCURRENT_RENDERS` concurrent renders (default 2); excess requests receive 503 with `Retry-After: 1`. Slots are released after rendering settles, including errors; disconnects cannot interrupt synchronous generator work.

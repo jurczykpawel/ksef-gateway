@@ -9,21 +9,7 @@ public static class HealthEndpoints
 {
     public static void MapHealthEndpoints(this WebApplication app, int discoveredCount, int exposedCount)
     {
-        app.MapGet("/health", (
-            [FromServices] TokenPool pool,
-            [FromServices] ContextProvider ctxProvider,
-            [FromServices] KsefEnvironment environment) =>
-        {
-            var defaultState = pool.GetDefaultState();
-            return Results.Json(new HealthResponse(
-                Status: "ok",
-                DiscoveredEndpoints: discoveredCount,
-                ExposedEndpoints: exposedCount,
-                KsefEnvironment: environment.Name,
-                Authenticated: defaultState.IsAuthenticated,
-                TokenExpiresAt: defaultState.AccessTokenExpiresAt
-            ));
-        })
+        app.MapGet("/health", () => Results.Json(new { status = "ok" }))
         .WithTags("System")
         .WithName("health")
         .ExcludeFromDescription();
@@ -51,6 +37,8 @@ public static class HealthEndpoints
 
             return Results.Json(ApiResponse.Ok(new
             {
+                discoveredEndpoints = discoveredCount,
+                exposedEndpoints = exposedCount,
                 mode = activeContexts.Count > 1 ? "multi-nip" : "single-nip",
                 environment = environment.Name,
                 contexts,

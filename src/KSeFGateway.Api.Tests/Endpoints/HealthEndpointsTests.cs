@@ -61,14 +61,15 @@ public class HealthEndpointsTests
         Assert.Equal(200, context.Response.StatusCode);
         context.Response.Body.Position = 0;
         using var body = await JsonDocument.ParseAsync(context.Response.Body);
-        var environment = path == "/health"
-            ? body.RootElement.GetProperty("ksefEnvironment")
-            : body.RootElement.GetProperty("data").GetProperty("environment");
-        Assert.Equal(expected, environment.GetString());
         if (path == "/health")
         {
-            Assert.Equal(64, body.RootElement.GetProperty("discoveredEndpoints").GetInt32());
-            Assert.Equal(20, body.RootElement.GetProperty("exposedEndpoints").GetInt32());
+            Assert.Single(body.RootElement.EnumerateObject());
+            Assert.Equal("ok", body.RootElement.GetProperty("status").GetString());
+            return;
         }
+        var data = body.RootElement.GetProperty("data");
+        Assert.Equal(expected, data.GetProperty("environment").GetString());
+        Assert.Equal(64, data.GetProperty("discoveredEndpoints").GetInt32());
+        Assert.Equal(20, data.GetProperty("exposedEndpoints").GetInt32());
     }
 }

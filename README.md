@@ -357,7 +357,7 @@ Refleksja odkrywa 64 metody SDK 2.9.0 w 14 grupach. Domyślnie wystawiamy 20 met
 
 **BREAKING (v0.3.0):** jeśli używałeś `ksef-token`, `permissions` (obecnie cztery osobne grupy) lub `certificate`, świadomie ustaw `KSEF_SDK_ENDPOINTS=all` albo wybierz tylko potrzebne grupy/metody. Te operacje mogą tworzyć trwały dostęp do KSeF poza bramką. `lighthouse` nie występuje w refleksji SDK 2.9.0; jeśli pojawi się w nowszym SDK, należy do zestawu `safe`.
 
-Ukryte trasy zwracają 404 po przejściu middleware uwierzytelniania i nie występują w `/openapi/v1.json` ani `/scalar/v1`. Własne endpointy (`/ksef/send`, `/ksef/send/json`, `/ksef/invoice`, `/ksef/invoice/{ksefNumber}` i `/pdf`, `/ksef/invoices/*`, `/ksef/status`, `/ksef/contexts`) oraz uwierzytelnianie wewnętrzne zawsze działają niezależnie od tej zmiennej. `/health` podaje `exposedEndpoints` (wystawione metody SDK) i `discoveredEndpoints` (wszystkie odkryte); obie liczby trafiają też do logu startowego.
+Ukryte trasy zwracają 404 po przejściu middleware uwierzytelniania i nie występują w `/openapi/v1.json` ani `/scalar/v1`. Własne endpointy (`/ksef/send`, `/ksef/send/json`, `/ksef/invoice`, `/ksef/invoice/{ksefNumber}` i `/pdf`, `/ksef/invoices/*`, `/ksef/status`, `/ksef/contexts`) oraz uwierzytelnianie wewnętrzne zawsze działają niezależnie od tej zmiennej. `/health` zwraca wyłącznie `{"status":"ok"}`. Chronione kluczem `/ksef/status` podaje środowisko, stan uwierzytelnienia, `exposedEndpoints` i `discoveredEndpoints`; obie liczby trafiają też do logu startowego.
 
 Interaktywna dokumentacja wystawionych tras pod `/scalar/v1`.
 
@@ -1040,3 +1040,11 @@ Jeśli modyfikujesz KSeF Gateway i oferujesz go jako usługę, AGPL-3.0 wymaga, 
 - **[CIRFMF](https://github.com/CIRFMF)** (Centrum Informatyki Resortu Finansów) - oficjalne SDK KSeF, generator PDF i dokumentacja
 - **[Dokumentacja KSeF](https://github.com/CIRFMF/ksef-docs)** - przewodnik integracji z KSeF 2.0
 - **[Scalar](https://scalar.com/)** - UI dokumentacji API
+
+### Błędy i granice żądań
+
+Błędy API mają kopertę `{"success":false,"data":null,"error":"…","correlationId":"…"}`. Identyfikator jest taki sam jak nagłówek odpowiedzi `X-Correlation-Id` i identyfikator w logu. Gateway nadaje go dla każdego żądania; błędy 500 zwracają wyłącznie `Internal server error`, a pełny wyjątek trafia do logu. Kody KSeF oraz `Retry-After` pozostają zachowane. Niepoprawny JSON zwraca 400.
+
+`POST /ksef/invoice` waliduje dane przed uwierzytelnieniem w KSeF i wywołaniem SDK: wymagane strony, adresy, pozycje, numer, daty `YYYY-MM-DD`, NIP (10 cyfr ASCII), ilość > 0, cena >= 0 i VAT 0/5/8/23. Odpowiedź 400 zawiera `error: "Validation failed"` i `errors: [{"field":"items.0.quantity","message":"Must be greater than zero"}]`. Brakujące pola tekstowe i obiekty wskazują konkretne pole. Błędy składni JSON, typów lub brak wymaganych pól liczbowych podczas deserializacji wskazują pole `body`.
+
+`PDF_SERVICE_TIMEOUT_SECONDS` ogranicza wysłanie i odczyt odpowiedzi PDF (domyślnie 60 s, timeout → 504). Rozłączenie klienta anuluje pobieranie faktury z KSeF i żądanie PDF. Serwis PDF dopuszcza `PDF_MAX_CONCURRENT_RENDERS` równoczesnych renderów (domyślnie 2); nadmiar zwraca 503 z `Retry-After: 1`. Slot zwalnia się po zakończeniu renderowania, również po błędzie; rozłączenie nie przerywa synchronicznej pracy generatora.

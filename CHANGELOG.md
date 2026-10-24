@@ -2,12 +2,9 @@
 
 ## [Unreleased]
 
-### Added
-
-- Approve the complete reflected SDK 2.9.0 route/signature manifest in tests; SDK contract changes require explicit review and a changelog entry.
-
 ### Security
 
+- Return minimal public health status and generic server errors with logged correlation IDs.
 - Fix licensing trust endpoints to Sellf HTTPS URLs; bound JWKS/CRL requests to 10 seconds and dispose responses.
 - **BREAKING (v0.3.0):** expose only invoice sending/receiving SDK groups by default. Use `KSEF_SDK_ENDPOINTS` for explicit groups/methods or opt into `all` (including token, permission and certificate administration); hidden routes are absent from routing and OpenAPI.
 - API and PDF containers run as non-root users; the API retains read access to Render Secret Files. PDF errors return concise JSON without internal messages or stack traces.
@@ -18,10 +15,14 @@
 - Pin all NuGet PackageReference versions in the API, tests, and tools to their currently resolved versions, including KSeF SDK 2.9.0.
 - PDF image installs production dependencies only (`tsx` remains a runtime dependency) and sets `NODE_ENV=production`.
 
+### Added
+
+- Approve the complete reflected SDK 2.9.0 route/signature manifest in tests; SDK contract changes require explicit review and a changelog entry.
+
 ### Fixed
 
 - Bind chunked JSON bodies on SDK routes, return 400 for invalid JSON or missing required arguments, and limit whole-body binding to a single composite business parameter.
-
+- Validate friendly invoice fields before KSeF calls; dispose PDF HTTP resources, propagate cancellation, bound upstream time to 60 seconds by default and limit concurrent PDF renders.
 - Serialize per-NIP token authentication and refresh, publish immutable snapshots, refresh at 80% of actual lifetime, and preserve valid tokens on transient refresh failures without swallowing cancellation.
 - Count each SDK HTTP attempt against per-NIP operation budgets (anonymous calls per IP), honor upstream Retry-After, update session-close/export limits, and exclude local diagnostics regardless of route casing.
 - Apply current Multi-NIP license permissions at each context lookup; revoke and restore additional NIPs without restart and keep status counts current.
@@ -32,7 +33,7 @@
 - Restore clean landing installs by using TypeScript 6, compatible with `@astrojs/check`; build the landing in CI, including Dependabot PRs.
 - Stabilize PDF service tests with per-test ephemeral IPv4 servers and restore environment variables without leaking the string `"undefined"`.
 - Derive PDF invoice QR verification hosts from the shared KSeF environment (TEST/DEMO/PRODUCTION/PRD), preserving explicit `KSEF_QR_URL` overrides.
-- Validate and normalize `KSEF_ENV` at startup (including production aliases `PRD`/`PROD`); reject unknown values instead of silently using TEST, and report the canonical environment in `/health` and `/ksef/status`.
+- Validate and normalize `KSEF_ENV` at startup (including production aliases `PRD`/`PROD`); reject unknown values instead of silently using TEST, and report the canonical environment in authenticated `/ksef/status`.
 - Validate `X-KSeF-NIP` before rate limiting (400 for malformed/multiple values); reject unconfigured header or selected seller NIPs with 404 before allocating token state or logging their values.
 - `POST /ksef/send/json` always returned 401: it called the gateway's own `http://localhost:8080/ksef/send` without `X-Api-Key` (and only worked on port 8080). It now uses the same in-process code path as `/ksef/send`. Regression test added (red on the old code: `Unauthorized`, green on the new)
 

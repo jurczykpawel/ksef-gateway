@@ -113,7 +113,7 @@ public class SendInvoiceTests
     {
         client.Setup(x => x.SendOnlineSessionInvoiceAsync(It.IsAny<SendInvoiceRequest>(), "session", "token", It.IsAny<CancellationToken>()))
             .ThrowsAsync(new InvalidOperationException("send failed"));
-        Assert.Equal("send failed", Body(await Send()).Error);
+        Assert.Equal("send failed", (await Assert.ThrowsAsync<InvalidOperationException>(Send)).Message);
         Assert.Equal(1, closes);
     }
 
@@ -141,7 +141,7 @@ public class SendInvoiceTests
     {
         client.Setup(x => x.OpenOnlineSessionAsync(It.IsAny<OpenOnlineSessionRequest>(), "token", It.IsAny<string>(), It.IsAny<CancellationToken>()))
             .ThrowsAsync(new InvalidOperationException("open failed"));
-        Assert.Equal("open failed", Body(await Send()).Error);
+        Assert.Equal("open failed", (await Assert.ThrowsAsync<InvalidOperationException>(Send)).Message);
         Assert.Equal(0, closes);
     }
 

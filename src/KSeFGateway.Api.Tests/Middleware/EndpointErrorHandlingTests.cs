@@ -71,27 +71,18 @@ public class EndpointErrorHandlingTests
     }
 
     [Fact]
-    public async Task Guard_GenericException_ReturnsGeneric500WithMessage()
+    public async Task Guard_GenericException_PropagatesToSingleErrorBoundary()
     {
-        var result = await EndpointErrorHandling.Guard(() => throw new InvalidOperationException("boom"));
-
-        var statusResult = Assert.IsAssignableFrom<IStatusCodeHttpResult>(result);
-        Assert.Equal(500, statusResult.StatusCode);
-        var value = Assert.IsAssignableFrom<IValueHttpResult>(result);
-        var body = Assert.IsType<KSeFGateway.Api.Models.ApiResponse>(value.Value);
-        Assert.False(body.Success);
-        Assert.Equal("boom", body.Error);
+        var error = new InvalidOperationException("boom");
+        Assert.Same(error, await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            EndpointErrorHandling.Guard(() => throw error)));
     }
 
     [Fact]
-    public async Task Guard_GenericExceptionWrappedInTargetInvocationException_UnwrapsMessage()
+    public async Task Guard_GenericExceptionWrappedInTargetInvocationException_Unwraps()
     {
-        var wrapped = new System.Reflection.TargetInvocationException(new InvalidOperationException("inner boom"));
-
-        var result = await EndpointErrorHandling.Guard(() => throw wrapped);
-
-        var value = Assert.IsAssignableFrom<IValueHttpResult>(result);
-        var body = Assert.IsType<KSeFGateway.Api.Models.ApiResponse>(value.Value);
-        Assert.Equal("inner boom", body.Error);
+        var error = new InvalidOperationException("inner boom");
+        Assert.Same(error, await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            EndpointErrorHandling.Guard(() => throw new System.Reflection.TargetInvocationException(error))));
     }
 }

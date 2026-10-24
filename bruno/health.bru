@@ -13,5 +13,10 @@ get {
 assert {
   res.status: eq 200
   res.body.status: eq ok
-  res.body.discoveredEndpoints: gte 60
+}
+
+tests {
+  test("Only liveness status is public", function () {
+    expect(res.getBody()).to.deep.equal({ status: "ok" });
+  });
 }

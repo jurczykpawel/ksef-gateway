@@ -385,9 +385,10 @@ public class ContextProviderTests
             var provider = new ContextProvider(MakeConfig(path), NullLogger<ContextProvider>.Instance, license);
             using var services = new Microsoft.Extensions.DependencyInjection.ServiceCollection().BuildServiceProvider();
             using var pool = new TokenPool(services, provider, NullLogger<TokenPool>.Instance);
-            var state = pool.GetState("1000000002");
-            state.AccessToken = "cached-token";
-            state.AccessTokenExpiresAt = DateTimeOffset.MaxValue;
+            // AuthState is an immutable snapshot; seed a cached token by publishing a new one.
+            var states = (System.Collections.Concurrent.ConcurrentDictionary<string, AuthState>)typeof(TokenPool)
+                .GetField("_states", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)!.GetValue(pool)!;
+            states["1000000002"] = new AuthState { AccessToken = "cached-token", AccessTokenExpiresAt = DateTimeOffset.MaxValue };
             revoked = true;
             await license.RefreshAsync();
             Assert.False(license.IsLicensed);

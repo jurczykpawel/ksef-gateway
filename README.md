@@ -1034,6 +1034,40 @@ Szczegóły w [`deploy/azure/README.md`](deploy/azure/README.md).
 
 ---
 
+## Weryfikacja obrazów
+
+Obrazy zbudowane przez nowy proces publikacji przechodzą CI dla tego samego commita,
+mają atestacje SPDX SBOM i provenance `mode=min`, a ich digesty podpisuje keyless cosign.
+Starsze obrazy mogą nie mieć podpisu. Zainstaluj [cosign](https://docs.sigstore.dev/cosign/system_config/installation/).
+Dla wybranego wydania ustaw `TAG` i digest API (`DIGEST`) z załącznika
+`image-digests.txt`, a następnie zweryfikuj podpis przed wdrożeniem:
+
+```bash
+# TAG=vX.Y.Z
+# DIGEST=sha256:... (image-digests.txt)
+cosign verify "ghcr.io/jurczykpawel/ksef-gateway-api@${DIGEST}" \
+  --certificate-identity "https://github.com/jurczykpawel/ksef-gateway/.github/workflows/docker-publish.yml@refs/tags/${TAG}" \
+  --certificate-oidc-issuer https://token.actions.githubusercontent.com
+```
+
+Dla PDF użyj `ksef-gateway-pdf` i jego digestu. Przy obrazach gałęzi zmień końcówkę
+tożsamości na `@refs/heads/main` lub `@refs/heads/dev`. Wdrażaj zweryfikowany digest,
+ponieważ tag może wskazać później inny obraz. Nie wyłączaj sprawdzania tożsamości,
+issuera ani logu transparentności.
+
+Wydania zawierają `api.spdx.json`, `pdf.spdx.json` i `image-digests.txt` (jeżeli wydanie
+jeszcze nie istnieje, workflow przygotowuje draft z załącznikami). Każdy przebieg
+publikacji zachowuje je też jako artefakt `image-sboms`. SBOM jest ponadto dołączony
+do indeksu OCI podpisanego obrazu — można go odczytać po zweryfikowanym digescie:
+
+```bash
+docker buildx imagetools inspect "ghcr.io/jurczykpawel/ksef-gateway-api@${DIGEST}" \
+  --format '{{ json .SBOM.SPDX }}' > api.spdx.json
+```
+
+Licencje i notices znajdują się w obrazach w `/app/licenses/`.
+Zasady zgłaszania podatności: [SECURITY.md](SECURITY.md).
+
 ## Plan Rozwoju
 
 - [x] Automatyczne odkrywanie 60+ endpointów SDK przez refleksję

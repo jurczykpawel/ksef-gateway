@@ -975,6 +975,40 @@ See [`deploy/azure/README.md`](deploy/azure/README.md) for details.
 
 ---
 
+## Image verification
+
+Images built by the new publication workflow pass CI for the same commit, carry
+SPDX SBOM and `mode=min` provenance attestations, and are signed by digest using
+keyless cosign. Older images may be unsigned. Install [cosign](https://docs.sigstore.dev/cosign/system_config/installation/).
+For your release, set `TAG` and the API `DIGEST` from its `image-digests.txt` attachment,
+then verify the signature before deploying:
+
+```bash
+# TAG=vX.Y.Z
+# DIGEST=sha256:... (image-digests.txt)
+cosign verify "ghcr.io/jurczykpawel/ksef-gateway-api@${DIGEST}" \
+  --certificate-identity "https://github.com/jurczykpawel/ksef-gateway/.github/workflows/docker-publish.yml@refs/tags/${TAG}" \
+  --certificate-oidc-issuer https://token.actions.githubusercontent.com
+```
+
+For PDF, use `ksef-gateway-pdf` and its digest. For branch images, change the identity
+suffix to `@refs/heads/main` or `@refs/heads/dev`. Deploy the verified digest because
+a tag can later point to another image. Keep identity, issuer and transparency-log
+verification enabled.
+
+Releases include `api.spdx.json`, `pdf.spdx.json` and `image-digests.txt` (the workflow
+prepares a draft with attachments if the release does not exist yet). Each publication
+also retains them in the `image-sboms` workflow artifact. The SBOM is attached to the
+signed OCI image index as well; retrieve it using the verified digest:
+
+```bash
+docker buildx imagetools inspect "ghcr.io/jurczykpawel/ksef-gateway-api@${DIGEST}" \
+  --format '{{ json .SBOM.SPDX }}' > api.spdx.json
+```
+
+Image license files and notices are in `/app/licenses/`.
+See [SECURITY.md](SECURITY.md) for private vulnerability reporting.
+
 ## Roadmap
 
 - [x] Auto-discovery of 60+ SDK endpoints via reflection

@@ -4,6 +4,8 @@
 
 ### Security
 
+- Gate image publication on CI for the same ref, attach SPDX SBOMs and sign image digests with keyless cosign.
+
 - Pin all external GitHub Actions to verified commit SHAs.
 
 - Add private vulnerability reporting, ownership templates and third-party license notices in API/PDF images.

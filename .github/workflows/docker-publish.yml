@@ -1,6 +1,7 @@
 name: Build and Push Docker Images
 
 on:
+  workflow_dispatch:
   push:
     branches:
       - main
@@ -8,11 +9,28 @@ on:
     tags:
       - 'v*'
 
+permissions:
+  contents: read
+
+# Serialize publications of the same ref so tag aliases and signatures stay together.
+concurrency:
+  group: docker-publish-${{ github.ref }}
+  cancel-in-progress: false
+
 env:
   REGISTRY: ghcr.io
 
 jobs:
+  # A local reusable workflow checks the exact same ref, including v* release tags.
+  ci:
+    uses: ./.github/workflows/ci.yml
+    secrets:
+      CIRFMF_PAT: ${{ secrets.CIRFMF_PAT }}
+
   build-api:
+    needs: ci
+    outputs:
+      digest: ${{ steps.build.outputs.digest }}
     name: Build API image
     runs-on: ubuntu-latest
     permissions:
@@ -45,6 +63,7 @@ jobs:
             type=raw,value=latest,enable=${{ github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v') }}
 
       - name: Build and push API image
+        id: build
         uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
         with:
           context: src/
@@ -52,6 +71,7 @@ jobs:
           push: true
           # mode=min: the attestation never records build arguments (defence in depth; secrets already go via BuildKit secrets)
           provenance: mode=min
+          sbom: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           secrets: |
@@ -60,6 +80,9 @@ jobs:
           cache-to: type=gha,mode=max
 
   build-pdf:
+    needs: ci
+    outputs:
+      digest: ${{ steps.build.outputs.digest }}
     name: Build PDF service image
     runs-on: ubuntu-latest
     permissions:
@@ -94,6 +117,7 @@ jobs:
             type=raw,value=latest,enable=${{ github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v') }}
 
       - name: Build and push PDF service image
+        id: build
         uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
         with:
           context: pdf-service/
@@ -101,7 +125,79 @@ jobs:
           push: true
           # mode=min: the attestation never records build arguments (defence in depth; secrets already go via BuildKit secrets)
           provenance: mode=min
+          sbom: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
+
+  sign:
+    name: Sign digests and export SBOMs
+    needs: [build-api, build-pdf]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+      id-token: write
+    steps:
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+
+      - name: Log in to GHCR
+        uses: docker/login-action@81c6f93d4bc991e510b342a00b419b3bb4efc5c6 # v4.7.0
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Install cosign
+        uses: sigstore/cosign-installer@6f9f17788090df1f26f669e9d70d6ae9567deba6 # v4.1.2
+
+      - name: Sign and verify immutable image references
+        env:
+          API_DIGEST: ${{ needs.build-api.outputs.digest }}
+          PDF_DIGEST: ${{ needs.build-pdf.outputs.digest }}
+          CERTIFICATE_IDENTITY: https://github.com/${{ github.workflow_ref }}
+        run: |
+          mkdir sbom
+          for component in api pdf; do
+            if [ "$component" = api ]; then digest="$API_DIGEST"; else digest="$PDF_DIGEST"; fi
+            image="${REGISTRY}/jurczykpawel/ksef-gateway-${component}@${digest}"
+            cosign sign --yes "$image"
+            cosign verify "$image"               --certificate-identity "$CERTIFICATE_IDENTITY"               --certificate-oidc-issuer https://token.actions.githubusercontent.com
+            docker buildx imagetools inspect "$image" --format '{{ json .SBOM.SPDX }}' > "sbom/${component}.spdx.json"
+            jq -e '.spdxVersion and (.packages | length > 0)' "sbom/${component}.spdx.json"
+            echo "$image" >> sbom/image-digests.txt
+          done
+
+      - name: Preserve SBOMs and image digests
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: image-sboms
+          path: sbom/
+          if-no-files-found: error
+
+  release-sboms:
+    name: Attach SBOMs to release
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: sign
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Download SBOMs
+        uses: actions/download-artifact@634f93cb2916e3fdff6788551b99b062d0335ce0 # v5.0.0
+        with:
+          name: image-sboms
+          path: sbom/
+
+      - name: Attach to existing release or prepare a draft
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+          TAG: ${{ github.ref_name }}
+        run: |
+          if ! gh release view "$TAG" > /dev/null 2>&1; then
+            gh release create "$TAG" --verify-tag --draft --title "$TAG" --notes "Container SBOMs and signed image digests."
+          fi
+          gh release upload "$TAG" sbom/* --clobber

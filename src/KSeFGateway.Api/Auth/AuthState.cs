@@ -1,19 +1,21 @@
 namespace KSeFGateway.Api.Auth;
 
-public class AuthState
+/// <summary>A complete, immutable token snapshot; TokenPool replaces it atomically.</summary>
+public sealed record AuthState
 {
-    public string? AccessToken { get; set; }
-    public string? RefreshToken { get; set; }
-    public DateTimeOffset? AccessTokenExpiresAt { get; set; }
-    public DateTimeOffset? RefreshTokenExpiresAt { get; set; }
-    public bool IsAuthenticated => AccessToken is not null && AccessTokenExpiresAt > DateTimeOffset.UtcNow;
-    public bool CanRefresh => RefreshToken is not null && RefreshTokenExpiresAt > DateTimeOffset.UtcNow;
+    private readonly TimeProvider _timeProvider;
 
-    public void Clear()
-    {
-        AccessToken = null;
-        RefreshToken = null;
-        AccessTokenExpiresAt = null;
-        RefreshTokenExpiresAt = null;
-    }
+    public AuthState(TimeProvider? timeProvider = null) => _timeProvider = timeProvider ?? TimeProvider.System;
+
+    public string? AccessToken { get; init; }
+    public string? RefreshToken { get; init; }
+    public DateTimeOffset? AccessTokenExpiresAt { get; init; }
+    public DateTimeOffset? RefreshTokenExpiresAt { get; init; }
+    public DateTimeOffset? AccessTokenAcquiredAt { get; init; }
+    public bool IsAuthenticated => AccessToken is not null && AccessTokenExpiresAt > _timeProvider.GetUtcNow();
+    public bool CanRefresh => RefreshToken is not null && RefreshTokenExpiresAt > _timeProvider.GetUtcNow();
+
+    internal bool IsRefreshDue => !IsAuthenticated || AccessTokenAcquiredAt is null ||
+        _timeProvider.GetUtcNow() >= AccessTokenAcquiredAt.Value +
+        (AccessTokenExpiresAt!.Value - AccessTokenAcquiredAt.Value) * 0.8;
 }

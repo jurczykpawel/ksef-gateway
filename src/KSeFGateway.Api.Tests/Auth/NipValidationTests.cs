@@ -104,8 +104,10 @@ public class NipValidationTests
     {
         using var services = new ServiceCollection().BuildServiceProvider();
         using var pool = new TokenPool(services, Provider(), NullLogger<TokenPool>.Instance);
-        pool.GetState(ConfiguredNip).AccessToken = "cached";
-        pool.GetState(ConfiguredNip).AccessTokenExpiresAt = DateTimeOffset.MaxValue;
+        // Seed a complete snapshot; callers can no longer mutate published auth state.
+        var states = (System.Collections.Concurrent.ConcurrentDictionary<string, AuthState>)typeof(TokenPool)
+            .GetField("_states", BindingFlags.Instance | BindingFlags.NonPublic)!.GetValue(pool)!;
+        states[ConfiguredNip] = new AuthState { AccessToken = "cached", AccessTokenExpiresAt = DateTimeOffset.MaxValue };
         Assert.Equal("cached", await pool.GetAccessTokenAsync(ConfiguredNip));
         Assert.Single(pool.GetAllStates());
     }

@@ -16,6 +16,7 @@ namespace KSeFGateway.Api.Auth;
 public class TokenPool : BackgroundService
 {
     private readonly IServiceProvider _services;
+    private readonly TimeProvider _timeProvider;
     private readonly ContextProvider _contextProvider;
     private readonly ILogger<TokenPool> _logger;
     private readonly ConcurrentDictionary<string, AuthState> _states = new();
@@ -24,9 +25,11 @@ public class TokenPool : BackgroundService
     public TokenPool(
         IServiceProvider services,
         ContextProvider contextProvider,
-        ILogger<TokenPool> logger)
+        ILogger<TokenPool> logger,
+        TimeProvider? timeProvider = null)
     {
         _services = services;
+        _timeProvider = timeProvider ?? TimeProvider.System;
         _contextProvider = contextProvider;
         _logger = logger;
     }
@@ -37,7 +40,7 @@ public class TokenPool : BackgroundService
     public async Task<string?> GetAccessTokenAsync(string nip, CancellationToken ct = default)
     {
         ContextResolver.ValidateNip(nip, _contextProvider);
-        var state = _states.GetOrAdd(nip, _ => new AuthState());
+        var state = _states.GetOrAdd(nip, _ => new AuthState(_timeProvider));
 
         if (state.IsAuthenticated)
             return state.AccessToken;
@@ -47,14 +50,15 @@ public class TokenPool : BackgroundService
         await authLock.WaitAsync(ct);
         try
         {
-            // Double-check after acquiring lock
+            // Re-read the snapshot: eager auth or refresh may have replaced it while we waited.
+            state = _states[nip];
             if (state.IsAuthenticated)
                 return state.AccessToken;
 
-            await AuthenticateContextAsync(nip, state, ct);
+            state = await AuthenticateContextAsync(nip, ct);
             return state.AccessToken;
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is not OperationCanceledException)
         {
             _logger.LogError(ex, "Authentication failed for NIP {Nip}", nip);
             return null;
@@ -80,7 +84,7 @@ public class TokenPool : BackgroundService
     public AuthState GetState(string nip)
     {
         ContextResolver.ValidateNip(nip, _contextProvider);
-        return _states.GetOrAdd(nip, _ => new AuthState());
+        return _states.GetOrAdd(nip, _ => new AuthState(_timeProvider));
     }
 
     /// <summary>
@@ -89,7 +93,7 @@ public class TokenPool : BackgroundService
     public AuthState GetDefaultState()
     {
         var defaultCtx = _contextProvider.GetDefault();
-        return defaultCtx != null ? GetState(defaultCtx.Nip) : new AuthState();
+        return defaultCtx != null ? GetState(defaultCtx.Nip) : new AuthState(_timeProvider);
     }
 
     public IReadOnlyDictionary<string, AuthState> GetAllStates() =>
@@ -100,78 +104,98 @@ public class TokenPool : BackgroundService
         // Eagerly auth the default context for fast first request
         var defaultCtx = _contextProvider.GetDefault();
         if (defaultCtx != null)
-        {
-            try
-            {
-                var state = _states.GetOrAdd(defaultCtx.Nip, _ => new AuthState());
-                await AuthenticateContextAsync(defaultCtx.Nip, state, stoppingToken);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Initial auth failed for default NIP {Nip}. Will retry lazily.", defaultCtx.Nip);
-            }
-        }
+            await GetAccessTokenAsync(defaultCtx.Nip, stoppingToken);
 
         // Background refresh loop for all active contexts
         while (!stoppingToken.IsCancellationRequested)
         {
             try
             {
-                await Task.Delay(TimeSpan.FromSeconds(30), stoppingToken);
+                await Task.Delay(TimeSpan.FromSeconds(30), _timeProvider, stoppingToken);
                 await RefreshActiveContextsAsync(stoppingToken);
             }
             catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
             {
                 break;
             }
-            catch (Exception ex)
+            catch (Exception ex) when (ex is not OperationCanceledException)
             {
                 _logger.LogError(ex, "Background refresh cycle failed");
             }
         }
     }
 
-    private async Task RefreshActiveContextsAsync(CancellationToken ct)
+    protected async Task RefreshActiveContextsAsync(CancellationToken ct)
     {
-        foreach (var (nip, state) in _states)
+        foreach (var nip in _states.Keys)
         {
-            if (!state.IsAuthenticated && !state.CanRefresh)
-                continue;
-
-            // Refresh at 80% of TTL
-            if (state.AccessTokenExpiresAt.HasValue)
-            {
-                var remaining = state.AccessTokenExpiresAt.Value - DateTimeOffset.UtcNow;
-                var ttl = TimeSpan.FromMinutes(15); // Assume 15min if unknown
-                if (remaining > ttl * 0.2)
-                    continue; // Not yet time to refresh
-            }
-
+            var authLock = _authLocks.GetOrAdd(nip, _ => new SemaphoreSlim(1, 1));
+            await authLock.WaitAsync(ct);
             try
             {
+                var state = _states[nip];
+                // Status reads can create empty entries; only refresh previously active contexts.
+                if (state.AccessToken is null && state.RefreshToken is null)
+                    continue;
+                if (!state.IsRefreshDue)
+                    continue;
+
                 if (state.CanRefresh)
                 {
                     _logger.LogInformation("Refreshing token for NIP {Nip}", nip);
-                    using var scope = _services.CreateScope();
-                    var authCoordinator = scope.ServiceProvider.GetRequiredService<IAuthCoordinator>();
-                    var result = await authCoordinator.RefreshAccessTokenAsync(state.RefreshToken!, ct);
-                    state.AccessToken = result.Token;
-                    state.AccessTokenExpiresAt = result.ValidUntil;
+                    var result = await RefreshAsync(state.RefreshToken!, ct);
+                    _states[nip] = state with
+                    {
+                        AccessToken = result.Token,
+                        AccessTokenExpiresAt = result.ValidUntil,
+                        AccessTokenAcquiredAt = _timeProvider.GetUtcNow()
+                    };
                 }
                 else
                 {
-                    await AuthenticateContextAsync(nip, state, ct);
+                    await AuthenticateContextAsync(nip, ct);
                 }
             }
-            catch (Exception ex)
+            catch (Exception ex) when (ex is not OperationCanceledException)
             {
-                _logger.LogWarning(ex, "Refresh failed for NIP {Nip}, will re-auth on next request", nip);
-                state.Clear();
+                // Keep the last complete snapshot. Unexpired access tokens remain usable;
+                // expired tokens trigger lazy re-authentication on the next request.
+                _logger.LogWarning(ex, "Refresh failed for NIP {Nip}; keeping previous token state", nip);
+            }
+            finally
+            {
+                authLock.Release();
             }
         }
     }
 
-    private async Task AuthenticateContextAsync(string nip, AuthState state, CancellationToken ct)
+    // Called only while holding the NIP's semaphore.
+    private async Task<AuthState> AuthenticateContextAsync(string nip, CancellationToken ct)
+    {
+        var result = await AuthenticateAsync(nip, ct);
+        var state = new AuthState(_timeProvider)
+        {
+            AccessToken = result.AccessToken?.Token,
+            RefreshToken = result.RefreshToken?.Token,
+            AccessTokenExpiresAt = result.AccessToken?.ValidUntil,
+            RefreshTokenExpiresAt = result.RefreshToken?.ValidUntil,
+            AccessTokenAcquiredAt = _timeProvider.GetUtcNow()
+        };
+        _states[nip] = state;
+
+        _logger.LogInformation("Authenticated NIP {Nip}. Expires at {ExpiresAt}", nip, state.AccessTokenExpiresAt);
+        return state;
+    }
+
+    protected virtual async Task<(string Token, DateTimeOffset ValidUntil)> RefreshAsync(string refreshToken, CancellationToken ct)
+    {
+        using var scope = _services.CreateScope();
+        var coordinator = scope.ServiceProvider.GetRequiredService<IAuthCoordinator>();
+        var result = await coordinator.RefreshAccessTokenAsync(refreshToken, ct);
+        return (result.Token, result.ValidUntil);
+    }
+
+    protected virtual async Task<AuthenticationOperationStatusResponse> AuthenticateAsync(string nip, CancellationToken ct)
     {
         var context = _contextProvider.GetByNip(nip)
             ?? throw new InvalidOperationException($"No KSeF context configured for NIP {nip}");
@@ -182,16 +206,9 @@ public class TokenPool : BackgroundService
         using var scope = _services.CreateScope();
         var authCoordinator = scope.ServiceProvider.GetRequiredService<IAuthCoordinator>();
 
-        var result = context.UsesCertificate
+        return context.UsesCertificate
             ? await AuthenticateWithCertificateAsync(authCoordinator, nip, context, ct)
             : await AuthenticateWithTokenAsync(authCoordinator, scope, nip, context, ct);
-
-        state.AccessToken = result.AccessToken?.Token;
-        state.RefreshToken = result.RefreshToken?.Token;
-        state.AccessTokenExpiresAt = result.AccessToken?.ValidUntil;
-        state.RefreshTokenExpiresAt = result.RefreshToken?.ValidUntil;
-
-        _logger.LogInformation("Authenticated NIP {Nip}. Expires at {ExpiresAt}", nip, state.AccessTokenExpiresAt);
     }
 
     private static Task<AuthenticationOperationStatusResponse> AuthenticateWithTokenAsync(

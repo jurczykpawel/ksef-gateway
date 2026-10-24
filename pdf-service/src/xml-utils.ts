@@ -20,8 +20,31 @@ export function parseXmlString(xmlStr: string): unknown {
   return stripPrefixes(xml2js(xmlStr, { compact: true }));
 }
 
+let warnedUnknownEnvironment = false;
+
+function qrBaseUrl(): string {
+  if (process.env.KSEF_QR_URL) return process.env.KSEF_QR_URL;
+
+  const env = (process.env.KSEF_ENV ?? "TEST").toUpperCase();
+  switch (env) {
+    case "PRODUCTION":
+    case "PRD":
+      return "https://qr.ksef.mf.gov.pl";
+    case "DEMO":
+      return "https://qr-demo.ksef.mf.gov.pl";
+    case "TEST":
+      return "https://qr-test.ksef.mf.gov.pl";
+    default:
+      if (!warnedUnknownEnvironment) {
+        console.warn("Unknown KSEF_ENV in PDF service; falling back to TEST QR URLs.");
+        warnedUnknownEnvironment = true;
+      }
+      return "https://qr-test.ksef.mf.gov.pl";
+  }
+}
+
 // Build KSeF QR verification URL from invoice XML
-// Format: https://qr-test.ksef.mf.gov.pl/invoice/{NIP_sprzedawcy}/{P_1_DD-MM-RRRR}/{SHA256-Base64URL}
+// Format: {environment QR host}/invoice/{NIP_sprzedawcy}/{P_1_DD-MM-RRRR}/{SHA256-Base64URL}
 export function buildVerificationUrl(xml: string, _nrKSeF: string): string {
   // SHA-256 of the invoice XML file
   const hash = crypto.createHash("sha256").update(xml, "utf8").digest();
@@ -38,6 +61,5 @@ export function buildVerificationUrl(xml: string, _nrKSeF: string): string {
   const [year, month, day] = p1.split("-");
   const dateFormatted = `${day}-${month}-${year}`;
 
-  const qrBaseUrl = process.env.KSEF_QR_URL || "https://qr-test.ksef.mf.gov.pl";
-  return `${qrBaseUrl}/invoice/${nip}/${dateFormatted}/${hashB64Url}`;
+  return `${qrBaseUrl()}/invoice/${nip}/${dateFormatted}/${hashB64Url}`;
 }

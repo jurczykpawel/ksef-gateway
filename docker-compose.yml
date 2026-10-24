@@ -37,6 +37,9 @@ services:
     build:
       context: ./pdf-service
       dockerfile: Dockerfile
+    environment:
+      - KSEF_ENV=${KSEF_ENV:-TEST}
+      - KSEF_QR_URL=${KSEF_QR_URL:-}
     expose:
       - "3000"
     healthcheck:

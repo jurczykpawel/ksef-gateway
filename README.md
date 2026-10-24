@@ -772,9 +772,9 @@ Kontekst potrzebuje dokładnie jednego z: `token`, `certificatePath` + `privateK
 | `KSEF_KEY_CONTENT` | Tak* | - | Klucz prywatny jako surowa treść PEM - wymagany razem z `KSEF_CERT_CONTENT` |
 | `KSEF_KEY_PASSWORD` | Nie | - | Hasło do klucza prywatnego, jeśli jest zaszyfrowany (działa z formą ścieżki albo treści) |
 | `KSEF_NIP` | Tak | - | NIP dla kontekstu autoryzacji |
-| `KSEF_ENV` | Nie | `TEST` | Środowisko: `TEST`, `DEMO`, `PRODUCTION` |
+| `KSEF_ENV` | Nie | `TEST` | Środowisko API i PDF: `TEST`, `DEMO`, `PRODUCTION` (alias `PRD`); wielkość liter bez znaczenia |
 | `KSEF_API_PORT` | Nie | `8080` | Port API usługi |
-| `KSEF_QR_URL` | Nie | `https://qr-test.ksef.mf.gov.pl` | Bazowy URL weryfikacji QR |
+| `KSEF_QR_URL` | Nie | Z `KSEF_ENV` | Bazowy URL weryfikacji QR: TEST → `https://qr-test.ksef.mf.gov.pl`, DEMO → `https://qr-demo.ksef.mf.gov.pl`, PRODUCTION/PRD → `https://qr.ksef.mf.gov.pl`. Jawna wartość w serwisie PDF ma pierwszeństwo; brak/nieznane środowisko → TEST (nieznane: jednorazowe ostrzeżenie). |
 | `GITHUB_PAT` | Build | - | GitHub PAT z `read:packages` dla SDK CIRFMF |
 | `KSEF_CONTEXTS_FILE` | Nie | `/app/contexts.json` | Ścieżka do pliku konfiguracji multi-NIP |
 | `GATEWAY_LICENSE` | Nie | - | Klucz licencji multi-NIP - potrzebny tylko dla więcej niż 1 NIP, patrz [Licencjonowanie Multi-NIP](#licencjonowanie-multi-nip) |

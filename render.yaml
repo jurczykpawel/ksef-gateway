@@ -61,6 +61,12 @@ services:
     plan: free
     healthCheckPath: /health
     envVars:
+      # Share the API environment on each Blueprint sync.
+      - key: KSEF_ENV
+        fromService:
+          name: ksef-api
+          type: web
+          envVarKey: KSEF_ENV
       # Set this (same value as on ksef-api) when ksef-pdf is reachable over the public internet
       # (Render free tier) so it rejects unauthenticated requests. Leave unset on a private network.
       - key: PDF_SERVICE_SECRET

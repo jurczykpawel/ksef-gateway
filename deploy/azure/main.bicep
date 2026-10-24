@@ -68,6 +68,9 @@ resource ksefPdf 'Microsoft.App/containerApps@2023-05-01' = {
         {
           name: 'ksef-pdf'
           image: pdfImage
+          env: [
+            { name: 'KSEF_ENV', value: ksefEnv }
+          ]
           resources: {
             cpu: json('0.25')
             memory: '0.5Gi'

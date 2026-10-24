@@ -4,6 +4,7 @@
 
 ### Fixed
 
+- Derive PDF invoice QR verification hosts from the shared KSeF environment (TEST/DEMO/PRODUCTION/PRD), preserving explicit `KSEF_QR_URL` overrides.
 - `POST /ksef/send/json` always returned 401: it called the gateway's own `http://localhost:8080/ksef/send` without `X-Api-Key` (and only worked on port 8080). It now uses the same in-process code path as `/ksef/send`. Regression test added (red on the old code: `Unauthorized`, green on the new)
 
 ## [0.2.1] - 2026-10-23

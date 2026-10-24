@@ -1,4 +1,4 @@
-import { describe, it, expect, afterEach } from "vitest";
+import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import crypto from "crypto";
 import { readFileSync } from "fs";
 import { stripPrefixes, parseXmlString, buildVerificationUrl } from "./xml-utils.js";
@@ -75,8 +75,14 @@ describe("parseXmlString", () => {
 });
 
 describe("buildVerificationUrl", () => {
+  beforeEach(() => {
+    vi.stubEnv("KSEF_QR_URL", undefined);
+    vi.stubEnv("KSEF_ENV", undefined);
+  });
+
   afterEach(() => {
-    delete process.env.KSEF_QR_URL;
+    vi.unstubAllEnvs();
+    vi.restoreAllMocks();
   });
 
   it("builds a URL containing the seller NIP and DD-MM-YYYY formatted P_1 date", () => {
@@ -84,16 +90,59 @@ describe("buildVerificationUrl", () => {
     expect(url).toContain("/invoice/1234567890/24-03-2026/");
   });
 
-  it("uses the default qr-test.ksef.mf.gov.pl base URL when KSEF_QR_URL is unset", () => {
+  it("defaults to TEST when both environment variables are unset", () => {
     delete process.env.KSEF_QR_URL;
     const url = buildVerificationUrl(fixtureXml, "ignored");
     expect(url.startsWith("https://qr-test.ksef.mf.gov.pl/invoice/")).toBe(true);
   });
 
-  it("respects KSEF_QR_URL env override for the base URL", () => {
-    process.env.KSEF_QR_URL = "https://qr.ksef.mf.gov.pl";
-    const url = buildVerificationUrl(fixtureXml, "ignored");
-    expect(url.startsWith("https://qr.ksef.mf.gov.pl/invoice/")).toBe(true);
+  it.each([
+    ["TEST", "https://qr-test.ksef.mf.gov.pl"],
+    ["DEMO", "https://qr-demo.ksef.mf.gov.pl"],
+    ["PRODUCTION", "https://qr.ksef.mf.gov.pl"],
+    ["PRD", "https://qr.ksef.mf.gov.pl"],
+    ["production", "https://qr.ksef.mf.gov.pl"],
+    ["demo", "https://qr-demo.ksef.mf.gov.pl"],
+    ["test", "https://qr-test.ksef.mf.gov.pl"],
+    ["prd", "https://qr.ksef.mf.gov.pl"],
+  ])("maps KSEF_ENV=%s to %s", (env, host) => {
+    vi.stubEnv("KSEF_ENV", env);
+    expect(new URL(buildVerificationUrl(fixtureXml, "ignored")).origin).toBe(host);
+  });
+
+  it.each(["PRODUCTION", "DEMO", "TEST", "unknown"])(
+    "lets explicit KSEF_QR_URL override KSEF_ENV=%s without warning",
+    (env) => {
+      vi.stubEnv("KSEF_ENV", env);
+      vi.stubEnv("KSEF_QR_URL", "https://example.com/custom");
+      const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+      expect(buildVerificationUrl(fixtureXml, "ignored")).toMatch(
+        /^https:\/\/example\.com\/custom\/invoice\//
+      );
+      expect(warn).not.toHaveBeenCalled();
+    }
+  );
+
+  it("derives the host from KSEF_ENV when KSEF_QR_URL is empty", () => {
+    vi.stubEnv("KSEF_ENV", "PRODUCTION");
+    vi.stubEnv("KSEF_QR_URL", "");
+    expect(new URL(buildVerificationUrl(fixtureXml, "ignored")).origin).toBe(
+      "https://qr.ksef.mf.gov.pl"
+    );
+  });
+
+  it("falls back to TEST for an unknown environment and warns only once", async () => {
+    vi.resetModules();
+    const { buildVerificationUrl: buildUrl } = await import("./xml-utils.js");
+    vi.stubEnv("KSEF_ENV", "unknown");
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    for (let i = 0; i < 2; i++) {
+      expect(new URL(buildUrl(fixtureXml, "ignored")).origin).toBe(
+        "https://qr-test.ksef.mf.gov.pl"
+      );
+    }
+    expect(warn).toHaveBeenCalledTimes(1);
+    expect(warn.mock.calls[0][0]).toMatch(/KSEF_ENV.*TEST/);
   });
 
   it("hashes the exact XML bytes as SHA-256 base64url, independent of the KSeF number argument", () => {

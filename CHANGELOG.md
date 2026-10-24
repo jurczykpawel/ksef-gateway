@@ -6,6 +6,7 @@
 
 - Return minimal public health status and generic server errors with logged correlation IDs.
 - Dependency updates resolving 5 advisories in the PDF service.
+- Dependency updates resolving 39 advisories across the PDF service and landing page.
 - Fix licensing trust endpoints to Sellf HTTPS URLs; bound JWKS/CRL requests to 10 seconds and dispose responses.
 - **BREAKING (v0.3.0):** expose only invoice sending/receiving SDK groups by default. Use `KSEF_SDK_ENDPOINTS` for explicit groups/methods or opt into `all` (including token, permission and certificate administration); hidden routes are absent from routing and OpenAPI.
 - API and PDF containers run as non-root users; the API retains read access to Render Secret Files. PDF errors return concise JSON without internal messages or stack traces.

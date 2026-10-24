@@ -1,6 +1,7 @@
 {
-  "sdk_sha": "a66cbc6",
-  "sdk_version": "2.9.0",
-  "docs_sha": "",
-  "checked_at": "2026-10-19T15:58:53Z"
+  "last_notified": {
+    "sdk_sha": "a66cbc6",
+    "sdk_version": "2.9.0",
+    "docs_sha": ""
+  }
 }

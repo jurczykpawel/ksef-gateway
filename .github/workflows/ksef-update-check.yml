@@ -3,124 +3,52 @@ name: KSeF Update Check
 on:
   schedule:
     - cron: '0 9 * * 1'  # every Monday at 9:00 UTC
-  workflow_dispatch:       # manual trigger
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - '.github/workflows/ksef-update-check.yml'
+      - '.github/ksef_update_check.py'
+      - '.github/test_ksef_update_check.py'
+      - '.github/ksef-versions.json'
 
 permissions:
-  contents: write
-  issues: write
+  contents: read
+
+# Serialize notifications and state commits, including manual runs.
+concurrency:
+  group: ksef-update-check-${{ github.ref }}
+  cancel-in-progress: false
 
 jobs:
-  check-updates:
+  test:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - run: python3 -m unittest discover -s .github -p 'test_ksef_update_check.py' -v
 
-      - name: Check CIRFMF SDK releases
-        id: sdk
-        run: |
-          LATEST=$(curl -sf https://api.github.com/repos/CIRFMF/ksef-client-csharp/releases/latest | jq -r '.tag_name // empty')
-          echo "sdk_version=${LATEST}" >> "$GITHUB_OUTPUT"
-          LATEST_SHA=$(curl -sf https://api.github.com/repos/CIRFMF/ksef-client-csharp/commits/main | jq -r '.sha[:7]')
-          echo "sdk_sha=${LATEST_SHA}" >> "$GITHUB_OUTPUT"
+  check-updates:
+    if: github.event_name != 'pull_request'
+    needs: test
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write  # Persist the last successfully notified snapshot.
+      issues: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
-      - name: Check ksef-docs for schema changes
-        id: docs
-        run: |
-          RESPONSE=$(curl -sf "https://api.github.com/repos/CIRFMF/ksef-docs/commits?per_page=1")
-          echo "docs_date=$(echo "$RESPONSE" | jq -r '.[0].commit.committer.date // empty')" >> "$GITHUB_OUTPUT"
-          echo "docs_sha=$(echo "$RESPONSE" | jq -r '.[0].sha[:7] // empty')" >> "$GITHUB_OUTPUT"
-          # Save message to env to avoid shell interpretation
-          MSG=$(echo "$RESPONSE" | jq -r '.[0].commit.message // empty' | head -1)
-          echo "docs_msg<<EOFMSG" >> "$GITHUB_OUTPUT"
-          echo "$MSG" >> "$GITHUB_OUTPUT"
-          echo "EOFMSG" >> "$GITHUB_OUTPUT"
-
-      - name: Check our stored versions
-        id: current
-        run: |
-          if [ -f .github/ksef-versions.json ]; then
-            echo "current_sdk=$(jq -r '.sdk_sha // empty' .github/ksef-versions.json)" >> "$GITHUB_OUTPUT"
-            echo "current_docs=$(jq -r '.docs_sha // empty' .github/ksef-versions.json)" >> "$GITHUB_OUTPUT"
-          else
-            echo "current_sdk=" >> "$GITHUB_OUTPUT"
-            echo "current_docs=" >> "$GITHUB_OUTPUT"
-          fi
-
-      - name: Compare and create issue if needed
+      - name: Observe upstream and notify
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          SDK_SHA: ${{ steps.sdk.outputs.sdk_sha }}
-          SDK_VERSION: ${{ steps.sdk.outputs.sdk_version }}
-          DOCS_SHA: ${{ steps.docs.outputs.docs_sha }}
-          DOCS_DATE: ${{ steps.docs.outputs.docs_date }}
-          DOCS_MSG: ${{ steps.docs.outputs.docs_msg }}
-          CURRENT_SDK: ${{ steps.current.outputs.current_sdk }}
-          CURRENT_DOCS: ${{ steps.current.outputs.current_docs }}
+        run: python3 .github/ksef_update_check.py
+
+      - name: Save last notified observations
         run: |
-          CHANGES=""
-
-          if [ -n "$SDK_SHA" ] && [ "$SDK_SHA" != "$CURRENT_SDK" ]; then
-            CHANGES="$CHANGES
-          ### CIRFMF SDK (ksef-client-csharp)
-          - Latest release: $SDK_VERSION
-          - Latest commit: $SDK_SHA
-          - Our tracked: ${CURRENT_SDK:-none}
-          - Repo: https://github.com/CIRFMF/ksef-client-csharp
-          "
-          fi
-
-          if [ -n "$DOCS_SHA" ] && [ "$DOCS_SHA" != "$CURRENT_DOCS" ]; then
-            CHANGES="$CHANGES
-          ### KSeF Documentation (ksef-docs)
-          - Latest commit: $DOCS_SHA ($DOCS_DATE)
-          - Message: $DOCS_MSG
-          - Our tracked: ${CURRENT_DOCS:-none}
-          - Repo: https://github.com/CIRFMF/ksef-docs
-          "
-          fi
-
-          if [ -n "$CHANGES" ]; then
-            EXISTING=$(gh issue list --label "ksef-update" --state open --json number --jq '.[0].number // empty')
-            if [ -n "$EXISTING" ]; then
-              echo "Issue #${EXISTING} already open, skipping"
-              exit 0
-            fi
-
-            gh issue create \
-              --title "KSeF upstream update detected" \
-              --label "ksef-update" \
-              --body "Upstream KSeF changes detected. Review and update if needed.
-          $CHANGES
-          ## Action items
-          - [ ] Check if SDK update affects our endpoints
-          - [ ] Check if XSD schema changed (FA(3) structure)
-          - [ ] Update dependencies if needed
-          - [ ] Run integration tests against KSeF TEST
-
-          *Auto-generated by ksef-update-check workflow*"
-          else
-            echo "No changes detected"
-          fi
-
-      - name: Update tracked versions
-        if: always()
-        run: |
-          mkdir -p .github
-          cat > .github/ksef-versions.json << EOF
-          {
-            "sdk_sha": "${{ steps.sdk.outputs.sdk_sha }}",
-            "sdk_version": "${{ steps.sdk.outputs.sdk_version }}",
-            "docs_sha": "${{ steps.docs.outputs.docs_sha }}",
-            "checked_at": "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
-          }
-          EOF
-
-          if git diff --quiet .github/ksef-versions.json 2>/dev/null; then
-            echo "No version changes to commit"
+          if git diff --quiet .github/ksef-versions.json; then
+            echo "No notification state changes to commit"
           else
             git config user.name "github-actions[bot]"
             git config user.email "github-actions[bot]@users.noreply.github.com"
             git add .github/ksef-versions.json
-            git commit -m "Update tracked KSeF upstream versions [skip ci]"
+            git commit -m "Record last notified KSeF upstream observations [skip ci]"
             git push
           fi

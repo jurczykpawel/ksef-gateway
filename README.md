@@ -864,7 +864,8 @@ Kontekst potrzebuje dokładnie jednego z: `token`, `certificatePath` + `privateK
   {
     "nip": "1234567890",
     "token": "token-ksef-dla-firmy-a",
-    "label": "Firma A"
+    "label": "Firma A",
+    "apiKeys": ["sha256:0000000000000000000000000000000000000000000000000000000000000000"]
   },
   {
     "nip": "0987654321",
@@ -874,6 +875,21 @@ Kontekst potrzebuje dokładnie jednego z: `token`, `certificatePath` + `privateK
   }
 ]
 ```
+
+`GATEWAY_API_KEY` jest kluczem **administracyjnym**: obejmuje wszystkie aktywne NIP-y i wszystkie włączone endpointy. Klientom udostępniaj osobne, losowe klucze. Opcjonalne `apiKeys` przypisuje ich skróty do kontekstów; bez tego pola dotychczasowe zachowanie pozostaje bez zmian. Powyższe zera to placeholder, zastąp je rzeczywistym skrótem. Nigdy nie zapisuj jawnych kluczy w repozytorium.
+
+```bash
+KEY=$(openssl rand -hex 32)
+printf '%s' "$KEY" | shasum -a 256
+# wpisz do apiKeys: "sha256:<64 cyfry szesnastkowe z wyniku>"
+# klient wysyła oryginalny KEY w X-Api-Key
+```
+
+Klucz klienta działa wyłącznie dla NIP-ów zawierających jego skrót. Można przypisać ten sam skrót wielu NIP-om i wiele skrótów jednemu NIP-owi. Dla jednego NIP-u jest on domyślny; dla kilku wymagany jest `X-KSeF-NIP` (brak: **400**). Cudzy NIP w nagłówku, treści sprzedawcy lub prefiksie numeru KSeF oznacza **403** `{ "success": false, "error": "API key is not authorized for NIP ..." }`, niezależnie od istnienia kontekstu. Dotyczy to także pobierania faktur zakupowych, których numer KSeF zaczyna się od NIP-u zewnętrznego sprzedawcy; takie pobranie wymaga klucza administratora. Uprawnienia nie omijają ograniczeń licencji multi-NIP.
+
+`/ksef/contexts` i `/ksef/status` pokazują klientowi tylko jego konteksty; status nie zawiera informacji administracyjnych ani licencji. Klucz klienta korzysta z tras SDK wyłącznie z domyślnego zestawu `safe`; pozostałe zwracają **404**, nawet przy `KSEF_SDK_ENDPOINTS=all`. Klucz administracyjny nadal korzysta ze wszystkich tras włączonych przez `KSEF_SDK_ENDPOINTS`.
+
+Dozwolony format to wyłącznie `sha256:` i 64 cyfry szesnastkowe (małe lub wielkie). Skróty są porównywane w stałym czasie. Niepoprawny format blokuje start z komunikatem o `apiKeys`; zmiana list wymaga restartu. Brak `GATEWAY_API_KEY` nadal blokuje wszystkie chronione żądania (**503**), również klucze klientów.
 
 Konteksty mogą dowolnie mieszać tokeny i certyfikaty - patrz [Autoryzacja Certyfikatem](#autoryzacja-certyfikatem-alternatywa-dla-tokenów) powyżej. Każdy kontekst autoryzuje się niezależnie, więc to pokrywa też konfigurację w stylu biura rachunkowego - **jeden certyfikat reprezentujący kilka NIP-ów klientów** (wypisz ten sam `certificatePath`/`certificateContent` pod wieloma kontekstami, po jednym na NIP). Sama usługa jest niezależna od NIP-u co do tego, który certyfikat stoi za którym kontekstem; to, czy dany certyfikat faktycznie może uwierzytelnić się w NIP-ie, do którego formalnie nie należy, zależy od autoryzacji samego KSeF po stronie tego NIP-u (nadanie praw reprezentacji/`ProxyEntity` posiadaczowi certyfikatu) - to prawdziwy krok w portalu KSeF, wykonywany per firma, poza kontrolą usługi, i coś, czego własne narzędzia TEST tego projektu nie sprawdzają (`CertGenerator` zawsze tworzy certyfikat ograniczony do jednego NIP-u, którym się rejestruje).
 
@@ -889,7 +905,7 @@ Usługa automatycznie wykrywa, którego NIP-u użyć, na podstawie:
 2. NIP-u sprzedawcy z ciała faktury
 3. Kontekstu domyślnego (pierwszy na liście albo ze zmiennej środowiskowej `KSEF_NIP`)
 
-Nagłówek `X-KSeF-NIP` musi zawierać dokładnie jedną wartość: 10 cyfr ASCII, bez spacji (bez sprawdzania sumy kontrolnej). Błędny format, pusta wartość lub wiele wartości oznacza HTTP **400** z `{ "success": false, "error": "..." }`, przed zużyciem limitu żądań. NIP poprawny formatem, ale bez aktywnego kontekstu w `ContextProvider`, oznacza HTTP **404** z błędem `No context configured for NIP ...`; dotyczy to również NIP-u sprzedawcy wybranego z treści faktury. Odrzucone NIP-y nie tworzą stanu uwierzytelniania.
+Nagłówek `X-KSeF-NIP` musi zawierać dokładnie jedną wartość: 10 cyfr ASCII, bez spacji (bez sprawdzania sumy kontrolnej). Błędny format, pusta wartość lub wiele wartości oznacza HTTP **400** z `{ "success": false, "error": "..." }`, przed zużyciem limitu żądań. Dla klucza administracyjnego NIP poprawny formatem, ale bez aktywnego kontekstu w `ContextProvider`, oznacza HTTP **404** z błędem `No context configured for NIP ...`; dotyczy to również NIP-u sprzedawcy wybranego z treści faktury. Odrzucone NIP-y nie tworzą stanu uwierzytelniania.
 
 Sprawdź uwierzytelnione konteksty: `GET /ksef/contexts`
 

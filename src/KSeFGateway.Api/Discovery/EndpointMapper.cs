@@ -32,6 +32,10 @@ public static class EndpointMapper
     {
         return async (HttpContext context) => await EndpointErrorHandling.Guard(async () =>
         {
+            if (ApiKeyAccess.AllowedNips(context) != null &&
+                SdkEndpointPolicy.Select([endpoint], "safe").Count == 0)
+                return Results.NotFound();
+
             var pool = context.RequestServices.GetRequiredService<TokenPool>();
             var ctxProvider = context.RequestServices.GetRequiredService<ContextProvider>();
             var ksefClient = context.RequestServices.GetRequiredService<IKSeFClient>();
@@ -41,14 +45,20 @@ public static class EndpointMapper
             if (nip is null)
                 return Results.Json(ApiResponse.Fail("No KSeF context. Set X-KSeF-NIP header or configure default."), statusCode: 400);
 
-            var accessToken = await pool.GetAccessTokenAsync(nip, context.RequestAborted);
-            if (accessToken is null)
-                return Results.Json(ApiResponse.Fail($"Not authenticated with KSeF for NIP {nip}"), statusCode: 503);
-
             object?[] args;
             try
             {
-                args = await BuildArguments(endpoint, context, accessToken);
+                // Validate client-supplied invoice identifiers before acquiring any KSeF token.
+                var clientArgs = ApiKeyAccess.AllowedNips(context) != null
+                    ? await BuildArguments(endpoint, context, "") : null;
+                var accessToken = await pool.GetAccessTokenAsync(nip, context.RequestAborted);
+                if (accessToken is null)
+                    return Results.Json(ApiResponse.Fail($"Not authenticated with KSeF for NIP {nip}"), statusCode: 503);
+
+                args = clientArgs ?? await BuildArguments(endpoint, context, accessToken);
+                foreach (var parameter in endpoint.SdkMethod.GetParameters())
+                    if (parameter.Name == "accessToken" && parameter.ParameterType == typeof(string))
+                        args[parameter.Position] = accessToken;
             }
             catch (JsonException)
             {
@@ -120,6 +130,8 @@ public static class EndpointMapper
             else
             {
                 args[i] = ResolveParameter(param, body, allowWholeBody);
+                if (param.Name == "ksefNumber" && args[i] is string number)
+                    ApiKeyAccess.Authorize(context, number.Split('-')[0]);
             }
         }
 

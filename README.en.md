@@ -805,7 +805,8 @@ To handle invoices for multiple companies, create a `contexts.json` file:
   {
     "nip": "1234567890",
     "token": "ksef-token-for-company-A",
-    "label": "Company A"
+    "label": "Company A",
+    "apiKeys": ["sha256:0000000000000000000000000000000000000000000000000000000000000000"]
   },
   {
     "nip": "0987654321",
@@ -815,6 +816,21 @@ To handle invoices for multiple companies, create a `contexts.json` file:
   }
 ]
 ```
+
+`GATEWAY_API_KEY` is the **administrator** key: it covers every active NIP and every enabled endpoint. Give clients separate random keys. Optional `apiKeys` entries assign their hashes to contexts; omitting the field preserves existing behavior. The zeros above are a placeholder; replace them with the actual hash. Never commit plaintext keys.
+
+```bash
+KEY=$(openssl rand -hex 32)
+printf '%s' "$KEY" | shasum -a 256
+# apiKeys entry: "sha256:<64 hexadecimal digits from the output>"
+# the client sends the original KEY in X-Api-Key
+```
+
+A client key works only for NIPs containing its hash. One hash may belong to several NIPs, and one NIP may have several hashes. A single authorized NIP becomes the default; multiple NIPs require `X-KSeF-NIP` (missing: **400**). An unauthorized NIP in the header, invoice seller body, or KSeF number prefix returns **403** `{ "success": false, "error": "API key is not authorized for NIP ..." }`, whether or not that context exists. This also applies to received invoices whose KSeF numbers start with an external seller's NIP; downloading those requires the administrator key. Client permissions do not bypass multi-NIP license limits.
+
+`/ksef/contexts` and `/ksef/status` show only the client's own contexts; client status omits administrative and license data. Client keys can use only SDK routes in the default `safe` set; other SDK routes return **404**, even with `KSEF_SDK_ENDPOINTS=all`. The administrator key retains all routes enabled by `KSEF_SDK_ENDPOINTS`.
+
+Only `sha256:` followed by 64 hexadecimal digits (either case) is accepted. Hashes are compared in constant time. An invalid format prevents startup with an `apiKeys` error; changes require a restart. Missing `GATEWAY_API_KEY` still blocks every protected request (**503**), including client keys.
 
 Contexts can mix tokens and certificates freely - see [Certificate-Based Auth](#certificate-based-auth-alternative-to-tokens) above. Each context authenticates independently, so this also covers an accounting-office style setup - **one certificate representing several client NIPs** (list the same `certificatePath`/`certificateContent` under multiple contexts, one per NIP). The gateway itself is NIP-agnostic about which certificate backs which context; whether a given certificate can actually authenticate into a NIP it doesn't belong to depends on KSeF's own authorization on that NIP's side (granting the certificate holder's identity representation/`ProxyEntity` rights) - a real KSeF-portal step per company, outside the gateway's control, and not something this project's own TEST tooling exercises (`CertGenerator` always mints a certificate scoped to the one NIP it registers).
 
@@ -830,7 +846,7 @@ The gateway auto-detects which NIP to use based on:
 2. Seller NIP from the invoice body
 3. Default context (first in list or from `KSEF_NIP` env var)
 
-The `X-KSeF-NIP` header must contain exactly one value: 10 ASCII digits without spaces (no checksum validation). Invalid format, an empty value, or multiple values returns HTTP **400** with `{ "success": false, "error": "..." }`, before consuming rate-limit budget. A correctly formatted NIP without an active context in `ContextProvider` returns HTTP **404** with `No context configured for NIP ...`; this also applies to a seller NIP selected from the invoice body. Rejected NIPs do not allocate authentication state.
+The `X-KSeF-NIP` header must contain exactly one value: 10 ASCII digits without spaces (no checksum validation). Invalid format, an empty value, or multiple values returns HTTP **400** with `{ "success": false, "error": "..." }`, before consuming rate-limit budget. For the administrator key, a correctly formatted NIP without an active context in `ContextProvider` returns HTTP **404** with `No context configured for NIP ...`; this also applies to a seller NIP selected from the invoice body. Rejected NIPs do not allocate authentication state.
 
 Check authenticated contexts: `GET /ksef/contexts`
 

@@ -2,7 +2,8 @@
   {
     "nip": "1234567890",
     "token": "your-ksef-token-for-first-company",
-    "label": "Company A"
+    "label": "Company A",
+    "apiKeys": ["sha256:0000000000000000000000000000000000000000000000000000000000000000"]
   },
   {
     "nip": "0987654321",

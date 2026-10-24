@@ -1,4 +1,5 @@
 using KSeFGateway.Api.Models;
+using KSeFGateway.Api.Auth;
 
 namespace KSeFGateway.Api.Middleware;
 
@@ -42,12 +43,22 @@ public class ApiKeyMiddleware
         }
 
         var provided = context.Request.Headers[HeaderName].ToString();
-        if (string.IsNullOrEmpty(provided) || !SecretComparison.ConstantTimeEquals(provided, _apiKey))
+        if (!string.IsNullOrEmpty(provided) && SecretComparison.ConstantTimeEquals(provided, _apiKey))
+        {
+            await _next(context);
+            return;
+        }
+
+        var provider = context.RequestServices?.GetService<ContextProvider>();
+        var allowed = !string.IsNullOrEmpty(provided) ? provider?.FindNipsForApiKey(provided) : null;
+        if (allowed is null || allowed.Count == 0)
         {
             await Reject(context, 401, $"Missing or invalid {HeaderName} header.");
             return;
         }
 
+        ApiKeyAccess.SetClient(context, allowed);
+        ContextResolver.ValidateHeader(context, provider!);
         await _next(context);
     }
 

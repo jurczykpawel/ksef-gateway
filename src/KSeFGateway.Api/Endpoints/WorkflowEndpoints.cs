@@ -71,6 +71,7 @@ public static class WorkflowEndpoints
             [FromServices] ContextProvider ctxProvider,
             HttpContext httpContext) =>
         {
+            ApiKeyAccess.Authorize(httpContext, ksefNumber.Split('-')[0]);
             var nip = ContextResolver.ResolveNip(httpContext, ctxProvider) ?? ksefNumber.Split('-').FirstOrDefault();
             var accessToken = nip != null ? await pool.GetAccessTokenAsync(nip, httpContext.RequestAborted) : null;
             if (accessToken is null)
@@ -92,6 +93,7 @@ public static class WorkflowEndpoints
             [FromServices] IHttpClientFactory httpClientFactory,
             HttpContext httpContext) =>
         {
+            ApiKeyAccess.Authorize(httpContext, ksefNumber.Split('-')[0]);
             var nip = ContextResolver.ResolveNip(httpContext, ctxProvider) ?? ksefNumber.Split('-').FirstOrDefault();
             var accessToken = nip != null ? await pool.GetAccessTokenAsync(nip, httpContext.RequestAborted) : null;
             if (accessToken is null)
@@ -145,6 +147,8 @@ public static class WorkflowEndpoints
                     return Results.Json(ApiResponse.Fail("JSON to XML conversion failed"), statusCode: 400);
 
                 var invoiceXml = Encoding.UTF8.GetString(convertResponse.Body);
+                if (ApiKeyAccess.AllowedNips(httpContext) != null)
+                    ContextResolver.ResolveNip(httpContext, ctxProvider, invoiceXml);
 
                 // Same code path as POST /ksef/send. This used to call the gateway's own
                 // http://localhost:8080/ksef/send without X-Api-Key, so the API-key middleware
@@ -186,7 +190,8 @@ public static class WorkflowEndpoints
             if (errors.Count > 0)
                 return Results.Json(ApiResponse.Fail("Validation failed") with { Errors = errors }, statusCode: 400);
 
-            var nip = ContextResolver.ResolveNip(httpContext, ctxProvider) ?? invoiceReq!.Seller.Nip;
+            ApiKeyAccess.Authorize(httpContext, invoiceReq!.Seller.Nip);
+            var nip = ContextResolver.ResolveNip(httpContext, ctxProvider) ?? invoiceReq.Seller.Nip;
             var accessToken = await pool.GetAccessTokenAsync(nip, httpContext.RequestAborted);
             if (accessToken is null)
                 return Results.Json(ApiResponse.Fail($"Not authenticated with KSeF for NIP {nip}"), statusCode: 503);
@@ -206,9 +211,10 @@ public static class WorkflowEndpoints
         // GET /ksef/contexts - list configured contexts and their auth status
         app.MapGet("/ksef/contexts", (
             [FromServices] ContextProvider ctxProvider,
-            [FromServices] TokenPool pool) =>
+            [FromServices] TokenPool pool,
+            HttpContext httpContext) =>
         {
-            var contexts = ctxProvider.GetAll().Select(c =>
+            var contexts = ApiKeyAccess.VisibleContexts(httpContext, ctxProvider).Select(c =>
             {
                 var state = pool.GetState(c.Nip);
                 return new
@@ -217,7 +223,7 @@ public static class WorkflowEndpoints
                     c.Label,
                     authenticated = state.IsAuthenticated,
                     tokenExpiresAt = state.AccessTokenExpiresAt,
-                    isDefault = c.Nip == ctxProvider.GetDefault()?.Nip
+                    isDefault = c.Nip == ApiKeyAccess.DefaultNip(httpContext, ctxProvider)
                 };
             });
             return Results.Json(ApiResponse.Ok(contexts));

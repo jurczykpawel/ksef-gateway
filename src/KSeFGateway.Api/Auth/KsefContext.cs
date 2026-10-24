@@ -10,6 +10,7 @@ public record KsefContext
 {
     public required string Nip { get; init; }
     public string? Token { get; init; }
+    public IReadOnlyList<string> ApiKeys { get; init; } = [];
     public string? CertificatePath { get; init; }
     public string? PrivateKeyPath { get; init; }
     public string? CertificateContent { get; init; }
@@ -27,6 +28,12 @@ public record KsefContext
     /// </summary>
     public void Validate()
     {
+        if (ApiKeys is null || ApiKeys.Any(key => key is null ||
+            !key.StartsWith("sha256:", StringComparison.Ordinal) || key.Length != 71 ||
+            key[7..].Any(c => !char.IsAsciiHexDigit(c))))
+            throw new InvalidOperationException(
+                $"KSeF context for NIP {Nip}: apiKeys must contain only sha256: followed by 64 hexadecimal digits.");
+
         var hasToken = !string.IsNullOrEmpty(Token);
         var methodCount = (hasToken ? 1 : 0) + (HasCertificatePath ? 1 : 0) + (HasCertificateContent ? 1 : 0);
 

@@ -1,4 +1,7 @@
 using System.Text.Json;
+using System.Security.Cryptography;
+using System.Text;
+using KSeFGateway.Api.Middleware;
 using KSeFGateway.Api.Licensing;
 
 namespace KSeFGateway.Api.Auth;
@@ -103,6 +106,18 @@ public class ContextProvider
                 Label = "env"
             };
         return null;
+    }
+
+    public IReadOnlySet<string> FindNipsForApiKey(string key)
+    {
+        var hash = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(key)));
+        var nips = new HashSet<string>(StringComparer.Ordinal);
+        // Inspect every configured hash; compare fixed-length digests through the shared constant-time helper.
+        foreach (var context in GetAll())
+            foreach (var configured in context.ApiKeys)
+                if (SecretComparison.ConstantTimeEquals(hash, configured[7..].ToUpperInvariant()))
+                    nips.Add(context.Nip);
+        return nips;
     }
 
     public IReadOnlyList<KsefContext> GetAll() =>

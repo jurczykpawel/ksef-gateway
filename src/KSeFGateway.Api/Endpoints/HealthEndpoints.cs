@@ -18,10 +18,11 @@ public static class HealthEndpoints
             [FromServices] TokenPool pool,
             [FromServices] ContextProvider ctxProvider,
             [FromServices] LicenseService licenseService,
-            [FromServices] KsefEnvironment environment) =>
+            [FromServices] KsefEnvironment environment,
+            HttpContext httpContext) =>
         {
             var allStates = pool.GetAllStates();
-            var activeContexts = ctxProvider.GetAll();
+            var activeContexts = ApiKeyAccess.VisibleContexts(httpContext, ctxProvider);
             var contexts = activeContexts.Select(c =>
             {
                 var state = allStates.GetValueOrDefault(c.Nip) ?? new AuthState();
@@ -31,9 +32,12 @@ public static class HealthEndpoints
                     c.Label,
                     authenticated = state.IsAuthenticated,
                     tokenExpiresAt = state.AccessTokenExpiresAt,
-                    isDefault = c.Nip == ctxProvider.GetDefault()?.Nip
+                    isDefault = c.Nip == ApiKeyAccess.DefaultNip(httpContext, ctxProvider)
                 };
             });
+
+            if (ApiKeyAccess.AllowedNips(httpContext) != null)
+                return Results.Json(ApiResponse.Ok(new { contexts }));
 
             return Results.Json(ApiResponse.Ok(new
             {

@@ -6,6 +6,7 @@
 
 - Add `Cache-Control: no-store` and `X-Content-Type-Options: nosniff` to API and PDF service responses, including errors; exempt health and API documentation.
 - Validate JSON-to-XML names and compact metadata, escape attribute values, and cap JSON depth at 100 and values at 100,000 before serialization.
+- Add optional SHA-256 client API keys scoped to NIPs, filtered diagnostics and safe SDK routes; preserve the administrator key and fail-closed configuration.
 - Pin container base digests and Azure release tags; expand Dependabot coverage to Docker, submodules, tests and tools with authenticated NuGet access.
 - Gate image publication on CI for the same ref, attach SPDX SBOMs and sign image digests with keyless cosign.
 - Pin all external GitHub Actions to verified commit SHAs.

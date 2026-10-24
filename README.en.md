@@ -103,6 +103,8 @@ curl -H "X-Api-Key: $GATEWAY_API_KEY" -X POST https://your-gateway/ksef/invoice 
 
 ## Security
 
+API responses (including errors), except `/health` and `/scalar` and `/openapi` documentation, as well as PDF service responses from `/pdf/invoice` and `/json-to-xml`, include `Cache-Control: no-store` and `X-Content-Type-Options: nosniff` to prevent caching tax data and content type sniffing.
+
 The gateway authenticates *itself* to KSeF (token or certificate - see below), but on its own has **no way to authenticate whoever is calling it**. Deploy it on a reachable URL without protecting it, and anyone who finds that URL can send or read real invoices for whichever NIP it's configured with.
 
 **`GATEWAY_API_KEY` closes that gap.** Every request except `GET /health` (used by health checks/monitoring) must include it as an `X-Api-Key` header, or the gateway rejects it - including `/scalar/v1` and the OpenAPI JSON, so the API surface itself isn't exposed either:

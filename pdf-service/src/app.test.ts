@@ -353,3 +353,46 @@ describe("render concurrency", () => {
     expect(next.status).toBe(200);
   });
 });
+
+
+describe("sensitive response headers", () => {
+  function expectPrivate(res: request.Response, status: number) {
+    expect(res.status).toBe(status);
+    expect(res.headers["cache-control"]).toBe("no-store");
+    expect(res.headers["x-content-type-options"]).toBe("nosniff");
+  }
+
+  it("protects generated PDF and preserves its disposition", async () => {
+    const res = await request(server).post("/pdf/invoice").type("application/xml").send(fixtureXml);
+    expectPrivate(res, 200);
+    expect(res.headers["content-disposition"]).toBe("inline; filename=faktura.pdf");
+    expect(res.body.subarray(0, 5).toString()).toBe("%PDF-");
+  });
+
+  it("protects converted XML", async () => {
+    const res = await request(server).post("/json-to-xml").send(fixtureJson);
+    expectPrivate(res, 200);
+    expect(res.text).toContain("<Faktura");
+  });
+
+  it.each(["/pdf/invoice", "/json-to-xml"])("protects validation, parser and auth errors on %s", async (path) => {
+    expectPrivate(await request(server).post(path).send({}), 400);
+    expectPrivate(await request(server).post(path).type("json").send("{"), 400);
+    vi.stubEnv("PDF_SERVICE_SECRET", "secret");
+    app = createApp();
+    expectPrivate(await request(server).post(path).send({}), 403);
+  });
+
+  it("protects renderer failures", async () => {
+    const render = vi.spyOn(pdfMake, "createPdf").mockImplementationOnce(() => { throw new Error("failure"); });
+    try {
+      expectPrivate(await request(server).post("/pdf/invoice").type("application/xml").send(fixtureXml), 500);
+    } finally { render.mockRestore(); }
+  });
+
+  it("exempts public health", async () => {
+    const res = await request(server).get("/health");
+    expect(res.status).toBe(200);
+    expect(res.headers["cache-control"]).toBeUndefined();
+  });
+});

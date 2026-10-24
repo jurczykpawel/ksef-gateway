@@ -101,6 +101,8 @@ curl -H "X-Api-Key: $GATEWAY_API_KEY" -X POST https://twoj-serwer/ksef/invoice \
 
 ## Bezpieczeństwo
 
+Odpowiedzi API (w tym błędy), z wyjątkiem `/health` i dokumentacji `/scalar` oraz `/openapi`, a także odpowiedzi serwisu PDF `/pdf/invoice` i `/json-to-xml`, zawierają `Cache-Control: no-store` i `X-Content-Type-Options: nosniff`, aby zapobiegać przechowywaniu danych podatkowych w cache i zgadywaniu typu treści.
+
 Usługa uwierzytelnia *samą siebie* w KSeF (token lub certyfikat - patrz niżej), ale sama z siebie **nie ma żadnego sposobu, żeby uwierzytelnić tego, kto ją wywołuje**. Wdróż ją pod publicznym adresem bez zabezpieczenia, a każdy, kto znajdzie ten adres, może wysyłać lub czytać prawdziwe faktury dla NIP-u, na który jest skonfigurowana.
 
 **`GATEWAY_API_KEY` zamyka tę lukę.** Każde żądanie oprócz `GET /health` (używanego przez health checki/monitoring) musi zawierać ten klucz jako nagłówek `X-Api-Key`, inaczej usługa je odrzuci - łącznie z `/scalar/v1` i JSON-em OpenAPI, więc sama powierzchnia API też nie jest wystawiona:

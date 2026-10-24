@@ -10,6 +10,15 @@ pdfMake.addVirtualFileSystem(pdfFonts);
 
 export function createApp() {
   const app = express();
+  // Run before authentication and parsers so error responses carry the same policy.
+  app.use((req, res, next) => {
+    if (req.path !== "/health") {
+      res.setHeader("Cache-Control", "no-store");
+      res.setHeader("X-Content-Type-Options", "nosniff");
+    }
+    next();
+  });
+
   const maxRenders = Number(process.env.PDF_MAX_CONCURRENT_RENDERS ?? "2");
   if (!Number.isSafeInteger(maxRenders) || maxRenders <= 0)
     throw new Error("PDF_MAX_CONCURRENT_RENDERS must be a positive integer");

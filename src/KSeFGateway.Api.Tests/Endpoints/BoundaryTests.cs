@@ -9,6 +9,7 @@ using KSeFGateway.Api.Licensing;
 using KSeFGateway.Api.Middleware;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.TestHost;
 using Microsoft.AspNetCore.Routing;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -27,9 +28,10 @@ public class BoundaryTests
      "items":[{"name":"Item","quantity":1,"unitPrice":10,"vatRate":23}]}
     """;
 
-    private static WebApplication App(Mock<IKSeFClient> sdk, HttpClient? pdfClient = null)
+    internal static WebApplication App(Mock<IKSeFClient> sdk, HttpClient? pdfClient = null, bool testServer = false)
     {
         var b = WebApplication.CreateBuilder();
+        if (testServer) b.WebHost.UseTestServer();
         b.Configuration.Sources.Clear();
         b.Configuration.AddInMemoryCollection(new Dictionary<string, string?> {
             ["KSEF_CONTEXTS_FILE"] = "/missing-boundary-contexts.json", ["KSEF_NIP"] = "1234567890", ["KSEF_TOKEN"] = "test" });
@@ -48,6 +50,7 @@ public class BoundaryTests
         var app = b.Build();
         app.MapWorkflowEndpoints();
         app.MapHealthEndpoints(64, 20);
+        app.MapInvoiceDownloadEndpoints();
         return app;
     }
 

@@ -57,6 +57,7 @@ services:
   # Usage: docker compose run --rm ksef-api-tests
   ksef-api-tests:
     volumes:
+      - ./CONTRIBUTING.md:/docs/CONTRIBUTING.md:ro
       - ./README.md:/docs/README.md:ro
       - ./README.en.md:/docs/README.en.md:ro
       - ./examples:/docs/examples:ro

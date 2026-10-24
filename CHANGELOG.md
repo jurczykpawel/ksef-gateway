@@ -2,6 +2,11 @@
 
 ## [Unreleased]
 
+### Added
+
+- Regression suite: host contracts and route coverage matrix, quota-aware shared TEST fixture, nightly CI, published-image smoke gate and local `test-full.sh --all`.
+- Failing dependency audit gates; pin patched CMS/XML signature packages to 10.0.13 in tests and tools.
+
 ### Security
 
 - Add `Cache-Control: no-store` and `X-Content-Type-Options: nosniff` to API and PDF service responses, including errors; exempt health and API documentation.

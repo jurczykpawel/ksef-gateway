@@ -119,3 +119,6 @@ app.Logger.LogInformation("Contexts: {Count} ({Mode} mode)",
     contextProvider.IsMultiNip ? "multi-NIP" : "single-NIP");
 
 app.Run();
+
+// Expose the real entry point to the in-memory regression host.
+public partial class Program { }

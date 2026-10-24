@@ -38,7 +38,7 @@ jobs:
           cache-dependency-path: landing/package-lock.json
 
       - name: Install dependencies and build
-        run: npm ci && npm run build
+        run: npm ci && npm audit --audit-level=high && npm run build
 
   build-api:
     name: Build & Test API (.NET)
@@ -58,6 +58,17 @@ jobs:
         env:
           GITHUB_PAT: ${{ secrets.CIRFMF_PAT }}
         run: dotnet restore KSeFGateway.Api.Tests/KSeFGateway.Api.Tests.csproj --configfile nuget.config
+
+      - name: Reject vulnerable API and tool dependencies
+        env:
+          GITHUB_PAT: ${{ secrets.CIRFMF_PAT }}
+        run: |
+          for project in KSeFGateway.Api/KSeFGateway.Api.csproj KSeFGateway.Api.Tests/KSeFGateway.Api.Tests.csproj ../tools/*/*.csproj; do
+            dotnet restore "$project" --configfile nuget.config
+            dotnet list "$project" package --vulnerable --include-transitive --format json --no-restore --source https://api.nuget.org/v3/index.json > audit.json
+            cat audit.json
+            jq -e '[.projects[]?.frameworks[]? | ((.topLevelPackages // []) + (.transitivePackages // []))[] | select((.vulnerabilities // []) | length > 0)] | length == 0' audit.json
+          done
 
       - name: Build
         run: dotnet build KSeFGateway.Api.Tests/KSeFGateway.Api.Tests.csproj -c Release --no-restore
@@ -135,6 +146,9 @@ jobs:
 
       - name: Install dependencies
         run: npm ci
+
+      - name: Reject high/critical production vulnerabilities
+        run: npm audit --omit=dev --audit-level=high
 
       - name: Typecheck
         run: |

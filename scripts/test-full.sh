@@ -3,7 +3,7 @@
 # Used as pre-push hook (via pre-commit) and for manual runs.
 #
 # Requires: Docker, .env with GITHUB_PAT + KSEF_TOKEN + KSEF_NIP + GATEWAY_API_KEY (TEST env).
-# Usage: ./scripts/test-full.sh
+# Usage: ./scripts/test-full.sh [--all]
 # Skip:  SKIP_INTEGRATION=1 git push
 
 set -euo pipefail
@@ -18,20 +18,39 @@ ok()   { echo -e "${GREEN}[test-full] $*${NC}"; }
 warn() { echo -e "${YELLOW}[test-full] $*${NC}"; }
 fail() { echo -e "${RED}[test-full] $*${NC}"; }
 
+# Keep the pre-push default unchanged; --all adds every offline Node layer first.
+ALL=0
+if [ "${1:-}" = "--all" ]; then ALL=1; shift; fi
+if [ "$#" -ne 0 ]; then fail "Usage: $0 [--all]"; exit 2; fi
+if [ "$ALL" = "1" ]; then
+  log "Running PDF, n8n and landing regression layers..."
+  (cd "$REPO_ROOT/pdf-service" && npm ci && npx vitest run)
+  # Match the existing CI typecheck policy for diagnostics from the upstream submodule.
+  (cd "$REPO_ROOT/pdf-service" && \
+    OUT=$(npx tsc --noEmit --project tsconfig.json 2>&1 | grep -v "lib/" | grep -v "TS6059" || true)
+    echo "$OUT"
+    ! echo "$OUT" | grep -q "error TS")
+  (cd "$REPO_ROOT" && node --test "examples/n8n/test/*.test.mjs")
+  (cd "$REPO_ROOT/landing" && npm ci && npm run build)
+fi
+
 # ── Guards ────────────────────────────────────────────────────────────────────
 
 if [ "${SKIP_INTEGRATION:-0}" = "1" ]; then
   warn "SKIP_INTEGRATION=1 set — skipping integration tests"
+  if [ "$ALL" = "1" ]; then fail "Full regression requires integration prerequisites"; exit 1; fi
   exit 0
 fi
 
 if [ ! -f "$ENV_FILE" ]; then
   warn ".env not found — skipping integration tests (run: cp .env.example .env)"
+  if [ "$ALL" = "1" ]; then fail "Full regression requires integration prerequisites"; exit 1; fi
   exit 0
 fi
 
 if ! docker info > /dev/null 2>&1; then
   warn "Docker not running — skipping integration tests"
+  if [ "$ALL" = "1" ]; then fail "Full regression requires integration prerequisites"; exit 1; fi
   exit 0
 fi
 
@@ -43,11 +62,13 @@ GATEWAY_API_KEY=$(grep '^GATEWAY_API_KEY=' "$ENV_FILE" | cut -d= -f2-)
 
 if [ -z "$GITHUB_PAT" ] || [ -z "$KSEF_NIP" ]; then
   warn "GITHUB_PAT or KSEF_NIP missing in .env — skipping integration tests"
+  if [ "$ALL" = "1" ]; then fail "Full regression requires integration prerequisites"; exit 1; fi
   exit 0
 fi
 
 if [ -z "$GATEWAY_API_KEY" ]; then
   warn "GATEWAY_API_KEY missing in .env — skipping integration tests (run: openssl rand -hex 32)"
+  if [ "$ALL" = "1" ]; then fail "Full regression requires integration prerequisites"; exit 1; fi
   exit 0
 fi
 
@@ -107,6 +128,7 @@ docker run --rm \
   -e GATEWAY_URL="http://host.docker.internal:8080" \
   -v "$REPO_ROOT/src:/src" \
   -v "$REPO_ROOT/tools:/src/tools:ro" \
+  -v "$REPO_ROOT/CONTRIBUTING.md:/docs/CONTRIBUTING.md:ro" \
   -v "$REPO_ROOT/README.md:/docs/README.md:ro" \
   -v "$REPO_ROOT/README.en.md:/docs/README.en.md:ro" \
   -v "$REPO_ROOT/examples:/docs/examples:ro" \

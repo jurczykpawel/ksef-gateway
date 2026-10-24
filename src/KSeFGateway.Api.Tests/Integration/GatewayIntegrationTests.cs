@@ -18,7 +18,8 @@ namespace KSeFGateway.Api.Tests.Integration;
 /// Run in the CI integration job with a generated KSeF TEST token.
 /// </summary>
 [Trait("Category", "Integration")]
-public class GatewayIntegrationTests
+public class GatewayIntegrationTests(GatewayIntegrationTests.SharedInvoiceFixture fixture)
+    : IClassFixture<GatewayIntegrationTests.SharedInvoiceFixture>
 {
     private static readonly string BaseUrl =
         Environment.GetEnvironmentVariable("GATEWAY_URL") ?? "http://localhost:8080";
@@ -216,7 +217,7 @@ public class GatewayIntegrationTests
     [Fact]
     public async Task GetInvoiceXml_AfterSend_ReturnsXml()
     {
-        var ksefNumber = await SendAndGetKsefNumber();
+        var ksefNumber = (await fixture.Invoice.Value).KsefNumber;
         var resp = await RetryUntilAsync(
             () => Http.GetAsync($"{BaseUrl}/ksef/invoice/{ksefNumber}"),
             r => r.StatusCode == HttpStatusCode.OK);
@@ -230,7 +231,7 @@ public class GatewayIntegrationTests
     [Fact]
     public async Task GetInvoicePdf_AfterSend_ReturnsPdf()
     {
-        var ksefNumber = await SendAndGetKsefNumber();
+        var ksefNumber = (await fixture.Invoice.Value).KsefNumber;
         var resp = await RetryUntilAsync(
             () => Http.GetAsync($"{BaseUrl}/ksef/invoice/{ksefNumber}/pdf"),
             r => r.StatusCode == HttpStatusCode.OK);
@@ -245,53 +246,15 @@ public class GatewayIntegrationTests
     [Fact]
     public async Task ListReceivedInvoices_AfterSelfInvoice_FindsItAsBuyer()
     {
-        // Self-invoice (seller == buyer == our only authenticated test NIP) is the only way
-        // to reliably exercise the buyer-role query with a single-NIP CI credential.
-        // IssueDate must be today - the query below searches by today's date, but
-        // SampleInvoice() defaults to a fixed historical date for XML/XSD tests.
-        var today = DateTimeOffset.UtcNow.ToString("yyyy-MM-dd");
-        var invoiceNumber = UniqueNumber("FV/INT/RECEIVED");
-        var invoice = SampleInvoice(invoiceNumber) with
-        {
-            IssueDate = today,
-            SaleDate = today,
-            Buyer = new BuyerData
-            {
-                Nip = SellerNip,
-                Name = "Integration Test Seller sp. z o.o.",
-                Address = new AddressData { Street = "ul. Testowa 1", City = "00-001 Warszawa" }
-            }
-        };
-        var sendResp = await Http.PostAsJsonAsync($"{BaseUrl}/ksef/invoice", invoice);
-        sendResp.EnsureSuccessStatusCode();
-
-        var from = DateTimeOffset.UtcNow.AddDays(-1).ToString("O");
-        var to = DateTimeOffset.UtcNow.AddDays(1).ToString("O");
-        var invoiceNumbers = await PollForInvoiceNumbersAsync(
-            $"{BaseUrl}/ksef/invoices/received?from={Uri.EscapeDataString(from)}&to={Uri.EscapeDataString(to)}",
-            invoiceNumber);
-
-        Assert.Contains(invoiceNumber, invoiceNumbers);
+        var shared = await fixture.Invoice.Value;
+        Assert.Contains(shared.InvoiceNumber, await fixture.Received.Value);
     }
 
     [Fact]
     public async Task ListIssuedInvoices_AfterSend_FindsItAsSeller()
     {
-        // Any invoice we send has our own authenticated NIP as the seller - no self-invoice
-        // trick needed here (unlike the buyer-role test above).
-        var today = DateTimeOffset.UtcNow.ToString("yyyy-MM-dd");
-        var invoiceNumber = UniqueNumber("FV/INT/ISSUED");
-        var invoice = SampleInvoice(invoiceNumber) with { IssueDate = today, SaleDate = today };
-        var sendResp = await Http.PostAsJsonAsync($"{BaseUrl}/ksef/invoice", invoice);
-        sendResp.EnsureSuccessStatusCode();
-
-        var from = DateTimeOffset.UtcNow.AddDays(-1).ToString("O");
-        var to = DateTimeOffset.UtcNow.AddDays(1).ToString("O");
-        var invoiceNumbers = await PollForInvoiceNumbersAsync(
-            $"{BaseUrl}/ksef/invoices/issued?from={Uri.EscapeDataString(from)}&to={Uri.EscapeDataString(to)}",
-            invoiceNumber);
-
-        Assert.Contains(invoiceNumber, invoiceNumbers);
+        var shared = await fixture.Invoice.Value;
+        Assert.Contains(shared.InvoiceNumber, await fixture.Issued.Value);
     }
 
     [Fact]
@@ -301,7 +264,7 @@ public class GatewayIntegrationTests
         // PermanentStorageHwmDate (data isn't durably complete there yet) - exercises the
         // gateway's graceful handling of KSeF's 21183 rejection (nothing new yet, not an error).
         var since = DateTimeOffset.UtcNow.ToString("O");
-        var resp = await Http.GetAsync($"{BaseUrl}/ksef/invoices/received/new?since={Uri.EscapeDataString(since)}");
+        using var resp = await MetadataQuery.RequestAsync(() => Http.GetAsync($"{BaseUrl}/ksef/invoices/received/new?since={Uri.EscapeDataString(since)}"));
 
         await AssertOkAsync(resp);
         var body = await resp.Content.ReadFromJsonAsync<JsonElement>();
@@ -406,14 +369,77 @@ public class GatewayIntegrationTests
         return $"{prefix}/{suffix}";
     }
 
-    private static async Task<string> SendAndGetKsefNumber()
+    public sealed record SharedInvoice(string InvoiceNumber, string KsefNumber, string From, string To);
+
+    // xUnit creates one fixture per class. Lazy tasks are shared even if test order changes.
+    public sealed class SharedInvoiceFixture
     {
-        var invoice = SampleInvoice(UniqueNumber("FV/INT/E2E"));
-        var resp = await Http.PostAsJsonAsync($"{BaseUrl}/ksef/invoice", invoice);
-        resp.EnsureSuccessStatusCode();
-        var body = await resp.Content.ReadFromJsonAsync<JsonElement>();
-        return body.GetProperty("data").GetProperty("ksefNumber").GetString()
-            ?? throw new InvalidOperationException("No ksefNumber in response");
+        public Lazy<Task<SharedInvoice>> Invoice { get; }
+        private readonly Func<string, Task<HttpResponseMessage>> request;
+        public Lazy<Task<List<string?>>> Received { get; }
+        public Lazy<Task<List<string?>>> Issued { get; }
+
+        public SharedInvoiceFixture() : this(SendSharedInvoice, url => Http.GetAsync(url)) { }
+
+        internal SharedInvoiceFixture(Func<Task<SharedInvoice>> send, Func<string, Task<HttpResponseMessage>> request)
+        {
+            Invoice = new(send);
+            this.request = request;
+            Received = new(() => Query("received"));
+            Issued = new(() => Query("issued"));
+        }
+
+        private async Task<List<string?>> Query(string role)
+        {
+            var shared = await Invoice.Value;
+            return await MetadataQuery.ReadAsync(() => request(
+                $"{BaseUrl}/ksef/invoices/{role}?from={Uri.EscapeDataString(shared.From)}&to={Uri.EscapeDataString(shared.To)}"));
+        }
+
+        private static async Task<SharedInvoice> SendSharedInvoice()
+        {
+            var now = DateTimeOffset.UtcNow;
+            var today = now.ToString("yyyy-MM-dd");
+            var invoice = SampleInvoice(UniqueNumber("FV/INT/SHARED")) with
+            {
+                IssueDate = today, SaleDate = today,
+                Buyer = new BuyerData { Nip = SellerNip, Name = "Integration Test Seller",
+                    Address = new AddressData { Street = "ul. Testowa 1", City = "00-001 Warszawa" } }
+            };
+            using var response = await Http.PostAsJsonAsync($"{BaseUrl}/ksef/invoice", invoice);
+            await AssertOkAsync(response);
+            var body = await response.Content.ReadFromJsonAsync<JsonElement>();
+            Assert.True(body.GetProperty("success").GetBoolean());
+            Assert.Equal("accepted", body.GetProperty("data").GetProperty("status").GetString());
+            var number = body.GetProperty("data").GetProperty("ksefNumber").GetString();
+            Assert.False(string.IsNullOrEmpty(number));
+            // Give TEST indexing time once, without spending metadata query permits polling.
+            await Task.Delay(TimeSpan.FromSeconds(20));
+            return new(invoice.InvoiceNumber, number!, now.AddDays(-1).ToString("O"), now.AddDays(1).ToString("O"));
+        }
+    }
+
+    [Fact]
+    public async Task PublishedImage_HealthStatusSendAndPdf()
+    {
+        using var health = await Http.GetAsync($"{BaseUrl}/health");
+        await AssertOkAsync(health);
+        var liveness = await health.Content.ReadFromJsonAsync<JsonElement>();
+        Assert.Equal("ok", liveness.GetProperty("status").GetString());
+        // The shared send waits for authentication; the status check then verifies it.
+        var shared = await fixture.Invoice.Value;
+        using var status = await Http.GetAsync($"{BaseUrl}/ksef/status");
+        await AssertOkAsync(status);
+        var system = await status.Content.ReadFromJsonAsync<JsonElement>();
+        Assert.Equal("TEST", system.GetProperty("data").GetProperty("environment").GetString());
+        Assert.Contains(system.GetProperty("data").GetProperty("contexts").EnumerateArray(),
+            c => c.GetProperty("authenticated").GetBoolean());
+        using var pdf = await Http.GetAsync($"{BaseUrl}/ksef/invoice/{shared.KsefNumber}/pdf");
+        await AssertOkAsync(pdf);
+        Assert.Equal("application/pdf", pdf.Content.Headers.ContentType?.MediaType);
+        var bytes = await pdf.Content.ReadAsByteArrayAsync();
+        Assert.True(bytes.Length > 1000);
+        Assert.Equal("%PDF"u8.ToArray(), bytes[..4]);
     }
 
     /// <summary>
@@ -435,51 +461,4 @@ public class GatewayIntegrationTests
         return result;
     }
 
-    /// <summary>
-    /// Polls a /ksef/invoices/{received,issued} URL until targetInvoiceNumber shows up. This
-    /// endpoint shares KSeF's own tight invoices/query budget (20/hour, real server-side quota) -
-    /// every poll attempt spends from that same scarce pool, so this favors fewer attempts spaced
-    /// further apart over more, tighter ones: the same ~20s of wall-clock coverage for eventual
-    /// consistency, at half the request cost. A short 429 (the gateway's own proactive throttle)
-    /// means "back off exactly as long as told, then keep polling". A long 429 means the real
-    /// per-hour account quota is exhausted - that won't clear before the test times out anyway, so
-    /// fail fast with a clear diagnostic instead of silently blocking a CI run for up to an hour.
-    /// </summary>
-    private static readonly TimeSpan MaxWorthwhileRetryAfter = TimeSpan.FromSeconds(15);
-
-    private static async Task<List<string?>> PollForInvoiceNumbersAsync(string url, string targetInvoiceNumber, int maxAttempts = 6)
-    {
-        var invoiceNumbers = new List<string?>();
-        for (var attempt = 1; attempt <= maxAttempts; attempt++)
-        {
-            var resp = await Http.GetAsync(url);
-            if (resp.StatusCode == HttpStatusCode.TooManyRequests)
-            {
-                var retryAfter = resp.Headers.RetryAfter?.Delta;
-                if (retryAfter is null || retryAfter > MaxWorthwhileRetryAfter)
-                {
-                    var errorBody = await resp.Content.ReadAsStringAsync();
-                    throw new InvalidOperationException(
-                        $"Hit KSeF's real rate limit polling {url} - Retry-After is " +
-                        $"{(retryAfter?.ToString() ?? "unset")}, too long to wait out in a test run. " +
-                        $"Response: {errorBody}");
-                }
-                await Task.Delay(retryAfter.Value + TimeSpan.FromSeconds(1));
-                continue;
-            }
-
-            resp.EnsureSuccessStatusCode();
-            var body = await resp.Content.ReadFromJsonAsync<JsonElement>();
-            invoiceNumbers = body.GetProperty("data").GetProperty("invoices")
-                .EnumerateArray()
-                .Select(i => i.GetProperty("invoiceNumber").GetString())
-                .ToList();
-
-            if (invoiceNumbers.Contains(targetInvoiceNumber) || attempt == maxAttempts)
-                return invoiceNumbers;
-
-            await Task.Delay(TimeSpan.FromSeconds(5));
-        }
-        return invoiceNumbers;
-    }
 }

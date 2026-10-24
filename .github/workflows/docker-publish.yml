@@ -56,11 +56,9 @@ jobs:
         uses: docker/metadata-action@dc802804100637a589fabce1cb79ff13a1411302 # v6.2.0
         with:
           images: ${{ env.REGISTRY }}/jurczykpawel/ksef-gateway-api
+          # Publish candidates first; release/branch aliases are promoted only after smoke.
           tags: |
-            type=ref,event=branch
-            type=semver,pattern=v{{version}}
-            type=semver,pattern=v{{major}}.{{minor}}
-            type=raw,value=latest,enable=${{ github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v') }}
+            type=raw,value=candidate-${{ github.sha }}
 
       - name: Build and push API image
         id: build
@@ -111,10 +109,7 @@ jobs:
         with:
           images: ${{ env.REGISTRY }}/jurczykpawel/ksef-gateway-pdf
           tags: |
-            type=ref,event=branch
-            type=semver,pattern=v{{version}}
-            type=semver,pattern=v{{major}}.{{minor}}
-            type=raw,value=latest,enable=${{ github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v') }}
+            type=raw,value=candidate-${{ github.sha }}
 
       - name: Build and push PDF service image
         id: build
@@ -131,9 +126,107 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
+  smoke-image:
+    name: Smoke published image digests (one TEST invoice)
+    needs: [build-api, build-pdf]
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      packages: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-dotnet@26b0ec14cb23fa6904739307f278c14f94c95bf1 # v5.4.0
+        with:
+          dotnet-version: '10.0.x'
+      - uses: docker/login-action@81c6f93d4bc991e510b342a00b419b3bb4efc5c6 # v4.7.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Start published digests in TEST
+        env:
+          API_DIGEST: ${{ needs.build-api.outputs.digest }}
+          PDF_DIGEST: ${{ needs.build-pdf.outputs.digest }}
+          KSEF_TOKEN: ${{ secrets.KSEF_TOKEN }}
+          KSEF_NIP: ${{ secrets.KSEF_NIP }}
+        run: |
+          test -n "$KSEF_TOKEN" && test -n "$KSEF_NIP"
+          docker network create regression
+          docker run -d --name smoke-pdf --network regression -e KSEF_ENV=TEST "${REGISTRY}/jurczykpawel/ksef-gateway-pdf@${PDF_DIGEST}"
+          docker run -d --name smoke-api --network regression -p 127.0.0.1:8080:8080 \
+            -e KSEF_ENV=TEST -e KSEF_TOKEN -e KSEF_NIP -e GATEWAY_API_KEY=smoke-key \
+            -e PDF_SERVICE_URL=http://smoke-pdf:3000 "${REGISTRY}/jurczykpawel/ksef-gateway-api@${API_DIGEST}"
+          for _ in $(seq 1 60); do
+            if curl -sf http://localhost:8080/health > /dev/null; then exit 0; fi
+            sleep 2
+          done
+          exit 1
+      - name: Health, authenticated status, one send, PDF signature
+        env:
+          GITHUB_PAT: ${{ secrets.CIRFMF_PAT }}
+          KSEF_NIP: ${{ secrets.KSEF_NIP }}
+          GATEWAY_API_KEY: smoke-key
+          GATEWAY_URL: http://localhost:8080
+        run: |
+          dotnet restore src/KSeFGateway.Api.Tests/KSeFGateway.Api.Tests.csproj --configfile src/nuget.config
+          dotnet test src/KSeFGateway.Api.Tests/KSeFGateway.Api.Tests.csproj -c Release --no-restore --filter FullyQualifiedName~PublishedImage_HealthStatusSendAndPdf
+      - name: Clean up
+        if: always()
+        run: |
+          docker rm -f smoke-api smoke-pdf || true
+          docker network rm regression || true
+
+  promote:
+    name: Promote tested image digests to release aliases
+    needs: [build-api, build-pdf, smoke-image]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+      - uses: docker/login-action@81c6f93d4bc991e510b342a00b419b3bb4efc5c6 # v4.7.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - uses: docker/metadata-action@dc802804100637a589fabce1cb79ff13a1411302 # v6.2.0
+        id: api-meta
+        with:
+          images: ghcr.io/jurczykpawel/ksef-gateway-api
+          tags: |
+            type=ref,event=branch
+            type=semver,pattern=v{{version}}
+            type=semver,pattern=v{{major}}.{{minor}}
+            type=raw,value=latest,enable=${{ github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v') }}
+      - uses: docker/metadata-action@dc802804100637a589fabce1cb79ff13a1411302 # v6.2.0
+        id: pdf-meta
+        with:
+          images: ghcr.io/jurczykpawel/ksef-gateway-pdf
+          tags: |
+            type=ref,event=branch
+            type=semver,pattern=v{{version}}
+            type=semver,pattern=v{{major}}.{{minor}}
+            type=raw,value=latest,enable=${{ github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v') }}
+      - name: Promote immutable tested digests
+        env:
+          API_DIGEST: ${{ needs.build-api.outputs.digest }}
+          PDF_DIGEST: ${{ needs.build-pdf.outputs.digest }}
+          API_TAGS: ${{ steps.api-meta.outputs.tags }}
+          PDF_TAGS: ${{ steps.pdf-meta.outputs.tags }}
+        run: |
+          for component in api pdf; do
+            if [ "$component" = api ]; then digest="$API_DIGEST"; tags="$API_TAGS"; else digest="$PDF_DIGEST"; tags="$PDF_TAGS"; fi
+            while IFS= read -r tag; do
+              [ -n "$tag" ] || continue
+              docker buildx imagetools create --prefer-index=false --tag "$tag" "${REGISTRY}/jurczykpawel/ksef-gateway-${component}@${digest}"
+            done <<< "$tags"
+          done
+
   sign:
     name: Sign digests and export SBOMs
-    needs: [build-api, build-pdf]
+    needs: [build-api, build-pdf, smoke-image]
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -180,7 +273,7 @@ jobs:
   release-sboms:
     name: Attach SBOMs to release
     if: startsWith(github.ref, 'refs/tags/v')
-    needs: sign
+    needs: [sign, promote]
     runs-on: ubuntu-latest
     permissions:
       contents: write

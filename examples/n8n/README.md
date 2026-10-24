@@ -152,7 +152,7 @@ Sellf `order.amount` is the amount charged **including VAT**, in minor units. Wh
 
 WooCommerce uses post-discount `line_items[].total` and each line's tax total, includes `shipping_lines` and `fee_lines`, and preserves `total / quantity` precision. Thus 10.00 net across 3 units stays 10.00 after line rounding instead of 9.99. It does not subtract coupons a second time. Supported VAT rates are 23/8/5/0; review unusual tax classes, mixed taxes on one line, refunds and credit notes separately.
 
-Run the offline harness with `node --test examples/n8n/test` (also runs in CI). It checks code with mocked n8n helpers and workflow graph structure; live import/runner and provider timeout validation remain deployment checks.
+Run the offline harness with `node --test "examples/n8n/test/*.test.mjs"` (also runs in CI). It checks code with mocked n8n helpers and workflow graph structure; live import/runner and provider timeout validation remain deployment checks.
 
 ## Render keep-alive (stop free services spinning down)
 

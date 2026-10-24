@@ -19,7 +19,7 @@ jobs:
       - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6.5.0
         with:
           node-version: 22
-      - run: node --test examples/n8n/test
+      - run: node --test "examples/n8n/test/*.test.mjs"
 
   build-landing:
     name: Build landing (Node)
@@ -32,7 +32,8 @@ jobs:
 
       - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6.5.0
         with:
-          node-version: 22
+          # Astro 7.4 requires Node >= 22.23.4; the runner image's default 22.x can be older.
+          node-version: 22.23.4
           cache: npm
           cache-dependency-path: landing/package-lock.json
 

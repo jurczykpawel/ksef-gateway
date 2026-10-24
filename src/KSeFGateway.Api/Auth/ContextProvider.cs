@@ -6,15 +6,17 @@ namespace KSeFGateway.Api.Auth;
 /// <summary>
 /// Loads KSeF contexts from environment variables (single NIP)
 /// or from contexts.json file (multi-NIP). Multi-NIP requires a valid GATEWAY_LICENSE -
-/// see LicenseService. Free tier gets the first configured NIP only.
+/// see LicenseService. All contexts are retained; free tier can use only the default NIP.
 /// </summary>
 public class ContextProvider
 {
-    private IReadOnlyList<KsefContext> _contexts;
+    private readonly IReadOnlyList<KsefContext> _contexts;
+    private readonly LicenseService _licenseService;
     private readonly string? _defaultNip;
 
     public ContextProvider(IConfiguration config, ILogger<ContextProvider> logger, LicenseService licenseService)
     {
+        _licenseService = licenseService;
         var contextsPath = config["KSEF_CONTEXTS_FILE"] ?? "/app/contexts.json";
         var envToken = config["KSEF_TOKEN"];
         var envNip = config["KSEF_NIP"];
@@ -52,7 +54,7 @@ public class ContextProvider
                 contexts.Insert(0, envContext);
 
             _contexts = contexts;
-            _defaultNip = envNip ?? contexts.FirstOrDefault()?.Nip;
+            _defaultNip = contexts.Any(c => c.Nip == envNip) ? envNip : contexts.FirstOrDefault()?.Nip;
             logger.LogInformation("Loaded {Count} KSeF contexts from {Path}. Default NIP: {Nip}",
                 _contexts.Count, contextsPath, _defaultNip);
         }
@@ -70,22 +72,8 @@ public class ContextProvider
             logger.LogWarning("No KSeF contexts configured. Set KSEF_TOKEN+KSEF_NIP, KSEF_CERT_PATH+KSEF_KEY_PATH+KSEF_NIP, KSEF_CERT_CONTENT+KSEF_KEY_CONTENT+KSEF_NIP, or mount contexts.json");
         }
 
-        var maxNips = licenseService.MaxNips;
-        if (_contexts.Count > maxNips)
-        {
-            logger.LogWarning(
-                "{Configured} NIPs configured but only {Max} allowed under your license - only {Max} will be active. " +
-                "Get a license at https://sellf.techskills.academy/p/{Slug} to unlock the rest.",
-                _contexts.Count, maxNips, maxNips, LicenseService.ProductSlug);
-
-            // Keep the default NIP even if it wasn't first in the file/list - never silently
-            // drop the context callers are actually relying on when truncating to the limit.
-            var defaultContext = _defaultNip is not null ? _contexts.FirstOrDefault(c => c.Nip == _defaultNip) : null;
-            var ordered = defaultContext is not null
-                ? new[] { defaultContext }.Concat(_contexts.Where(c => c.Nip != _defaultNip))
-                : _contexts;
-            _contexts = ordered.Take(maxNips).ToList();
-        }
+        if (_contexts.Count > licenseService.MaxNips)
+            logger.LogWarning("Multi-NIP license required: only default NIP {Nip} is available; additional contexts are retained for license recovery", GetDefault()?.Nip);
     }
 
     private static KsefContext? BuildEnvContext(
@@ -117,13 +105,19 @@ public class ContextProvider
         return null;
     }
 
-    public IReadOnlyList<KsefContext> GetAll() => _contexts;
+    public IReadOnlyList<KsefContext> GetAll() =>
+        _licenseService.MaxNips > 1 ? _contexts : _contexts.Where(c => c.Nip == _defaultNip).ToArray();
 
     public KsefContext? GetByNip(string nip) =>
-        _contexts.FirstOrDefault(c => c.Nip == nip);
+        nip == _defaultNip || _licenseService.MaxNips > 1
+            ? _contexts.FirstOrDefault(c => c.Nip == nip)
+            : null;
 
     public KsefContext? GetDefault() =>
-        _defaultNip != null ? GetByNip(_defaultNip) : _contexts.FirstOrDefault();
+        _contexts.FirstOrDefault(c => c.Nip == _defaultNip);
 
-    public bool IsMultiNip => _contexts.Count > 1;
+    public bool IsMultiNip => GetAll().Count > 1;
+
+    public bool IsLicenseRestricted(string nip) =>
+        _licenseService.MaxNips <= 1 && nip != _defaultNip && _contexts.Any(c => c.Nip == nip);
 }

@@ -790,16 +790,20 @@ A single NIP is free, always - no license needed, no time limit. Running **more 
 
 **[👉 Buy the multi-NIP license](https://sellf.techskills.academy/p/ksef-gateway-multi-nip)**
 
-Set the license key as `GATEWAY_LICENSE`. Verification is fully offline (ECDSA signature check against a cached public key) - your license token never leaves your server, and a temporary network blip doesn't lock you out (see below).
+Set the license key as `GATEWAY_LICENSE`. ECDSA signatures are checked locally; public JWKS keys and the revocation list (CRL) are fetched over HTTPS (10 s timeout per request). Your license token never leaves your server.
 
-If `contexts.json` configures more NIPs than your license allows, the gateway doesn't refuse to start - it activates the first `N` (your default NIP is always kept, even if it wasn't first in the file) and logs a clear warning naming which ones were skipped. Check `GET /ksef/status` for `license: {licensed, maxNips, activeNips, email, expiresAt}` (`email` is just for your own visibility - which purchase this license belongs to - it's not checked against anything). The gateway verifies the signature, the product name, the expiry date and the revocation list - the domain stored on the license is **not** checked. Changing `GATEWAY_LICENSE` on Render needs a new **deploy**: saving the variable (or a plain restart) does not reload it.
+All configured contexts remain in memory. The current license determines access at each use: the default NIP (or the first if none is selected) is always available. After license loss, additional NIPs return 404 “No context configured…” with a license explanation; license recovery restores them without a restart. Check `GET /ksef/status` for `license: {licensed, maxNips, activeNips, email, expiresAt}` (`email` is just for your own visibility - which purchase this license belongs to - it's not checked against anything). The gateway verifies the signature, the product name, the expiry date and the revocation list - the domain stored on the license is **not** checked. Changing `GATEWAY_LICENSE` on Render needs a new **deploy**: saving the variable (or a plain restart) does not reload it.
 
 | Situation | Behavior |
 |---|---|
 | No `GATEWAY_LICENSE` set | Free tier - first configured NIP only |
 | Valid license | Unlimited NIPs |
 | License expired/revoked/malformed | Falls back to free tier (1 NIP) - never crashes the gateway |
-| Sellf's license server temporarily unreachable | Serves the last verified result for up to 7 days (cached), then falls back to free tier - an outage doesn't retroactively lock you out, but doesn't extend forever either |
+| Sellf's license server temporarily unreachable | JWKS: uses keys cached in RAM for up to 7 days since fetch; falls back to free tier without usable cache. CRL: uses cache for up to 7 days; without it, an outage does not revoke a valid license (fail-open). |
+
+The license refreshes every 6 hours: revocation or expiry restricts access after the next refresh (up to 6 h delay when CRL is reachable). JWKS/CRL caches exist only in RAM and do not survive restarts; starting without reachable JWKS means free tier until a successful refresh. Fresh cache TTL is 5 minutes. Tier changes are logged as `Multi-NIP license state changed: free -> licensed` or `licensed -> free`.
+
+Advanced configuration: `GATEWAY_LICENSE_JWKS_URL` and `GATEWAY_LICENSE_REVOCATION_URL` are unsupported. Sellf HTTPS addresses are fixed; tests inject HTTP clients without network access. A custom JWKS would establish a custom trust root and allow self-issued licenses.
 
 ---
 

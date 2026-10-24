@@ -26,6 +26,7 @@ public class RevocationClient
     public RevocationClient(HttpClient http, string revocationUrl, ILogger<RevocationClient> logger, TimeSpan? freshTtl = null, TimeSpan? staleTtl = null)
     {
         _http = http;
+        _http.Timeout = TimeSpan.FromSeconds(10);
         _baseUrl = revocationUrl;
         _logger = logger;
         _freshTtl = freshTtl ?? TimeSpan.FromMinutes(5);
@@ -42,7 +43,7 @@ public class RevocationClient
 
         try
         {
-            var response = await _http.GetAsync($"{_baseUrl}&prefix={prefix}", cancellationToken);
+            using var response = await _http.GetAsync($"{_baseUrl}&prefix={prefix}", cancellationToken);
             response.EnsureSuccessStatusCode();
             var json = await response.Content.ReadAsStringAsync(cancellationToken);
             var parsed = JsonSerializer.Deserialize<RevocationResponse>(json);

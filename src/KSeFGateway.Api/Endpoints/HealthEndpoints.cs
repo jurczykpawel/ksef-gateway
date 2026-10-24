@@ -35,7 +35,8 @@ public static class HealthEndpoints
             [FromServices] KsefEnvironment environment) =>
         {
             var allStates = pool.GetAllStates();
-            var contexts = ctxProvider.GetAll().Select(c =>
+            var activeContexts = ctxProvider.GetAll();
+            var contexts = activeContexts.Select(c =>
             {
                 var state = allStates.GetValueOrDefault(c.Nip) ?? new AuthState();
                 return new
@@ -50,14 +51,14 @@ public static class HealthEndpoints
 
             return Results.Json(ApiResponse.Ok(new
             {
-                mode = ctxProvider.IsMultiNip ? "multi-nip" : "single-nip",
+                mode = activeContexts.Count > 1 ? "multi-nip" : "single-nip",
                 environment = environment.Name,
                 contexts,
                 license = new
                 {
                     licensed = licenseService.IsLicensed,
                     maxNips = licenseService.IsLicensed ? (int?)null : licenseService.MaxNips,
-                    activeNips = ctxProvider.GetAll().Count,
+                    activeNips = activeContexts.Count,
                     email = licenseService.Claims?.Email,
                     expiresAt = licenseService.Claims?.Exp is long exp
                         ? DateTimeOffset.FromUnixTimeSeconds(exp)

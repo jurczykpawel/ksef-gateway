@@ -35,14 +35,14 @@ builder.Services.AddKSeFClient(options =>
 builder.Services.AddCryptographyClient();
 
 // Licensing: multi-NIP requires a valid GATEWAY_LICENSE (see LicenseService) - must be
-// registered and refreshed before ContextProvider is resolved, since it decides MaxNips.
+// refreshed at startup; ContextProvider checks the current permission at each lookup.
 builder.Services.AddSingleton(sp => new JwksClient(
     new HttpClient(),
-    builder.Configuration["GATEWAY_LICENSE_JWKS_URL"] ?? LicenseService.DefaultJwksUrl,
+    LicenseService.DefaultJwksUrl,
     sp.GetRequiredService<ILogger<JwksClient>>()));
 builder.Services.AddSingleton(sp => new RevocationClient(
     new HttpClient(),
-    builder.Configuration["GATEWAY_LICENSE_REVOCATION_URL"] ?? LicenseService.DefaultRevocationUrl,
+    LicenseService.DefaultRevocationUrl,
     sp.GetRequiredService<ILogger<RevocationClient>>()));
 builder.Services.AddSingleton<LicenseService>();
 builder.Services.AddHostedService(sp => sp.GetRequiredService<LicenseService>());
@@ -69,8 +69,7 @@ if (!isLambda)
 
 var app = builder.Build();
 
-// Verify the multi-NIP license before anything resolves ContextProvider (which reads
-// LicenseService.MaxNips synchronously in its constructor) - must happen first, blocking.
+// Resolve the initial license state before serving requests.
 await app.Services.GetRequiredService<LicenseService>().RefreshAsync();
 
 // Middleware - caller-facing auth runs first: fail fast on unauthenticated traffic

@@ -21,8 +21,7 @@ public class LicenseService : BackgroundService
     private readonly string? _licenseToken;
     private readonly ILogger<LicenseService> _logger;
 
-    private volatile bool _isLicensed;
-    private LicenseClaims? _claims;
+    private volatile LicenseClaims? _claims;
 
     public LicenseService(JwksClient jwksClient, RevocationClient revocationClient, IConfiguration config, ILogger<LicenseService> logger)
     {
@@ -32,8 +31,8 @@ public class LicenseService : BackgroundService
         _logger = logger;
     }
 
-    public bool IsLicensed => _isLicensed;
-    public int MaxNips => _isLicensed ? int.MaxValue : FreeMaxNips;
+    public bool IsLicensed => _claims is not null;
+    public int MaxNips => IsLicensed ? int.MaxValue : FreeMaxNips;
     public LicenseClaims? Claims => _claims;
 
     public async Task RefreshAsync(CancellationToken ct = default)
@@ -76,8 +75,10 @@ public class LicenseService : BackgroundService
             return;
         }
 
+        var wasLicensed = IsLicensed;
         _claims = result.Claims;
-        _isLicensed = true;
+        if (!wasLicensed)
+            _logger.LogInformation("Multi-NIP license state changed: free -> licensed; additional configured NIPs are available");
         _logger.LogInformation("Multi-NIP license verified (order {Order})", result.Claims.Order);
     }
 
@@ -105,7 +106,9 @@ public class LicenseService : BackgroundService
 
     private void SetUnlicensed()
     {
-        _isLicensed = false;
+        var wasLicensed = IsLicensed;
         _claims = null;
+        if (wasLicensed)
+            _logger.LogWarning("Multi-NIP license state changed: licensed -> free; only the default NIP remains available");
     }
 }

@@ -147,6 +147,12 @@ public class TokenPool : BackgroundService
             try
             {
                 var state = _states[nip];
+                // The current license no longer authorizes this context: drop its tokens (restored on recovery).
+                if (_contextProvider.GetByNip(nip) is null)
+                {
+                    _states.TryRemove(nip, out _);
+                    continue;
+                }
                 // Status reads can create empty entries; only refresh previously active contexts.
                 if (state.AccessToken is null && state.RefreshToken is null)
                     continue;

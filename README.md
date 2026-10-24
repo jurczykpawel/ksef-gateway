@@ -849,16 +849,20 @@ Jeden NIP jest darmowy, zawsze - żadnej licencji, żadnego limitu czasowego. Pr
 
 **[👉 Kup licencję multi-NIP](https://sellf.techskills.academy/p/ksef-gateway-multi-nip)**
 
-Ustaw klucz licencji jako `GATEWAY_LICENSE`. Weryfikacja jest w pełni offline (sprawdzenie podpisu ECDSA wobec zbuforowanego klucza publicznego) - token licencji nigdy nie opuszcza Twojego serwera, a chwilowa awaria sieci nie blokuje Ci dostępu (patrz niżej).
+Ustaw klucz licencji jako `GATEWAY_LICENSE`. Podpis ECDSA jest sprawdzany lokalnie; publiczne klucze JWKS i lista odwołań CRL są pobierane przez HTTPS (limit czasu 10 s na żądanie). Token licencji nigdy nie opuszcza Twojego serwera.
 
-Jeśli `contexts.json` konfiguruje więcej NIP-ów niż pozwala Twoja licencja, usługa nie odmawia startu - aktywuje pierwsze `N` (Twój domyślny NIP jest zawsze zachowany, nawet jeśli nie był pierwszy w pliku) i loguje wyraźne ostrzeżenie, wymieniając które zostały pominięte. Sprawdź `GET /ksef/status` po `license: {licensed, maxNips, activeNips, email, expiresAt}` (`email` jest tylko dla Twojej własnej informacji - do jakiego zakupu należy ta licencja - nie jest sprawdzane wobec niczego). Brama weryfikuje podpis, nazwę produktu, datę wygaśnięcia i listę unieważnionych - domena zapisana na licencji **nie** jest sprawdzana. Zmiana `GATEWAY_LICENSE` na Renderze wymaga nowego **deployu**: samo zapisanie zmiennej (albo zwykły restart) jej nie wczytuje.
+Wszystkie skonfigurowane konteksty pozostają w pamięci. Bieżąca licencja rozstrzyga dostęp przy każdym użyciu: domyślny NIP (lub pierwszy, jeśli nie wybrano domyślnego) jest zawsze dostępny. Po utracie licencji dodatkowe NIP-y zwracają 404 „No context configured…” z informacją o licencji; odzyskanie licencji przywraca je bez restartu. Sprawdź `GET /ksef/status` po `license: {licensed, maxNips, activeNips, email, expiresAt}` (`email` jest tylko dla Twojej własnej informacji - do jakiego zakupu należy ta licencja - nie jest sprawdzane wobec niczego). Brama weryfikuje podpis, nazwę produktu, datę wygaśnięcia i listę unieważnionych - domena zapisana na licencji **nie** jest sprawdzana. Zmiana `GATEWAY_LICENSE` na Renderze wymaga nowego **deployu**: samo zapisanie zmiennej (albo zwykły restart) jej nie wczytuje.
 
 | Sytuacja | Zachowanie |
 |---|---|
 | `GATEWAY_LICENSE` nieustawiony | Darmowy tier - tylko pierwszy skonfigurowany NIP |
 | Ważna licencja | Nielimitowane NIP-y |
 | Licencja wygasła/unieważniona/źle sformowana | Powrót do darmowego tieru (1 NIP) - nigdy nie crashuje usługi |
-| Serwer licencji Sellf chwilowo nieosiągalny | Serwuje ostatni zweryfikowany wynik przez do 7 dni (zbuforowany), potem powraca do darmowego tieru - awaria nie blokuje Cię wstecznie, ale też nie przedłuża się w nieskończoność |
+| Serwer licencji Sellf chwilowo nieosiągalny | JWKS: używa kluczy z RAM do 7 dni od pobrania; bez użytecznego cache przechodzi do darmowego tieru. CRL: używa cache do 7 dni; bez niego awaria nie odwołuje ważnej licencji (fail-open). |
+
+Licencja jest odświeżana co 6 godzin: odwołanie lub wygaśnięcie ogranicza dostęp po najbliższym odświeżeniu (opóźnienie do 6 h przy dostępnej CRL). Cache JWKS/CRL istnieje wyłącznie w RAM i nie przetrwa restartu; start bez dostępnego JWKS oznacza darmowy tier do udanego odświeżenia. Świeży cache ma TTL 5 minut. Zmiany poziomu są logowane jako `Multi-NIP license state changed: free -> licensed` lub `licensed -> free`.
+
+Zaawansowana konfiguracja: `GATEWAY_LICENSE_JWKS_URL` i `GATEWAY_LICENSE_REVOCATION_URL` nie są obsługiwane. Adresy HTTPS Sellf są stałe; testy wstrzykują klientów HTTP bez sieci. Własny JWKS oznaczałby własny korzeń zaufania i możliwość podpisania własnej licencji.
 
 ---
 

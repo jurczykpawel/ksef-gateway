@@ -53,7 +53,10 @@ public static partial class ContextResolver
             throw InvalidNip();
 
         if (provider.GetByNip(nip) is null)
-            throw new BadHttpRequestException($"No context configured for NIP {nip}", StatusCodes.Status404NotFound);
+            throw new BadHttpRequestException(
+                $"No context configured for NIP {nip}" + (provider.IsLicenseRestricted(nip)
+                    ? "; a valid Multi-NIP license is required to access this context" : ""),
+                StatusCodes.Status404NotFound);
 
         return nip;
     }

@@ -1,3 +1,5 @@
+using Microsoft.Extensions.DependencyInjection;
+using KSeFGateway.Api.Endpoints;
 using System.Net;
 using System.Security.Cryptography;
 using System.Text;
@@ -34,14 +36,14 @@ public class ContextProviderTests
     private static async Task<LicenseService> MakeUnlicensedService()
     {
         var config = new ConfigurationBuilder().Build();
-        var jwksClient = new JwksClient(new HttpClient(), LicenseService.DefaultJwksUrl, NullLogger<JwksClient>.Instance);
-        var revocationClient = new RevocationClient(new HttpClient(), LicenseService.DefaultRevocationUrl, NullLogger<RevocationClient>.Instance);
+        var jwksClient = new JwksClient(new HttpClient(), LicenseService.DefaultJwksUrl, NullLogger<JwksClient>.Instance, TimeSpan.Zero, TimeSpan.Zero);
+        var revocationClient = new RevocationClient(new HttpClient(), LicenseService.DefaultRevocationUrl, NullLogger<RevocationClient>.Instance, TimeSpan.Zero, TimeSpan.Zero);
         var service = new LicenseService(jwksClient, revocationClient, config, NullLogger<LicenseService>.Instance);
         await service.RefreshAsync(); // no GATEWAY_LICENSE configured -> free tier, no network call made
         return service;
     }
 
-    private static async Task<LicenseService> MakeLicensedService()
+    private static async Task<LicenseService> MakeLicensedService(Func<bool>? jwksAvailable = null, Func<bool>? revoked = null)
     {
         const string kid = "test-kid";
         var ecdsa = ECDsa.Create(ECCurve.NamedCurves.nistP256);
@@ -66,17 +68,19 @@ public class ContextProviderTests
             .AddInMemoryCollection(new Dictionary<string, string?> { ["GATEWAY_LICENSE"] = token })
             .Build();
 
-        var jwksHandler = new FakeHttpMessageHandler(_ => new HttpResponseMessage(HttpStatusCode.OK)
+        var jwksHandler = new FakeHttpMessageHandler(_ => jwksAvailable?.Invoke() == false
+            ? new HttpResponseMessage(HttpStatusCode.ServiceUnavailable) : new HttpResponseMessage(HttpStatusCode.OK)
         {
             Content = new StringContent(JsonSerializer.Serialize(new { keys = new[] { new { kid, alg = "ES256", pem = publicKeyPem } } })),
         });
         var revocationHandler = new FakeHttpMessageHandler(_ => new HttpResponseMessage(HttpStatusCode.OK)
         {
-            Content = new StringContent("""{"order_hashes":[]}"""),
+            Content = new StringContent(JsonSerializer.Serialize(new { order_hashes = revoked?.Invoke() == true
+                ? new[] { Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes("order-1"))).ToLowerInvariant() } : Array.Empty<string>() })),
         });
 
-        var jwksClient = new JwksClient(new HttpClient(jwksHandler), LicenseService.DefaultJwksUrl, NullLogger<JwksClient>.Instance);
-        var revocationClient = new RevocationClient(new HttpClient(revocationHandler), LicenseService.DefaultRevocationUrl, NullLogger<RevocationClient>.Instance);
+        var jwksClient = new JwksClient(new HttpClient(jwksHandler), LicenseService.DefaultJwksUrl, NullLogger<JwksClient>.Instance, TimeSpan.Zero, TimeSpan.Zero);
+        var revocationClient = new RevocationClient(new HttpClient(revocationHandler), LicenseService.DefaultRevocationUrl, NullLogger<RevocationClient>.Instance, TimeSpan.Zero, TimeSpan.Zero);
         var service = new LicenseService(jwksClient, revocationClient, config, NullLogger<LicenseService>.Instance);
         await service.RefreshAsync();
         return service;
@@ -368,6 +372,132 @@ public class ContextProviderTests
         {
             File.Delete(path);
         }
+    }
+
+    [Fact]
+    public async Task LicenseRevoked_SecondNipBecomesUnavailable()
+    {
+        var revoked = false;
+        using var license = await MakeLicensedService(revoked: () => revoked);
+        var path = WriteContextsFile(2);
+        try
+        {
+            var provider = new ContextProvider(MakeConfig(path), NullLogger<ContextProvider>.Instance, license);
+            using var services = new Microsoft.Extensions.DependencyInjection.ServiceCollection().BuildServiceProvider();
+            using var pool = new TokenPool(services, provider, NullLogger<TokenPool>.Instance);
+            var state = pool.GetState("1000000002");
+            state.AccessToken = "cached-token";
+            state.AccessTokenExpiresAt = DateTimeOffset.MaxValue;
+            revoked = true;
+            await license.RefreshAsync();
+            Assert.False(license.IsLicensed);
+            Assert.Null(provider.GetByNip("1000000002"));
+            Assert.Single(provider.GetAll());
+            var error = await Assert.ThrowsAsync<Microsoft.AspNetCore.Http.BadHttpRequestException>(
+                () => pool.GetAccessTokenAsync("1000000002"));
+            Assert.Equal(404, error.StatusCode);
+            Assert.Contains("license", error.Message, StringComparison.OrdinalIgnoreCase);
+        }
+        finally { File.Delete(path); }
+    }
+
+    [Fact]
+    public async Task JwksRecovered_SecondNipBecomesAvailable()
+    {
+        var available = true;
+        using var license = await MakeLicensedService(() => available);
+        var path = WriteContextsFile(2);
+        try
+        {
+            var provider = new ContextProvider(MakeConfig(path), NullLogger<ContextProvider>.Instance, license);
+            available = false;
+            await license.RefreshAsync();
+            Assert.Null(provider.GetByNip("1000000002"));
+            available = true;
+            await license.RefreshAsync();
+            Assert.Equal("token-2", provider.GetByNip("1000000002")?.Token);
+            Assert.Equal(2, provider.GetAll().Count);
+        }
+        finally { File.Delete(path); }
+    }
+
+    [Fact]
+    public async Task StartWithoutJwks_ThenRecovery_RestoresContexts()
+    {
+        var available = false;
+        using var license = await MakeLicensedService(() => available);
+        var path = WriteContextsFile(2);
+        try
+        {
+            var provider = new ContextProvider(MakeConfig(path), NullLogger<ContextProvider>.Instance, license);
+            Assert.Single(provider.GetAll());
+            available = true;
+            await license.RefreshAsync();
+            Assert.Equal("token-2", provider.GetByNip("1000000002")?.Token);
+            Assert.True(provider.IsMultiNip);
+        }
+        finally { File.Delete(path); }
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task DefaultNip_AlwaysAvailable(bool explicitDefault)
+    {
+        var revoked = false;
+        using var license = await MakeLicensedService(revoked: () => revoked);
+        var path = WriteContextsFile(2);
+        try
+        {
+            var config = explicitDefault ? BuildConfig(new() { ["KSEF_CONTEXTS_FILE"] = path, ["KSEF_NIP"] = "1000000002" }) : MakeConfig(path);
+            var provider = new ContextProvider(config, NullLogger<ContextProvider>.Instance, license);
+            revoked = true;
+            await license.RefreshAsync();
+            var expected = explicitDefault ? "1000000002" : "1000000001";
+            Assert.Equal(expected, provider.GetDefault()?.Nip);
+            Assert.Equal(expected, Assert.Single(provider.GetAll()).Nip);
+            Assert.NotNull(provider.GetByNip(expected));
+        }
+        finally { File.Delete(path); }
+    }
+
+    [Fact]
+    public async Task Status_ActiveNipsFollowsCurrentLicense()
+    {
+        var available = false;
+        using var license = await MakeLicensedService(() => available);
+        var path = WriteContextsFile(2);
+        try
+        {
+            var builder = Microsoft.AspNetCore.Builder.WebApplication.CreateBuilder();
+            builder.Configuration.Sources.Clear();
+            builder.Configuration.AddInMemoryCollection(new Dictionary<string, string?> { ["KSEF_CONTEXTS_FILE"] = path });
+            builder.Services.AddSingleton(license);
+            builder.Services.AddSingleton<KsefEnvironment>(KsefEnvironment.Parse("TEST"));
+            builder.Services.AddSingleton<ContextProvider>();
+            builder.Services.AddSingleton<TokenPool>();
+            await using var app = builder.Build();
+            app.MapHealthEndpoints(64, 20);
+            var endpoint = ((Microsoft.AspNetCore.Routing.IEndpointRouteBuilder)app).DataSources
+                .SelectMany(s => s.Endpoints).OfType<Microsoft.AspNetCore.Routing.RouteEndpoint>()
+                .Single(e => e.RoutePattern.RawText == "/ksef/status");
+            foreach (var enabled in new[] { false, true, false })
+            {
+                available = enabled;
+                await license.RefreshAsync();
+                var context = new Microsoft.AspNetCore.Http.DefaultHttpContext { RequestServices = app.Services };
+                context.Response.Body = new MemoryStream();
+                await endpoint.RequestDelegate!(context);
+                context.Response.Body.Position = 0;
+                using var body = await JsonDocument.ParseAsync(context.Response.Body);
+                var data = body.RootElement.GetProperty("data");
+                Assert.Equal(200, context.Response.StatusCode);
+                Assert.Equal(enabled ? 2 : 1, data.GetProperty("license").GetProperty("activeNips").GetInt32());
+                Assert.Equal(enabled ? 2 : 1, data.GetProperty("contexts").GetArrayLength());
+                Assert.Equal(enabled ? "multi-nip" : "single-nip", data.GetProperty("mode").GetString());
+            }
+        }
+        finally { File.Delete(path); }
     }
 
     private sealed class CapturingLogger<T> : Microsoft.Extensions.Logging.ILogger<T>

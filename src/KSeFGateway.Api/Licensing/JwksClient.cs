@@ -22,6 +22,7 @@ public class JwksClient
     public JwksClient(HttpClient http, string jwksUrl, ILogger<JwksClient> logger, TimeSpan? freshTtl = null, TimeSpan? staleTtl = null)
     {
         _http = http;
+        _http.Timeout = TimeSpan.FromSeconds(10);
         _jwksUrl = jwksUrl;
         _logger = logger;
         _freshTtl = freshTtl ?? TimeSpan.FromMinutes(5);
@@ -35,7 +36,7 @@ public class JwksClient
 
         try
         {
-            var response = await _http.GetAsync(_jwksUrl, cancellationToken);
+            using var response = await _http.GetAsync(_jwksUrl, cancellationToken);
             response.EnsureSuccessStatusCode();
             var json = await response.Content.ReadAsStringAsync(cancellationToken);
             var parsed = JsonSerializer.Deserialize<JwksResponse>(json);

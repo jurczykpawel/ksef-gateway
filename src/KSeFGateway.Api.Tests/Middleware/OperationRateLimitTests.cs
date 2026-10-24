@@ -203,17 +203,16 @@ public class OperationRateLimitTests
             b.Services.AddSingleton(crypto.Object);
             var app = b.Build();
             var pool = app.Services.GetRequiredService<TokenPool>();
-            var first = pool.GetState("1234567890");
-            first.AccessToken = "first-token";
-            first.AccessTokenExpiresAt = DateTimeOffset.MaxValue;
-            // A second active state models a licensed context without involving license networking.
+            // AuthState is an immutable snapshot (published atomically by TokenPool), so seed/rotate by replacing it.
             var states = (System.Collections.Concurrent.ConcurrentDictionary<string, AuthState>)typeof(TokenPool)
                 .GetField("_states", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)!.GetValue(pool)!;
+            states["1234567890"] = new AuthState { AccessToken = "first-token", AccessTokenExpiresAt = DateTimeOffset.MaxValue };
+            // A second active state models a licensed context without involving license networking.
             states["9876543210"] = new AuthState { AccessToken = "second-token", AccessTokenExpiresAt = DateTimeOffset.MaxValue };
             app.MapGet("/test/token-refresh", async () =>
             {
                 var token = await pool.GetAccessTokenAsync("1234567890");
-                pool.GetState("1234567890").AccessToken = "rotated-token";
+                states["1234567890"] = states["1234567890"] with { AccessToken = "rotated-token" };
                 using var client = app.Services.GetRequiredService<IHttpClientFactory>().CreateClient(clientName);
                 using var request = new HttpRequestMessage(HttpMethod.Get, "/v2/invoices/ksef/number");
                 request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);

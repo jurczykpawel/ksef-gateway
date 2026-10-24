@@ -34,6 +34,8 @@
 
 ### Fixed
 
+- Restore commercial n8n webhook secret fallback for default n8n 2.x/Cloud; prefer environment secrets and document Configuration export exposure.
+
 - Align bilingual invoice examples and landing claims with API contracts; validate documentation DTOs and FA(3) fixtures in tests.
 - Document deployment parameters, troubleshooting, digest-based rollback, secret rotation and backups.
 - Bind chunked JSON bodies on SDK routes, return 400 for invalid JSON or missing required arguments, and limit whole-body binding to a single composite business parameter.

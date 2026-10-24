@@ -9,13 +9,13 @@ const files = ['sellf-ksef', 'sellf-ksef-PL', 'woocommerce-ksef', 'woocommerce-k
 const load = f => JSON.parse(readFileSync(new URL(`../${f}.json`, import.meta.url)));
 const config = {webhookSecret:'secret', defaultVatRate:23, sellerNip:'123', sellerCity:'Warszawa'};
 const woo = {id:123, number:'custom', currency:'PLN', meta_data:[{key:'billing_nip',value:'123'}], billing:{}, line_items:[{name:'Discounted item',quantity:3,subtotal:'15.00',total:'10.00',total_tax:'2.30'}], shipping_lines:[{method_title:'Shipping',total:'5.00',total_tax:'1.15'}], fee_lines:[{name:'Fee',total:'2.00',total_tax:'0.46'}]};
-async function run(d,name,json,{sd={},raw,refs={},env={},runIndex=0}={}) {
+async function run(d,name,json,{sd={},raw,refs={},env={},configuration=config,logs=[],runIndex=0}={}) {
  const n=d.nodes.find(n=>n.name===name);
  assert.ok(n, `node ${name} exists`);
- const lookup = name => ({first:()=>({json:name==='Configuration (EDIT ME)'?config:refs[name]}),item:{json:refs[name]}});
- const fn = new AsyncFunction('$input','$json','$getWorkflowStaticData','$','$env','require','Buffer','Date','$runIndex',n.parameters.jsCode);
+ const lookup = name => ({first:()=>({json:name==='Configuration (EDIT ME)'?configuration:refs[name]}),item:{json:refs[name]}});
+ const fn = new AsyncFunction('$input','$json','$getWorkflowStaticData','$','$env','require','Buffer','Date','$runIndex','console',n.parameters.jsCode);
  class FixedDate extends Date { constructor(...args){super(...(args.length?args:['2026-01-01T00:00:00Z']));} static now(){return 1767225600000;} }
- return (await fn.call({helpers:{getBinaryDataBuffer:async()=>{if(!raw) throw Error('missing raw');return raw;}}},{first:()=>({json,binary:raw?{data:{data:raw.toString('base64')}}:undefined})},json,scope=>{assert.equal(scope,'global');return sd;},lookup,{SELLF_WEBHOOK_SECRET:'secret',WOO_WEBHOOK_SECRET:'secret',...env},require,Buffer,FixedDate,runIndex))[0]?.json;
+ return (await fn.call({helpers:{getBinaryDataBuffer:async()=>{if(!raw) throw Error('missing raw');return raw;}}},{first:()=>({json,binary:raw?{data:{data:raw.toString('base64')}}:undefined})},json,scope=>{assert.equal(scope,'global');return sd;},lookup,env===null?new Proxy({}, {get(){throw Error('env access blocked');}}):{SELLF_WEBHOOK_SECRET:'secret',WOO_WEBHOOK_SECRET:'secret',...env},require,Buffer,FixedDate,runIndex,{warn:message=>logs.push(message)}))[0]?.json;
 }
 for(const f of files){
  const d=load(f), sellf=f.startsWith('sellf');
@@ -34,7 +34,7 @@ for(const f of files){
  });
  test(`${f}: gateway key outside Set and send has no automatic retry`,()=>{
   const assignments=d.nodes.find(n=>n.type.endsWith('.set')).parameters.assignments.assignments;
-  assert.ok(!assignments.some(a=>['gatewayApiKey','webhookSecret'].includes(a.name)));
+  assert.ok(!assignments.some(a=>a.name==='gatewayApiKey'));
   const send=d.nodes.find(n=>n.name==='Send to KSeF Gateway');
   assert.equal(send.parameters.genericAuthType,'httpHeaderAuth');assert.notEqual(send.retryOnFail,true);
  });
@@ -137,7 +137,7 @@ for(const f of files) {
   };
   const raw=Buffer.from('{}');
   assert.equal((await run(d,'Verify Signature',{headers:signature(raw),body:{}})).valid,false);
-  assert.equal((await run(d,'Verify Signature',{headers:signature(raw)},{raw,env:{[sellf?'SELLF_WEBHOOK_SECRET':'WOO_WEBHOOK_SECRET']:''}})).valid,false);
+  assert.equal((await run(d,'Verify Signature',{headers:signature(raw)},{raw,configuration:{...config,webhookSecret:''},env:{[sellf?'SELLF_WEBHOOK_SECRET':'WOO_WEBHOOK_SECRET']:''}})).valid,false);
   const invalid=Buffer.from('{');
   assert.equal((await run(d,'Verify Signature',{headers:signature(invalid)},{raw:invalid})).valid,false);
   if(sellf) assert.equal((await run(d,'Verify Signature',{headers:{'x-sellf-signature':`t=0,v1=${'a'.repeat(64)}`}},{raw})).valid,false);
@@ -179,3 +179,90 @@ for(const f of ['sellf-ksef','sellf-ksef-PL']) test(`${f}: skipped webhook reach
   assert.equal(d.connections[name].main[1][0].node,'Respond Skipped');
  }
 });
+
+for(const f of files) {
+ const d=load(f),sellf=f.startsWith('sellf'),envName=sellf?'SELLF_WEBHOOK_SECRET':'WOO_WEBHOOK_SECRET';
+ const signed=(secret,body={})=>{
+  const raw=Buffer.from(JSON.stringify(body));
+  const sig=createHmac('sha256',secret).update(sellf?Buffer.concat([Buffer.from('1767225600.'),raw]):raw).digest(sellf?'hex':'base64');
+  return {raw,headers:sellf?{'x-sellf-signature':`t=1767225600,v1=${sig}`}:{'x-wc-webhook-signature':sig}};
+ };
+ for(const [mode,env] of [['blocked',null],['undefined',{[envName]:undefined}],['empty',{[envName]:''}]]) {
+  test(`${f}: ${mode} env falls back to Configuration`,async()=>{
+   const {raw,headers}=signed('configuration-secret');
+   const result=await run(d,'Verify Signature',{headers},{raw,env,configuration:{...config,webhookSecret:'configuration-secret'}});
+   assert.equal(result.valid,true);
+   assert.deepEqual(result,{valid:true,body:{}});
+  });
+ }
+ test(`${f}: env takes precedence over Configuration`,async()=>{
+  for(const [secret,expected] of [['env-secret',true],['configuration-secret',false]]) {
+   const {raw,headers}=signed(secret);
+   assert.equal((await run(d,'Verify Signature',{headers},{raw,env:{[envName]:'env-secret'},configuration:{...config,webhookSecret:'configuration-secret'}})).valid,expected);
+  }
+ });
+ test(`${f}: empty, missing and placeholder secrets deny and log without exposing values`,async()=>{
+  for(const secret of ['',undefined,'   ','your-webhook-secret']) {
+   for(const env of [null,{[envName]:secret}]) {
+    const logs=[],{raw,headers}=signed(secret||'unused');
+    assert.equal((await run(d,'Verify Signature',{headers},{raw,env,configuration:{...config,webhookSecret:secret},logs})).valid,false);
+    assert.match(logs.join('\n'),/webhook secret.*missing|webhook secret.*placeholder/i);
+    if(secret?.trim()) assert.ok(!logs.join('\n').includes(secret));
+   }
+  }
+ });
+ test(`${f}: execution saving disabled and Configuration fallback is explicit`,()=>{
+  for(const key of ['saveDataSuccessExecution','saveDataErrorExecution']) assert.equal(d.settings[key],'none');
+  for(const key of ['saveManualExecutions','saveExecutionProgress']) assert.equal(d.settings[key],false);
+  const a=d.nodes.find(n=>n.name==='Configuration (EDIT ME)').parameters.assignments.assignments;
+  assert.equal(a.find(a=>a.name==='webhookSecret')?.value,'your-webhook-secret');
+  const notes=d.nodes.filter(n=>n.type.endsWith('.stickyNote')).map(n=>n.parameters.content).join('\n');
+  assert.match(notes,/N8N_BLOCK_ENV_ACCESS_IN_NODE=false/);
+  assert.match(notes,/webhookSecret/);
+  assert.match(notes,f.endsWith('-PL')?/nie udostępniaj eksportu/i:/do not share workflow exports/i);
+ });
+ test(`${f}: graph after Configuration keeps secrets out of outputs, webhook and gateway request`,async()=>{
+  // Configuration output intentionally contains the fallback secret (coordinator decision).
+  // Exclude only that output; execute actual downstream code and expressions with HTTP stubs.
+  for(const env of [null,{[envName]:'env-secret'}]) for(const badSignature of [false,true]) {
+   const configuration={...config,ksefGatewayUrl:'https://gateway.example',webhookSecret:'configuration-secret'};
+   const body=sellf?{event:'purchase.completed',data:{customer:{email:'test@example.com'},product:{name:'Product'},order:{amount:12300,currency:'pln',sessionId:'session-123'},invoice:{needsInvoice:true,nip:'123'}}}:woo;
+   const {raw,headers}=signed(badSignature?'wrong-secret':env?'env-secret':'configuration-secret',body);
+   const refs={},outputs=[],requests=[],sd={};let name='Verify Signature',json={...configuration,headers,body},posts=0;
+   const lookup=name=>({first:()=>({json:name==='Configuration (EDIT ME)'?configuration:refs[name]})});
+   const evaluate=value=>value?.startsWith('={{')?new Function('$json','$',`return (${value.slice(3,-2).trim()})`)(json,lookup):value;
+   const condition=c=>{
+    const left=evaluate(c.leftValue);
+    switch(c.operator.operation) {
+     case 'true':return left===true;
+     case 'false':return left===false;
+     case 'equals':return left===c.rightValue;
+     case 'notEquals':return left!==c.rightValue;
+     default:assert.fail(c.operator.operation);
+    }
+   };
+   let ended=false;
+   for(let step=0;step<50;step++) {
+    const node=d.nodes.find(n=>n.name===name);assert.ok(node,name);let port=0;
+    if(node.type.endsWith('.code')) json=await run(d,name,json,{sd,refs,raw,env,configuration});
+    else if(node.type.endsWith('.if')) port=node.parameters.conditions.conditions.every(condition)?0:1;
+    else if(node.type.endsWith('.switch')) port=node.parameters.rules.values[0].conditions.conditions.every(condition)?0:1;
+    else if(name==='Wake Gateway') json={status:'ok'};
+    else if(name==='Send to KSeF Gateway') {
+     requests.push({url:evaluate(node.parameters.url),body:evaluate(node.parameters.jsonBody)});posts++;
+     json={statusCode:200,body:{success:true,data:{ksefNumber:'KSEF-123'}}};
+    } else if(node.type.endsWith('.respondToWebhook')) {
+     const response=JSON.parse(evaluate(node.parameters.responseBody));outputs.push(response);
+     assert.equal(node.parameters.options.responseCode,badSignature?401:200);
+     if(!badSignature) assert.equal(response.ksefNumber,'KSEF-123');
+     ended=true;break;
+    } else assert.fail(`Unexpected node ${name}`);
+    refs[name]=json;outputs.push(json);
+    name=d.connections[name]?.main[port]?.[0]?.node;
+   }
+   assert.equal(ended,true);assert.equal(posts,badSignature?0:1);
+   const serialized=JSON.stringify({outputs,requests,sd});
+   for(const secret of ['configuration-secret','env-secret']) assert.ok(!serialized.includes(secret),secret);
+  }
+ });
+}

@@ -614,7 +614,7 @@ Ready-to-import workflows in [`examples/n8n/`](examples/n8n/):
 - **WooCommerce → KSeF** (`woocommerce-ksef.json`) - WooCommerce orders, VAT rate auto-detection, consumer skipping
 - **Receive & Download Invoices** (`receive-invoices.json`) - polls for invoices issued *to* you every 20 minutes, downloads PDFs, checkpointed so nothing gets skipped or re-scanned - see [Receiving Invoices](#receiving-invoices)
 
-Sellf/WooCommerce templates require a Header Auth credential, an environment signing secret and serialized executions. Before activation, read the [configuration and deduplication limits](examples/n8n/README.md#commercial-workflow-safety-sellf-and-woocommerce).
+Sellf/WooCommerce templates require a Header Auth credential, a signing secret (prefer an environment variable, with `webhookSecret` in Configuration as fallback) and serialized executions. A Configuration secret is visible in workflow exports — do not share them. Before activation, read the [configuration and deduplication limits](examples/n8n/README.md#commercial-workflow-safety-sellf-and-woocommerce).
 
 ### Deploy the gateway
 

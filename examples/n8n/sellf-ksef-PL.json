@@ -3,7 +3,7 @@
   "nodes": [
     {
       "parameters": {
-        "content": "## Konfiguracja bez sekretów w Set\nWybierz Header Auth (X-Api-Key) w Send to KSeF Gateway. Ustaw SELLF_WEBHOOK_SECRET / WOO_WEBHOOK_SECRET w środowisku n8n. Przeczytaj README: static data wymaga sekwencyjnych wykonań; awaria procesu wymaga uzgodnienia z KSeF.",
+        "content": "## Konfiguracja\nWybierz credential Header Auth (X-Api-Key) w Send to KSeF Gateway. Przeczytaj README: wykonania muszą być sekwencyjne; awaria procesu wymaga uzgodnienia z KSeF.\n\n## Sekret webhooka\nUstaw SELLF_WEBHOOK_SECRET lub webhookSecret w Configuration (EDIT ME). Zmienna środowiskowa ma pierwszeństwo. W n8n 2.x dostęp do $env jest domyślnie zablokowany.\nSekret w polu webhookSecret jest widoczny w wyniku Configuration i eksporcie workflow. Preferuj zmienną środowiskową (`N8N_BLOCK_ENV_ACCESS_IN_NODE=false`) lub własny credential/węzeł weryfikacji; nie udostępniaj eksportu workflow. Zapis danych wykonań (sukces, błąd, ręczne i postęp) jest wyłączony — sprawdź po imporcie.",
         "height": 720,
         "width": 700,
         "color": 1
@@ -157,6 +157,12 @@
               "name": "defaultVatRate",
               "value": 23,
               "type": "number"
+            },
+            {
+              "id": "webhook-secret",
+              "name": "webhookSecret",
+              "value": "your-webhook-secret",
+              "type": "string"
             }
           ]
         },
@@ -177,7 +183,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const crypto = require('crypto');\nconst item = $input.first();\nconst deny = () => [{ json: { valid: false } }];\nlet secret;\ntry { secret = $env.SELLF_WEBHOOK_SECRET; } catch { return deny(); }\nif (!secret || !item.binary?.data) return deny();\nlet raw;\ntry { raw = await this.helpers.getBinaryDataBuffer(0, 'data'); } catch { return deny(); }\nconst header = item.json.headers?.['x-sellf-signature'];\nif (typeof header !== 'string') return deny();\nconst match = /^t=(\\d+),v1=([a-fA-F0-9]{64})$/.exec(header);\nif (!match || Math.abs(Math.floor(Date.now() / 1000) - Number(match[1])) > 300) return deny();\nconst supplied = Buffer.from(match[2], 'hex');\nconst expected = crypto.createHmac('sha256', secret).update(match[1] + '.').update(raw).digest();\nif (supplied.length !== expected.length || !crypto.timingSafeEqual(supplied, expected)) return deny();\ntry { return [{ json: { valid: true, body: JSON.parse(raw.toString('utf8')) } }]; }\ncatch { return deny(); }\n"
+        "jsCode": "const crypto = require('crypto');\nconst item = $input.first();\nconst deny = () => [{ json: { valid: false } }];\nlet secret;\ntry { secret = $env.SELLF_WEBHOOK_SECRET; } catch { /* n8n 2.x blocks environment access by default. */ }\nif (typeof secret !== 'string' || !secret.trim()) {\n  secret = $('Configuration (EDIT ME)').first().json.webhookSecret;\n}\nif (typeof secret !== 'string' || !secret.trim() || secret.trim() === 'your-webhook-secret') {\n  console.warn('Webhook secret is missing or still a placeholder; configure environment or Configuration (EDIT ME).');\n  return deny();\n}\nif (!item.binary?.data) return deny();\nlet raw;\ntry { raw = await this.helpers.getBinaryDataBuffer(0, 'data'); } catch { return deny(); }\nconst header = item.json.headers?.['x-sellf-signature'];\nif (typeof header !== 'string') return deny();\nconst match = /^t=(\\d+),v1=([a-fA-F0-9]{64})$/.exec(header);\nif (!match || Math.abs(Math.floor(Date.now() / 1000) - Number(match[1])) > 300) return deny();\nconst supplied = Buffer.from(match[2], 'hex');\nconst expected = crypto.createHmac('sha256', secret).update(match[1] + '.').update(raw).digest();\nif (supplied.length !== expected.length || !crypto.timingSafeEqual(supplied, expected)) return deny();\ntry { return [{ json: { valid: true, body: JSON.parse(raw.toString('utf8')) } }]; }\ncatch { return deny(); }\n"
       },
       "id": "code-verify",
       "name": "Verify Signature",

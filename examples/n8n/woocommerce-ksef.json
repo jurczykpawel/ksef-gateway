@@ -3,7 +3,7 @@
   "nodes": [
     {
       "parameters": {
-        "content": "## Setup\nSelect Header Auth (X-Api-Key) in Send to KSeF Gateway. Set SELLF_WEBHOOK_SECRET / WOO_WEBHOOK_SECRET in the n8n environment. Read README: static data requires serialized executions; process crashes require reconciliation with KSeF.",
+        "content": "## Setup\nSelect Header Auth (X-Api-Key) in Send to KSeF Gateway. Read README: static data requires serialized executions; process crashes require reconciliation with KSeF.\n\n## Webhook secret\nSet WOO_WEBHOOK_SECRET or webhookSecret in Configuration (EDIT ME). Environment takes precedence. n8n 2.x blocks $env access by default.\nThe secret in webhookSecret is visible in Configuration output and workflow exports. Prefer an environment variable (`N8N_BLOCK_ENV_ACCESS_IN_NODE=false`) or your own credential/verification node; do not share workflow exports. Execution saving (success, error, manual and progress) is disabled — check after import.",
         "height": 720,
         "width": 700,
         "color": 1
@@ -134,6 +134,12 @@
               "name": "sellerCity",
               "value": "00-001 Warszawa",
               "type": "string"
+            },
+            {
+              "id": "webhook-secret",
+              "name": "webhookSecret",
+              "value": "your-webhook-secret",
+              "type": "string"
             }
           ]
         },
@@ -154,7 +160,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const crypto = require('crypto');\nconst item = $input.first();\nconst deny = () => [{ json: { valid: false } }];\nlet secret;\ntry { secret = $env.WOO_WEBHOOK_SECRET; } catch { return deny(); }\nif (!secret || !item.binary?.data) return deny();\nlet raw;\ntry { raw = await this.helpers.getBinaryDataBuffer(0, 'data'); } catch { return deny(); }\nconst header = item.json.headers?.['x-wc-webhook-signature'];\nif (typeof header !== 'string') return deny();\nif (!/^[A-Za-z0-9+/]{43}=$/.test(header)) return deny();\nconst supplied = Buffer.from(header, 'base64');\nif (supplied.toString('base64') !== header) return deny();\nconst expected = crypto.createHmac('sha256', secret).update(raw).digest();\nif (supplied.length !== expected.length || !crypto.timingSafeEqual(supplied, expected)) return deny();\ntry { return [{ json: { valid: true, body: JSON.parse(raw.toString('utf8')) } }]; }\ncatch { return deny(); }\n"
+        "jsCode": "const crypto = require('crypto');\nconst item = $input.first();\nconst deny = () => [{ json: { valid: false } }];\nlet secret;\ntry { secret = $env.WOO_WEBHOOK_SECRET; } catch { /* n8n 2.x blocks environment access by default. */ }\nif (typeof secret !== 'string' || !secret.trim()) {\n  secret = $('Configuration (EDIT ME)').first().json.webhookSecret;\n}\nif (typeof secret !== 'string' || !secret.trim() || secret.trim() === 'your-webhook-secret') {\n  console.warn('Webhook secret is missing or still a placeholder; configure environment or Configuration (EDIT ME).');\n  return deny();\n}\nif (!item.binary?.data) return deny();\nlet raw;\ntry { raw = await this.helpers.getBinaryDataBuffer(0, 'data'); } catch { return deny(); }\nconst header = item.json.headers?.['x-wc-webhook-signature'];\nif (typeof header !== 'string') return deny();\nif (!/^[A-Za-z0-9+/]{43}=$/.test(header)) return deny();\nconst supplied = Buffer.from(header, 'base64');\nif (supplied.toString('base64') !== header) return deny();\nconst expected = crypto.createHmac('sha256', secret).update(raw).digest();\nif (supplied.length !== expected.length || !crypto.timingSafeEqual(supplied, expected)) return deny();\ntry { return [{ json: { valid: true, body: JSON.parse(raw.toString('utf8')) } }]; }\ncatch { return deny(); }\n"
       },
       "id": "code-verify",
       "name": "Verify Signature",

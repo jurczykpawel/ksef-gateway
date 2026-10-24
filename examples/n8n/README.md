@@ -63,13 +63,13 @@ For finding out what's been issued *to* you - KSeF has no email/webhook notifica
 2. **Edit the "Configuration (EDIT ME)" node** - fill in:
    - `ksefGatewayUrl` - your KSeF Gateway base URL
    - `sellerNip`, `sellerName`, `sellerStreet`, `sellerCity` - your company's invoicing details
-3. **Configure secrets and serialization** as described in **Commercial workflow safety** below, then restart n8n
+3. **Configure secrets and serialization** as described in **Commercial workflow safety** below (restart n8n only when changing environment settings)
 4. In WooCommerce, add a custom checkout field storing the buyer's NIP as order meta `_billing_nip` (or `billing_nip`)
 5. **Configure the WooCommerce webhook:**
    - WooCommerce → Settings → Advanced → Webhooks → Add Webhook
    - Topic: `Order completed`
    - Delivery URL: this workflow's Production URL (Webhook node)
-   - Secret: the same value as the n8n `WOO_WEBHOOK_SECRET` environment variable
+   - Secret: the same value as `WOO_WEBHOOK_SECRET` or the Configuration `webhookSecret` fallback
 6. **Activate the workflow** in n8n
 
 ### NIP detection
@@ -107,7 +107,7 @@ scheduled sync there, so edit them here only.
 2. **Edit the "Configuration (EDIT ME)" node** - fill in:
    - `ksefGatewayUrl` - your KSeF Gateway base URL
    - `sellerNip`, `sellerName`, `sellerStreet`, `sellerCity`, `defaultVatRate` - your company's invoicing details
-3. **Configure secrets and serialization** as described in **Commercial workflow safety** below, then restart n8n
+3. **Configure secrets and serialization** as described in **Commercial workflow safety** below (restart n8n only when changing environment settings)
 4. **Configure the Sellf webhook** - Sellf admin → Settings → Webhooks:
    - URL: this workflow's Production URL (Webhook node)
    - Event: `purchase.completed`
@@ -123,7 +123,14 @@ scheduled sync there, so edit them here only.
 
 Before activation, configure **Header Auth** with name `X-Api-Key` and value equal to `GATEWAY_API_KEY`; select this credential on **Send to KSeF Gateway**. No gateway key belongs in Configuration or exported workflow JSON.
 
-The Code node cannot access Header Auth credentials directly. These templates therefore read the signing secret **only inside Verify Signature**, from `$env.SELLF_WEBHOOK_SECRET` or `$env.WOO_WEBHOOK_SECRET`. They never return it as execution data. This requires self-hosted n8n with environment access permitted (`N8N_BLOCK_ENV_ACCESS_IN_NODE=false` where applicable) and `NODE_FUNCTION_ALLOW_BUILTIN=crypto` on the execution runtime/task runner. Only trusted workflow editors should have this access. Missing/blocked environment access denies the webhook (401). n8n Cloud installations without environment access need a separate supported signature-verification service/custom node; do not copy secrets into Set or `$vars` as a workaround. Successful/error execution saving, manual saving and execution progress saving are disabled in the templates; inspect these settings after import.
+The Code node cannot access Header Auth credentials directly. **Verify Signature** selects the signing secret in this order:
+
+1. `$env.SELLF_WEBHOOK_SECRET` or `$env.WOO_WEBHOOK_SECRET`, when access is allowed and the value is nonempty.
+2. Otherwise, `webhookSecret` in **Configuration (EDIT ME)**. Replace `your-webhook-secret` with the same secret configured at the webhook provider. This fallback works with blocked environment access, including n8n Cloud.
+
+[n8n 2.x blocks environment access in Code nodes by default](https://docs.n8n.io/changelog/v20-breaking-changes/#block-environment-variable-access-from-code-node-by-default). Setting `N8N_BLOCK_ENV_ACCESS_IN_NODE=false` is optional, for self-hosted installations choosing environment secrets; only trusted workflow editors should have this access. Self-hosted execution runtimes/task runners also need `NODE_FUNCTION_ALLOW_BUILTIN=crypto` and a restart after environment changes. Empty/missing secrets and the shipped placeholder deny the webhook (401) with a configuration warning that does not print the secret. A nonempty environment value takes precedence even if it is a placeholder (which is rejected).
+
+**Fallback tradeoff:** the secret in the Configuration field appears in that node's output and in workflow exports. Prefer an environment variable or your own credential-backed verification node; **do not share workflow exports containing a secret**. The template reads the fallback only inside Verify Signature and does not copy it to later node outputs, webhook responses or gateway requests. Successful/error execution saving, manual saving and execution progress saving are disabled in the templates; inspect these settings after import. Disabling execution saving does not remove the secret from the workflow definition or its Configuration output during a run.
 
 Webhook **Raw Body** stays enabled, and Configuration preserves binary data. Verification uses `this.helpers.getBinaryDataBuffer(0, 'data')`, supporting n8n-managed binary storage. Missing raw bytes, invalid JSON, malformed hex/base64, wrong HMAC or an expired Sellf timestamp deny with 401. There is no JSON reserialization fallback. See the [official binary helper documentation](https://docs.n8n.io/code/cookbook/code-node/get-binary-data-buffer/) and [environment variable access reference](https://docs.n8n.io/code/builtin/n8n-metadata/).
 

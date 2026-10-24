@@ -19,18 +19,13 @@ if (isLambda)
 builder.Configuration.AddEnvironmentVariables();
 
 // Determine KSeF environment
-var ksefEnv = builder.Configuration["KSEF_ENV"] ?? "TEST";
-var baseUrl = ksefEnv.ToUpperInvariant() switch
-{
-    "PRODUCTION" or "PRD" => "https://api.ksef.mf.gov.pl",
-    "DEMO" => "https://api-demo.ksef.mf.gov.pl",
-    _ => "https://api-test.ksef.mf.gov.pl"
-};
+var ksefEnv = KsefEnvironment.Parse(builder.Configuration["KSEF_ENV"]);
+builder.Services.AddSingleton(ksefEnv);
 
 // Register CIRFMF KSeF SDK
 builder.Services.AddKSeFClient(options =>
 {
-    options.BaseUrl = baseUrl;
+    options.BaseUrl = ksefEnv.BaseUrl;
 });
 builder.Services.AddCryptographyClient();
 

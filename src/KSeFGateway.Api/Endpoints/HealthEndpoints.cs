@@ -12,13 +12,13 @@ public static class HealthEndpoints
         app.MapGet("/health", (
             [FromServices] TokenPool pool,
             [FromServices] ContextProvider ctxProvider,
-            [FromServices] IConfiguration config) =>
+            [FromServices] KsefEnvironment environment) =>
         {
             var defaultState = pool.GetDefaultState();
             return Results.Json(new HealthResponse(
                 Status: "ok",
                 DiscoveredEndpoints: discoveredCount,
-                KsefEnvironment: config["KSEF_ENV"] ?? "TEST",
+                KsefEnvironment: environment.Name,
                 Authenticated: defaultState.IsAuthenticated,
                 TokenExpiresAt: defaultState.AccessTokenExpiresAt
             ));
@@ -31,7 +31,7 @@ public static class HealthEndpoints
             [FromServices] TokenPool pool,
             [FromServices] ContextProvider ctxProvider,
             [FromServices] LicenseService licenseService,
-            [FromServices] IConfiguration config) =>
+            [FromServices] KsefEnvironment environment) =>
         {
             var allStates = pool.GetAllStates();
             var contexts = ctxProvider.GetAll().Select(c =>
@@ -50,7 +50,7 @@ public static class HealthEndpoints
             return Results.Json(ApiResponse.Ok(new
             {
                 mode = ctxProvider.IsMultiNip ? "multi-nip" : "single-nip",
-                environment = config["KSEF_ENV"] ?? "TEST",
+                environment = environment.Name,
                 contexts,
                 license = new
                 {

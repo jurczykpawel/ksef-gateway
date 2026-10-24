@@ -713,7 +713,7 @@ A context needs exactly one of: `token`, `certificatePath` + `privateKeyPath`, o
 | `KSEF_KEY_CONTENT` | Yes* | - | Private key as raw PEM content - required alongside `KSEF_CERT_CONTENT` |
 | `KSEF_KEY_PASSWORD` | No | - | Password for the private key, if it's encrypted (works with either path or content form) |
 | `KSEF_NIP` | Yes | - | NIP for authentication context |
-| `KSEF_ENV` | No | `TEST` | API and PDF environment: `TEST`, `DEMO`, `PRODUCTION` (alias `PRD`); case-insensitive |
+| `KSEF_ENV` | No | `TEST` | API and PDF environment: `TEST`, `DEMO`, `PRODUCTION` (aliases: `PRD`, `PROD`). Case and surrounding whitespace are ignored; an empty value means `TEST`. An unknown value stops gateway startup. |
 | `KSEF_API_PORT` | No | `8080` | Gateway API port |
 | `KSEF_QR_URL` | No | Derived from `KSEF_ENV` | QR verification base URL: TEST → `https://qr-test.ksef.mf.gov.pl`, DEMO → `https://qr-demo.ksef.mf.gov.pl`, PRODUCTION/PRD → `https://qr.ksef.mf.gov.pl`. An explicit value in the PDF service takes precedence; missing/unknown environment → TEST (unknown: one-time warning). |
 | `GITHUB_PAT` | Build | - | GitHub PAT with `read:packages` for CIRFMF SDK |

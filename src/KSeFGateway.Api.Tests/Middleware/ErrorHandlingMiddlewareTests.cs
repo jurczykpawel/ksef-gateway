@@ -26,6 +26,13 @@ public class ErrorHandlingMiddlewareTests
     }
 
     [Fact]
+    public async Task Cancellation_PropagatesWithoutWriting500()
+    {
+        var error = new OperationCanceledException();
+        Assert.Same(error, await Assert.ThrowsAsync<OperationCanceledException>(() => Invoke(_ => throw error)));
+    }
+
+    [Fact]
     public async Task RateLimitException_Returns429WithRetryAfter()
     {
         var (statusCode, retryAfter, body) = await Invoke(_ =>

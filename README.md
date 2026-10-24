@@ -431,6 +431,8 @@ curl -X POST http://localhost:8080/ksef/send/json \
 }
 ```
 
+Wysyłka (`/ksef/send`, `/ksef/send/json`, `/ksef/invoice`) odpytuje status co 2 sekundy przez maksymalnie 60 sekund. Kody 100/150 oznaczają dalsze przetwarzanie; sukces wymaga kodu 200 i numeru KSeF. Odrzucenie zwraca 502 z kodem i opisem w `error`. Timeout zwraca 502 ze stanem nieznanym — sprawdź status przed ponowną wysyłką, aby uniknąć duplikatu.
+
 ### Odpowiedzi błędów
 
 Każdy endpoint zwraca ten sam kształt przy błędzie: `{"success": false, "data": null, "error": "..."}`. Kod statusu HTTP mówi, czy ponowić próbę i jak:

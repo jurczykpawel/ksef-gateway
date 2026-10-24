@@ -50,6 +50,10 @@ public class ErrorHandlingMiddleware
 
             await WriteResponse(context, ApiResponse.Fail(ex.Message));
         }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Unhandled exception");

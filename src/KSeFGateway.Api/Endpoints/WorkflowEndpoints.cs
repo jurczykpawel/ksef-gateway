@@ -231,7 +231,9 @@ public static class WorkflowEndpoints
         IKSeFClient ksefClient,
         ICryptographyService cryptoService,
         ILogger logger,
-        CancellationToken ct)
+        CancellationToken ct,
+        TimeProvider? timeProvider = null,
+        Func<TimeSpan, CancellationToken, Task>? delay = null)
     {
         return await EndpointErrorHandling.Guard(async () =>
         {
@@ -243,67 +245,102 @@ public static class WorkflowEndpoints
                 .WithFormCode(systemCode: "FA (3)", schemaVersion: "1-0E", value: "FA")
                 .WithEncryption(
                     encryptedSymmetricKey: encryptionData.EncryptionInfo.EncryptedSymmetricKey,
-                    initializationVector: encryptionData.EncryptionInfo.InitializationVector)
+                    initializationVector: encryptionData.EncryptionInfo.InitializationVector,
+                    publicKeyId: encryptionData.EncryptionInfo.PublicKeyId)
                 .Build();
 
-            var session = await ksefClient.OpenOnlineSessionAsync(openReq, accessToken);
+            var session = await ksefClient.OpenOnlineSessionAsync(openReq, accessToken, cancellationToken: ct);
             logger.LogInformation("Session opened: {Ref}", session.ReferenceNumber);
 
-            var encrypted = cryptoService.EncryptBytesWithAES256(
-                invoiceBytes, encryptionData.CipherKey, encryptionData.CipherIv);
-            var invoiceMeta = cryptoService.GetMetaData(invoiceBytes);
-            var encryptedMeta = cryptoService.GetMetaData(encrypted);
-
-            var sendReq = SendInvoiceOnlineSessionRequestBuilder
-                .Create()
-                .WithInvoiceHash(invoiceMeta.HashSHA, invoiceMeta.FileSize)
-                .WithEncryptedDocumentHash(encryptedMeta.HashSHA, encryptedMeta.FileSize)
-                .WithEncryptedDocumentContent(Convert.ToBase64String(encrypted))
-                .Build();
-
-            var sendResult = await ksefClient.SendOnlineSessionInvoiceAsync(
-                sendReq, session.ReferenceNumber, accessToken);
-
-            await ksefClient.CloseOnlineSessionAsync(session.ReferenceNumber, accessToken);
-
-            string? ksefNumber = null;
-            string? statusDescription = null;
-            for (int i = 0; i < 30; i++)
+            try
             {
-                await Task.Delay(2000, ct);
+                var encrypted = cryptoService.EncryptBytesWithAES256(
+                    invoiceBytes, encryptionData.CipherKey, encryptionData.CipherIv);
+                var invoiceMeta = cryptoService.GetMetaData(invoiceBytes);
+                var encryptedMeta = cryptoService.GetMetaData(encrypted);
+
+                var sendReq = SendInvoiceOnlineSessionRequestBuilder
+                    .Create()
+                    .WithInvoiceHash(invoiceMeta.HashSHA, invoiceMeta.FileSize)
+                    .WithEncryptedDocumentHash(encryptedMeta.HashSHA, encryptedMeta.FileSize)
+                    .WithEncryptedDocumentContent(Convert.ToBase64String(encrypted))
+                    .Build();
+
+                var sendResult = await ksefClient.SendOnlineSessionInvoiceAsync(
+                    sendReq, session.ReferenceNumber, accessToken, ct);
+
+                timeProvider ??= TimeProvider.System;
+                delay ??= (duration, token) => Task.Delay(duration, timeProvider, token);
+                var timeout = TimeSpan.FromSeconds(60);
+                var started = timeProvider.GetTimestamp();
+                using var deadline = new CancellationTokenSource(timeout, timeProvider);
+                using var polling = CancellationTokenSource.CreateLinkedTokenSource(ct, deadline.Token);
                 try
                 {
-                    var invoiceStatus = await ksefClient.GetSessionInvoiceAsync(
-                        session.ReferenceNumber, sendResult.ReferenceNumber, accessToken);
-                    statusDescription = invoiceStatus?.Status?.Description;
-                    if (invoiceStatus?.KsefNumber is not null)
+                    while (true)
                     {
-                        ksefNumber = invoiceStatus.KsefNumber;
-                        break;
+                        var remaining = timeout - timeProvider.GetElapsedTime(started);
+                        if (remaining <= TimeSpan.Zero)
+                            break;
+                        await delay(remaining < TimeSpan.FromSeconds(2) ? remaining : TimeSpan.FromSeconds(2), polling.Token);
+                        if (timeProvider.GetElapsedTime(started) >= timeout)
+                            break;
+
+                        var invoiceStatus = await ksefClient.GetSessionInvoiceAsync(
+                            session.ReferenceNumber, sendResult.ReferenceNumber, accessToken, polling.Token);
+                        ct.ThrowIfCancellationRequested();
+                        if (timeProvider.GetElapsedTime(started) >= timeout)
+                            break;
+
+                        // Invoice status codes, not session status codes:
+                        // KSeF OpenAPI: SessionInvoiceStatusResponse.status.
+                        switch (invoiceStatus?.Status?.Code)
+                        {
+                            case null:
+                            case 100: // Accepted for processing
+                            case 150: // Processing
+                                continue;
+                            case 200:
+                                if (string.IsNullOrWhiteSpace(invoiceStatus.KsefNumber))
+                                    continue;
+                                return Results.Json(ApiResponse.Ok(new
+                                {
+                                    ksefNumber = invoiceStatus.KsefNumber,
+                                    status = "accepted",
+                                    statusDescription = invoiceStatus.Status.Description,
+                                    sessionReferenceNumber = session.ReferenceNumber,
+                                    invoiceReferenceNumber = sendResult.ReferenceNumber
+                                }));
+                            default:
+                                // Includes documented failures (405, 410, 415, 430, 435,
+                                // 440, 450, 500, 550) and fails closed for unknown codes.
+                                return Results.Json(ApiResponse.Fail(
+                                    $"KSeF rejected invoice (status {invoiceStatus.Status.Code}): {invoiceStatus.Status.Description}"),
+                                    statusCode: 502);
+                        }
                     }
-                    // KSeF returned a status with an error description - invoice rejected
-                    if (statusDescription is not null)
-                        break;
                 }
-                catch (KSeF.Client.Core.Exceptions.KsefRateLimitException) { throw; }
-                catch { }
-            }
+                catch (OperationCanceledException) when (deadline.IsCancellationRequested && !ct.IsCancellationRequested)
+                {
+                    // Only our polling deadline becomes a timeout response. Caller cancellation propagates.
+                }
 
-            if (ksefNumber is null)
-            {
-                var reason = statusDescription ?? "KSeF did not assign a reference number within the timeout period.";
-                logger.LogWarning("Invoice rejected or timed out: {Reason}", reason);
-                return Results.Json(ApiResponse.Fail($"KSeF rejected invoice: {reason}"), statusCode: 502);
+                ct.ThrowIfCancellationRequested();
+                return Results.Json(ApiResponse.Fail(
+                    "KSeF invoice status timeout after 60 seconds; acceptance is unknown. Check status before resending."),
+                    statusCode: 502);
             }
-
-            return Results.Json(ApiResponse.Ok(new
+            finally
             {
-                ksefNumber,
-                status = "accepted",
-                statusDescription,
-                sessionReferenceNumber = session.ReferenceNumber,
-                invoiceReferenceNumber = sendResult.ReferenceNumber
-            }));
+                try
+                {
+                    await ksefClient.CloseOnlineSessionAsync(session.ReferenceNumber, accessToken, ct);
+                }
+                catch (Exception ex)
+                {
+                    logger.LogWarning(ex, "Could not close KSeF session {Ref}", session.ReferenceNumber);
+                }
+            }
         }, logger, "Invoice send failed");
     }
 }

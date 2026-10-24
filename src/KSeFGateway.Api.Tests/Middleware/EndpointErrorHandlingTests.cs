@@ -7,6 +7,14 @@ namespace KSeFGateway.Api.Tests.Middleware;
 public class EndpointErrorHandlingTests
 {
     [Fact]
+    public async Task Guard_Cancellation_Propagates()
+    {
+        var error = new OperationCanceledException();
+        Assert.Same(error, await Assert.ThrowsAsync<OperationCanceledException>(() =>
+            EndpointErrorHandling.Guard(() => throw error)));
+    }
+
+    [Fact]
     public async Task Guard_ActionSucceeds_ReturnsItsResult()
     {
         var result = await EndpointErrorHandling.Guard(() => Task.FromResult(Results.Ok("done")));

@@ -379,6 +379,8 @@ curl -X POST http://localhost:8080/ksef/send/json \
 }
 ```
 
+Sending (`/ksef/send`, `/ksef/send/json`, `/ksef/invoice`) polls status every 2 seconds for up to 60 seconds. Codes 100/150 mean processing; success requires code 200 and a KSeF number. Rejection returns 502 with the code and description in `error`. A timeout returns 502 with acceptance unknown — check status before resending to avoid a duplicate.
+
 ### Error responses
 
 Every endpoint returns the same shape on failure: `{"success": false, "data": null, "error": "..."}`. The HTTP status code tells you whether to retry and how:

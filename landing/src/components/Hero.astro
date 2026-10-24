@@ -73,6 +73,7 @@ const DEMO_URL = "#live-demo";
             <span class="terminal-dot bg-[#27c93f]"></span>
             <span class="ml-2 text-xs text-[var(--color-faint)]">faktura.sh</span>
           </div>
+          <p class="text-xs text-[var(--color-faint)] mb-2">Schemat skrócony — pełny DTO i curl w README</p>
           <div class="p-5 text-sm font-mono" id="hero-request"></div>
           <div class="border-t border-[var(--color-line-strong)] px-5 py-4">
             <div class="text-xs text-[var(--color-faint)] mb-2">Odpowiedź</div>
@@ -113,9 +114,9 @@ const DEMO_URL = "#live-demo";
     [`<span class="text-[var(--color-faint)] select-none">$</span>`, "mb-1"],
     [`${c("curl")} ${m("-X POST https://twoj-serwer/ksef/invoice \\")}`],
     [`${m("-H ")}${v('"Content-Type: application/json"')} ${m("\\")}`, "pl-4"],
-    [`${m("-d '")}${m("{")}${k('"sprzedawca"')}${m(":")}${m("{")}${k('"nip"')}${m(":")}${v('"1234567890"')}${m("...}")}${m(",")}`, "pl-4"],
-    [`${k('"nabywca"')}${m(":")}${m("{")}${k('"nip"')}${m(":")}${v('"0987654321"')}${m("...}")}${m(",")}`, "pl-8"],
-    [`${k('"pozycje"')}${m(": [")}${m("{")}${k('"nazwa"')}${m(":")}${v('"Usługa"')}${m(",")}${k('"cenaNetto"')}${m(":")}${a("150")}${m("...}]'")}`, "pl-8"],
+    [`${m("-d '")}${m("{")}${k('"seller"')}${m(":")}${m("{")}${k('"nip"')}${m(":")}${v('"1234567890"')}${m("...}")}${m(",")}`, "pl-4"],
+    [`${k('"buyer"')}${m(":")}${m("{")}${k('"nip"')}${m(":")}${v('"0987654321"')}${m("...}")}${m(",")}`, "pl-8"],
+    [`${k('"items"')}${m(": [")}${m("{")}${k('"name"')}${m(":")}${v('"Usługa"')}${m(",")}${k('"unitPrice"')}${m(":")}${a("150")}${m("...}]'")}`, "pl-8"],
   ];
 
   const req = document.getElementById("hero-request");
@@ -126,9 +127,9 @@ const DEMO_URL = "#live-demo";
   const RESPONSE_START = REQUEST_START + requestLines.length * LINE_STEP + 0.25;
   const responseLines = [
     [`${m("{")}`],
-    [`${k('"sukces"')}${m(": ")}${a("true")}${m(",")}`, "pl-4"],
-    [`${k('"dane"')}${m(": {")}`, "pl-4"],
-    [`${k('"numerKSeF"')}${m(": ")}<span class="ksef-flash" style="animation-delay: 2.75s">${v('"1234567890-20260326-5EC118-05"')}</span>`, "pl-8"],
+    [`${k('"success"')}${m(": ")}${a("true")}${m(",")}`, "pl-4"],
+    [`${k('"data"')}${m(": {")}`, "pl-4"],
+    [`${k('"ksefNumber"')}${m(": ")}<span class="ksef-flash" style="animation-delay: 2.75s">${v('"1234567890-20260326-5EC118-05"')}</span>`, "pl-8"],
     [`${m("}")}`, "pl-4"],
     [`${m("}")}<span class="cursor-blink" aria-hidden="true"></span>`],
   ];

@@ -26,6 +26,8 @@
 
 ### Fixed
 
+- Align bilingual invoice examples and landing claims with API contracts; validate documentation DTOs and FA(3) fixtures in tests.
+- Document deployment parameters, troubleshooting, digest-based rollback, secret rotation and backups.
 - Bind chunked JSON bodies on SDK routes, return 400 for invalid JSON or missing required arguments, and limit whole-body binding to a single composite business parameter.
 - Validate friendly invoice fields before KSeF calls; dispose PDF HTTP resources, propagate cancellation, bound upstream time to 60 seconds by default and limit concurrent PDF renders.
 - Preserve full order IDs, convert Sellf gross to net, and include WooCommerce shipping/fees without premature unit-price rounding; add offline n8n tests to CI.

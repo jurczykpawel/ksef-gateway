@@ -13,22 +13,37 @@ Thanks for your interest in contributing!
 ### Running locally
 
 ```bash
+git submodule update --init --recursive
 cp .env.example .env
-# Set GITHUB_PAT in .env
-docker-compose up --build
+# Set GITHUB_PAT and mandatory GATEWAY_API_KEY in .env (generate: openssl rand -hex 32).
+# Configure a KSeF TEST token + NIP OR a TEST certificate + private key + NIP.
+# Generate disposable TEST credentials if needed:
+docker compose --profile tools run --rm token-generator
+# Copy the generated token/NIP into .env; cert-generator is the certificate alternative.
+docker compose up --build
 ```
 
-API at `http://localhost:8080`, docs at `http://localhost:8080/scalar/v1`.
+API at `http://localhost:8080`, docs at `http://localhost:8080/scalar/v1`. All routes except `/health` require `X-Api-Key` matching `GATEWAY_API_KEY`. Do not commit `.env`, certificates or keys.
 
 ### Running tests
 
 ```bash
 # .NET unit tests (no local SDK required)
-docker compose run --rm ksef-api-tests
+docker compose --env-file .env --profile tools run --rm --build ksef-api-tests
 
 # PDF service
-cd pdf-service && npm test
+(cd pdf-service && npm ci && npx vitest run && npx tsc --noEmit)
+
+# Landing
+(cd landing && npm ci && npm run build)
+
+# Full integration suite: starts/reuses localhost:8080 and sends invoices to KSeF TEST
+./scripts/test-full.sh
 ```
+
+The unfiltered PDF `tsc --noEmit` currently reports diagnostics from the upstream `lib/` submodule and `TS6059` (files outside `rootDir`). CI and the typecheck hook filter those diagnostics; a full typecheck failure must not be reported as a clean result.
+
+Install hooks with `pre-commit install && pre-commit install --hook-type pre-push`. The pre-commit hook runs .NET unit tests in Docker for C# changes and PDF checks for PDF changes; Docker and `.env` must be available. The pre-push hook runs `scripts/test-full.sh` against KSeF TEST. Unit tests exclude `Category=Integration`; CI also runs a separate integration job with fresh TEST credentials.
 
 ## Making Changes
 

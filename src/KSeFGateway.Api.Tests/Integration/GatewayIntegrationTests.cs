@@ -11,11 +11,11 @@ namespace KSeFGateway.Api.Tests.Integration;
 /// <summary>
 /// Integration tests against a running KSeF Gateway (localhost:8080).
 /// Requires gateway running with a valid KSEF_TOKEN + KSEF_NIP, and GATEWAY_API_KEY set to the
-/// same value the gateway itself was started with (falls back to no header if unset, which
-/// only works against a gateway that also has no GATEWAY_API_KEY configured).
+/// same value the gateway itself was started with (missing header returns 401; an unconfigured
+/// gateway returns 503). A certificate can replace KSEF_TOKEN.
 ///
 /// Run: dotnet test --filter Category=Integration
-/// Not run in CI (no token available).
+/// Run in the CI integration job with a generated KSeF TEST token.
 /// </summary>
 [Trait("Category", "Integration")]
 public class GatewayIntegrationTests

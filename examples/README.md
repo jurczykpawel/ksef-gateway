@@ -1,6 +1,8 @@
 # Examples
 
-Three ways to send the same invoice to KSeF. All produce the same result.
+Three representations of one shared invoice fixture. Each uses a different input contract.
+
+Run from the repository root. Export `GATEWAY_API_KEY` matching the gateway, and set `KSEF_NIP`. Replace the demo NIP `3202004132` in all fixtures with your context NIP and update party details, dates and invoice number before sending. The simple DTO is the shared documentation fixture; the other files encode the same invoice in FA(3). Send each representation with a distinct invoice number to avoid duplicates.
 
 ## Setup
 
@@ -8,7 +10,7 @@ Three ways to send the same invoice to KSeF. All produce the same result.
 # 1. Start gateway
 docker compose up
 
-# 2. Replace SELLER_NIP in example files with your NIP from .env
+# 2. Replace demo NIP 3202004132 in example files with your NIP from .env
 # Or just run the test script which does it automatically:
 KSEF_NIP=3270165758 ./examples/test.sh
 ```
@@ -18,9 +20,9 @@ KSEF_NIP=3270165758 ./examples/test.sh
 Full control. You provide complete FA(3) XML.
 
 ```bash
-curl -X POST http://localhost:8080/ksef/send \
+curl -H "X-Api-Key: $GATEWAY_API_KEY" -X POST http://localhost:8080/ksef/send \
   -H "Content-Type: application/xml" \
-  -d @examples/invoice.xml
+  --data-binary @examples/invoice.xml
 ```
 
 **File:** [invoice.xml](invoice.xml)
@@ -29,10 +31,10 @@ curl -X POST http://localhost:8080/ksef/send \
 
 ## Option 2: JSON - xml-js format (`POST /ksef/send/json`)
 
-JSON structure mirrors XML 1:1. Zero-maintenance format - when FA(3) XSD changes, JSON structure changes automatically. No mapping code to maintain.
+JSON structure mirrors XML 1:1. When FA(3) XSD changes, adapt the input data and validate the generated XML.
 
 ```bash
-curl -X POST http://localhost:8080/ksef/send/json \
+curl -H "X-Api-Key: $GATEWAY_API_KEY" -X POST http://localhost:8080/ksef/send/json \
   -H "Content-Type: application/json" \
   -d @examples/invoice.json
 ```
@@ -46,7 +48,7 @@ curl -X POST http://localhost:8080/ksef/send/json \
 Intuitive structure with auto-calculated totals. Gateway builds the XML for you.
 
 ```bash
-curl -X POST http://localhost:8080/ksef/invoice \
+curl -H "X-Api-Key: $GATEWAY_API_KEY" -X POST http://localhost:8080/ksef/invoice \
   -H "Content-Type: application/json" \
   -d @examples/invoice-simple.json
 ```
@@ -85,10 +87,10 @@ All three endpoints return the same response:
 
 ```bash
 # Download invoice XML from KSeF
-curl http://localhost:8080/ksef/invoice/{ksefNumber}
+curl -H "X-Api-Key: $GATEWAY_API_KEY" "http://localhost:8080/ksef/invoice/$KSEF_NUMBER"
 
 # Download PDF with QR code (one call)
-curl -o faktura.pdf http://localhost:8080/ksef/invoice/{ksefNumber}/pdf
+curl -H "X-Api-Key: $GATEWAY_API_KEY" -o faktura.pdf "http://localhost:8080/ksef/invoice/$KSEF_NUMBER/pdf"
 ```
 
 ## Multi-NIP
@@ -96,20 +98,20 @@ curl -o faktura.pdf http://localhost:8080/ksef/invoice/{ksefNumber}/pdf
 If you manage multiple firms, the gateway auto-selects the context by seller NIP from the invoice. Or set it explicitly:
 
 ```bash
-curl -X POST http://localhost:8080/ksef/send \
+curl -H "X-Api-Key: $GATEWAY_API_KEY" -X POST http://localhost:8080/ksef/send \
   -H "Content-Type: application/xml" \
-  -H "X-KSeF-NIP: 1234567890" \
-  -d @invoice.xml
+  -H "X-KSeF-NIP: $KSEF_NIP" \
+  --data-binary @examples/invoice.xml
 ```
 
 List configured contexts:
 ```bash
-curl http://localhost:8080/ksef/contexts
+curl -H "X-Api-Key: $GATEWAY_API_KEY" http://localhost:8080/ksef/contexts
 ```
 
 ## Test script
 
-Runs all examples end-to-end:
+Runs all examples end-to-end, assigning distinct invoice numbers for XML, xml-js and DTO sends:
 
 ```bash
 KSEF_NIP=3270165758 ./examples/test.sh

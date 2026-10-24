@@ -51,7 +51,7 @@ const RENDER_URL = "https://render.com/deploy?repo=https://github.com/jurczykpaw
         <div class="relative">
           <div class="text-sm font-semibold text-[var(--color-ink)] mb-1">Nielimitowane NIP-y</div>
           <div class="text-3xl font-bold text-[var(--color-ink)] mb-3">Jednorazowa opłata</div>
-          <p class="text-sm text-[var(--color-muted)] mb-5">Jedna płatność, licencja bezterminowa na tej instalacji. Weryfikacja w pełni offline — klucz licencji nigdy nie opuszcza Twojego serwera. Aktualna cena poniżej.</p>
+          <p class="text-sm text-[var(--color-muted)] mb-5">Jedna płatność, licencja bezterminowa na tej instalacji. Podpis jest sprawdzany lokalnie, ale JWKS i lista odwołań są pobierane przez HTTPS. Cache działa w RAM; start bez dostępnego JWKS oznacza tryb 1 NIP do udanego odświeżenia. Token licencji nie opuszcza serwera. Aktualna cena poniżej.</p>
           <div data-sellf-embed data-product-slug="ksef-gateway-multi-nip" data-modal="true" data-button-label="Kup licencję multi-NIP" data-show-price="true"></div>
           <a href={PRODUCT_URL} target="_blank" rel="noopener noreferrer" class="block mt-3 text-xs text-[var(--color-faint)] hover:text-[var(--color-muted)] transition-colors">
             albo zobacz stronę produktu bezpośrednio →

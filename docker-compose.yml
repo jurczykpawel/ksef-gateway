@@ -56,6 +56,10 @@ services:
   # One-off: runs .NET unit tests inside Docker (no local SDK required)
   # Usage: docker compose run --rm ksef-api-tests
   ksef-api-tests:
+    volumes:
+      - ./README.md:/docs/README.md:ro
+      - ./README.en.md:/docs/README.en.md:ro
+      - ./examples:/docs/examples:ro
     build:
       context: ./src
       dockerfile: KSeFGateway.Api/Dockerfile

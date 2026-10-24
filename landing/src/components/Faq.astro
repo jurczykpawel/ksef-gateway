@@ -14,7 +14,7 @@ const items = [
   },
   {
     q: "Czy hostowanie w chmurze (np. na Render) jest bezpieczne, skoro trafia tam mój certyfikat?",
-    a: "Tak, z jednym zastrzeżeniem, które warto rozumieć. Każdy host — chmura czy własny VPS — technicznie ma dostęp do sekretów usługi w czasie działania, bo dostawca kontroluje warstwę pod spodem (hypervisor). Własny serwer tego nie eliminuje — zmienia tylko, komu ufasz, a zatłoczona maszyna z wieloma usługami bywa mniej bezpieczna niż izolowana instancja u reputowanego dostawcy. Realnie chroni Cię nie to, gdzie leży certyfikat, tylko mocny X-Api-Key, ograniczenie kto może wołać usługę (allowlista IP) oraz to, że certyfikat KSeF w każdej chwili wygenerujesz od nowa, a stary przestaje działać.",
+    a: "Tak, z jednym zastrzeżeniem, które warto rozumieć. Każdy host — chmura czy własny VPS — technicznie ma dostęp do sekretów usługi w czasie działania, bo dostawca kontroluje warstwę pod spodem (hypervisor). Własny serwer tego nie eliminuje — zmienia tylko, komu ufasz, a zatłoczona maszyna z wieloma usługami bywa mniej bezpieczna niż izolowana instancja u reputowanego dostawcy. Realnie chroni Cię nie to, gdzie leży certyfikat, tylko mocny X-Api-Key, ograniczenie kto może wołać usługę (allowlista IP) oraz to, że certyfikat KSeF możesz wymienić, a stary jawnie unieważnić.",
   },
   {
     q: "Czy ktokolwiek, kto znajdzie mój URL, może wysłać fakturę w moim imieniu?",
@@ -30,11 +30,11 @@ const items = [
   },
   {
     q: "Czy przejście z testu na produkcję wymaga zmian w kodzie?",
-    a: "Nie. Podmieniasz certyfikat testowy na produkcyjny w konfiguracji i restartujesz usługę. Wszystko inne — adresy, format danych, podpięte automatyzacje — zostaje bez zmian.",
+    a: "Nie. Ustawiasz KSEF_ENV=PRODUCTION w API i PDF, podmieniasz certyfikat na produkcyjny, sprawdzasz bazę QR i uprawnienia oraz restartujesz usługę. Dane i automatyzacje trzeba zweryfikować przed pierwszą wysyłką.",
   },
   {
     q: "Co się stanie, jeśli przekroczę limit zapytań KSeF?",
-    a: "Gateway pilnuje oficjalnych limitów po swojej stronie i odda Ci 429 z nagłówkiem Retry-After, zanim jeszcze uderzy w limit KSeF — nie musisz sam implementować throttlingu.",
+    a: "Gateway ogranicza wywołania SDK w pamięci pojedynczej instancji i przekazuje 429 z Retry-After. Klient musi respektować ten nagłówek i stosować backoff. Wiele replik nie współdzieli liczników; trzeba koordynować łączny ruch.",
   },
   {
     q: "Obsługuję kilka firm/NIP-ów — da się to zrobić z jednej instancji?",

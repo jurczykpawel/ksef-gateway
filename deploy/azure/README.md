@@ -10,6 +10,8 @@ Deploy KSeF Gateway as Azure Container Apps - zero code changes, mirrors Docker 
 
 ## Deploy
 
+Generate and securely store `GATEWAY_API_KEY` before deployment (`openssl rand -hex 32`), then export it in the deployment shell. Reuse it for client `X-Api-Key` headers.
+
 ```bash
 # Create resource group
 az group create --name ksef-gateway --location westeurope
@@ -19,7 +21,7 @@ az deployment group create \
   --resource-group ksef-gateway \
   --template-file main.bicep \
   --parameters \
-    gatewayApiKey=$(openssl rand -hex 32) \
+    gatewayApiKey="$GATEWAY_API_KEY" \
     ksefToken=<your-token> \
     ksefNip=<your-nip> \
     ksefEnv=TEST \
@@ -38,7 +40,7 @@ az deployment group create \
   --resource-group ksef-gateway \
   --template-file main.bicep \
   --parameters \
-    gatewayApiKey=$(openssl rand -hex 32) \
+    gatewayApiKey="$GATEWAY_API_KEY" \
     ksefCertContent="$(cat company.crt)" \
     ksefKeyContent="$(cat company.key)" \
     ksefKeyPassword=<only-if-encrypted> \

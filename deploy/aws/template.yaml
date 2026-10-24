@@ -38,7 +38,7 @@ Parameters:
   PdfServiceUrl:
     Type: String
     Default: ''
-    Description: URL of the PDF service (optional, leave empty to disable PDF endpoints)
+    Description: Reachable HTTP(S) PDF service URL; empty does not disable routes and PDF/conversion calls will fail
 
 Globals:
   Function:

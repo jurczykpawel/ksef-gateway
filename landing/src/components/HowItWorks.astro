@@ -1,8 +1,8 @@
 ---
 const steps = [
-  { n: "01", title: "Uruchom usługę", desc: "Jedno polecenie na dowolnym komputerze z Dockerem — niczego więcej nie instalujesz.", code: `docker compose up --build\n# API gotowe na http://localhost:8080`, or: 'Wolisz bez terminala? Kliknij „Wdróż na Render" — usługa stawia się sama w chmurze.' },
+  { n: "01", title: "Uruchom usługę", desc: "Zainicjalizuj submoduł, ustaw GITHUB_PAT i GATEWAY_API_KEY oraz dane uwierzytelnienia KSeF w .env zgodnie z README, a następnie uruchom Dockera.", code: `docker compose up --build\n# API gotowe na http://localhost:8080`, or: 'Wolisz bez terminala? Kliknij „Wdróż na Render" — usługa stawia się sama w chmurze.' },
   { n: "02", title: "Zdobądź certyfikat KSeF", desc: "Do testów: jedno polecenie i masz gotowy certyfikat na środowisku testowym KSeF. Na produkcji: logujesz się Profilem Zaufanym (masz go z bankowości, za darmo) na ap.ksef.mf.gov.pl i wyklikujesz certyfikat w kilka chwil — bez podpisu kwalifikowanego.", code: `docker compose --profile tools run \\\n  --rm cert-generator\n# zapisuje certyfikat, klucz i NIP do ./output`, or: null },
-  { n: "03", title: "Wyślij pierwszą fakturę", desc: "Dane sprzedawcy, nabywcy i pozycje — w odpowiedzi dostajesz numer KSeF. Twoja pierwsza faktura właśnie jest w systemie.", code: `curl -X POST http://localhost:8080/ksef/invoice \\\n  -d '{"sprzedawca":{...},"nabywca":{...},"pozycje":[...]}'\n# → {"numerKSeF":"1234567890-20260326-..."}`, or: null },
+  { n: "03", title: "Wyślij pierwszą fakturę", desc: "Dane sprzedawcy, nabywcy i pozycje — w odpowiedzi dostajesz numer KSeF. Twoja pierwsza faktura właśnie jest w systemie.", code: "# Z katalogu repo; ustaw GATEWAY_API_KEY.\n# Uzupełnij dane firmy, daty i numer w fixture.\ncurl -X POST http://localhost:8080/ksef/invoice \\\n  -H \"Content-Type: application/json\" \\\n  -H \"X-Api-Key: $GATEWAY_API_KEY\" \\\n  -d @examples/invoice-simple.json\n# → {\"success\":true,\"data\":{\"ksefNumber\":\"...\"}}", or: null },
 ];
 ---
 <section id="how-it-works" class="section-gap" aria-labelledby="how-heading">
@@ -12,7 +12,7 @@ const steps = [
       Szybki start
     </div>
     <h2 id="how-heading" class="text-3xl sm:text-4xl font-bold text-[var(--color-ink)] mb-3" data-hiw>Gotowy w trzech krokach</h2>
-    <p class="text-[var(--color-muted)] mb-14 max-w-lg" data-hiw>Od zera do działającej integracji z KSeF w mniej niż pięć minut.</p>
+    <p class="text-[var(--color-muted)] mb-14 max-w-lg" data-hiw>Konfiguracja, uwierzytelnienie i pierwsza wysyłka — pełne przykłady znajdziesz w README.</p>
     <div class="relative flex flex-col gap-8">
       <div class="hiw-line hidden md:block" data-hiw-line aria-hidden="true"></div>
       {steps.map((step) => (

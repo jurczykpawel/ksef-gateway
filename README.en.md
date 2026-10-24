@@ -2,14 +2,27 @@
 
 > REST API for Poland's e-Invoice System (KSeF). Send a JSON, get a KSeF number. Receive invoices without knowing their number. One HTTP call, both directions.
 
+Run examples from the repository root. Export `GATEWAY_API_KEY` matching the service configuration (`.env` does not export it into your shell). The shared fixture is [`examples/invoice-simple.json`](examples/invoice-simple.json): NIP `3202004132` is the TEST demo company. For your installation replace both NIPs and party details, dates and invoice number; the seller must match a configured KSeF context. Use a new invoice number for each send. In download commands, `KSEF_NUMBER` is the value returned in `data.ksefNumber`; `KSEF_NIP` is your context NIP. When proxy enforcement is enabled, use the proxy URL.
+
 <details>
 <summary>🇵🇱 Po polsku</summary>
 
 **KSeF Gateway** to bramka REST API do Krajowego Systemu e-Faktur. Wysyłasz prosty JSON z danymi faktury, dostajesz numer KSeF. Odbierasz faktury wystawione na Ciebie bez znajomości ich numeru - jednym zapytaniem po dacie. Jedno wywołanie HTTP zamiast budowania XML, szyfrowania AES-256, zarządzania sesjami i tokenami.
 
 ```bash
-curl -X POST https://twoj-gateway/ksef/invoice \
-  -d '{"seller":{"nip":"..."},"buyer":{"nip":"..."},"items":[{"name":"Usługa","unitPrice":100,"vatRate":23}]}'
+curl -H "Content-Type: application/json" -H "X-Api-Key: $GATEWAY_API_KEY" -X POST https://twoj-gateway/ksef/invoice \
+  -d '{
+  "invoiceNumber": "FV/EXAMPLE/001/2026",
+  "issueDate": "2026-03-24",
+  "issuePlace": "Warszawa",
+  "saleDate": "2026-03-24",
+  "currency": "PLN",
+  "type": "VAT",
+  "seller": {"nip": "3202004132", "name": "Przykładowa Firma sp. z o.o.", "address": {"street": "ul. Sprzedawcy 10", "city": "00-001 Warszawa", "country": "PL"}, "email": "firma@example.com", "phone": "123456789"},
+  "buyer": {"nip": "3202004132", "name": "Klient Testowy sp. z o.o.", "address": {"street": "ul. Kupiecka 5", "city": "30-001 Kraków", "country": "PL"}},
+  "items": [{"name": "Usługa konsultingowa IT", "unit": "godz.", "quantity": 10, "unitPrice": 80.0, "vatRate": 23}, {"name": "Konfiguracja serwera", "unit": "szt.", "quantity": 1, "unitPrice": 200.0, "vatRate": 23}],
+  "payment": {"paid": true, "date": "2026-03-24", "method": "transfer"}
+}'
 # → {"success":true,"data":{"ksefNumber":"1234567890-20260326-..."}}
 ```
 
@@ -55,9 +68,20 @@ Your app → build XML → encrypt AES-256 → exchange RSA keys → open sessio
 ### With KSeF Gateway
 
 ```bash
-curl -X POST https://your-gateway/ksef/invoice \
+curl -H "X-Api-Key: $GATEWAY_API_KEY" -X POST https://your-gateway/ksef/invoice \
   -H "Content-Type: application/json" \
-  -d '{"seller":{"nip":"..."},"buyer":{"nip":"..."},"items":[{"name":"Service","unitPrice":100,"vatRate":23}]}'
+  -d '{
+  "invoiceNumber": "FV/EXAMPLE/001/2026",
+  "issueDate": "2026-03-24",
+  "issuePlace": "Warszawa",
+  "saleDate": "2026-03-24",
+  "currency": "PLN",
+  "type": "VAT",
+  "seller": {"nip": "3202004132", "name": "Przykładowa Firma sp. z o.o.", "address": {"street": "ul. Sprzedawcy 10", "city": "00-001 Warszawa", "country": "PL"}, "email": "firma@example.com", "phone": "123456789"},
+  "buyer": {"nip": "3202004132", "name": "Klient Testowy sp. z o.o.", "address": {"street": "ul. Kupiecka 5", "city": "30-001 Kraków", "country": "PL"}},
+  "items": [{"name": "Usługa konsultingowa IT", "unit": "godz.", "quantity": 10, "unitPrice": 80.0, "vatRate": 23}, {"name": "Konfiguracja serwera", "unit": "szt.", "quantity": 1, "unitPrice": 200.0, "vatRate": 23}],
+  "payment": {"paid": true, "date": "2026-03-24", "method": "transfer"}
+}'
 
 # → {"success":true,"data":{"ksefNumber":"1234567890-20260326-..."}}
 ```
@@ -107,24 +131,28 @@ No setup required. A public demo instance runs around the clock (no cold starts)
 
 ```bash
 DEMO_URL="https://ksef-demo.techskills.academy"
-DEMO_KEY="0679d36400bfdedcaf1f7d1f5774d0d94ffae5a9f6bc7596cbf24de94d42a8ee"
+GATEWAY_API_KEY="0679d36400bfdedcaf1f7d1f5774d0d94ffae5a9f6bc7596cbf24de94d42a8ee"
 DEMO_NIP="3202004132"
 
 curl -X POST "$DEMO_URL/ksef/invoice" \
   -H "Content-Type: application/json" \
-  -H "X-Api-Key: $DEMO_KEY" \
+  -H "X-Api-Key: $GATEWAY_API_KEY" \
   -d '{
-    "invoiceNumber": "DEMO/'"$(date +%s)"'",
-    "issueDate": "'"$(date +%F)"'",
-    "saleDate": "'"$(date +%F)"'",
-    "seller": { "nip": "'"$DEMO_NIP"'", "name": "Demo sp. z o.o.", "address": { "street": "ul. Demo 1", "city": "00-001 Warszawa" } },
-    "buyer": { "nip": "'"$DEMO_NIP"'", "name": "Demo sp. z o.o.", "address": { "street": "ul. Demo 1", "city": "00-001 Warszawa" } },
-    "items": [ { "name": "Demo usługa", "quantity": 1, "unitPrice": 100, "vatRate": 23 } ]
-  }'
+  "invoiceNumber": "FV/EXAMPLE/001/2026",
+  "issueDate": "2026-03-24",
+  "issuePlace": "Warszawa",
+  "saleDate": "2026-03-24",
+  "currency": "PLN",
+  "type": "VAT",
+  "seller": {"nip": "3202004132", "name": "Przykładowa Firma sp. z o.o.", "address": {"street": "ul. Sprzedawcy 10", "city": "00-001 Warszawa", "country": "PL"}, "email": "firma@example.com", "phone": "123456789"},
+  "buyer": {"nip": "3202004132", "name": "Klient Testowy sp. z o.o.", "address": {"street": "ul. Kupiecka 5", "city": "30-001 Kraków", "country": "PL"}},
+  "items": [{"name": "Usługa konsultingowa IT", "unit": "godz.", "quantity": 10, "unitPrice": 80.0, "vatRate": 23}, {"name": "Konfiguracja serwera", "unit": "szt.", "quantity": 1, "unitPrice": 200.0, "vatRate": 23}],
+  "payment": {"paid": true, "date": "2026-03-24", "method": "transfer"}
+}'
 # → {"success":true,"data":{"ksefNumber":"..."}}
 
 curl "$DEMO_URL/ksef/invoices/received?from=2026-01-01&to=2026-12-31" \
-  -H "X-Api-Key: $DEMO_KEY"
+  -H "X-Api-Key: $GATEWAY_API_KEY"
 # → {"success":true,"data":{"invoices":[{"ksefNumber":"...","invoiceNumber":"DEMO/...",...}],"hasMore":false}}
 ```
 
@@ -178,29 +206,22 @@ curl -X POST http://localhost:8080/ksef/invoice \
   -H "Content-Type: application/json" \
   -H "X-Api-Key: $GATEWAY_API_KEY" \
   -d '{
-    "invoiceNumber": "FV/2026/001",
-    "issueDate": "2026-03-26",
-    "saleDate": "2026-03-26",
-    "seller": {
-      "nip": "YOUR_NIP",
-      "name": "Your Company sp. z o.o.",
-      "address": { "street": "ul. Testowa 1", "city": "00-001 Warszawa" }
-    },
-    "buyer": {
-      "nip": "5265877635",
-      "name": "Buyer sp. z o.o.",
-      "address": { "street": "ul. Kupiecka 5", "city": "30-001 Krakow" }
-    },
-    "items": [
-      { "name": "Consulting service", "quantity": 10, "unitPrice": 150, "vatRate": 23 }
-    ],
-    "payment": { "paid": true, "date": "2026-03-26", "method": "transfer" }
-  }'
+  "invoiceNumber": "FV/EXAMPLE/001/2026",
+  "issueDate": "2026-03-24",
+  "issuePlace": "Warszawa",
+  "saleDate": "2026-03-24",
+  "currency": "PLN",
+  "type": "VAT",
+  "seller": {"nip": "3202004132", "name": "Przykładowa Firma sp. z o.o.", "address": {"street": "ul. Sprzedawcy 10", "city": "00-001 Warszawa", "country": "PL"}, "email": "firma@example.com", "phone": "123456789"},
+  "buyer": {"nip": "3202004132", "name": "Klient Testowy sp. z o.o.", "address": {"street": "ul. Kupiecka 5", "city": "30-001 Kraków", "country": "PL"}},
+  "items": [{"name": "Usługa konsultingowa IT", "unit": "godz.", "quantity": 10, "unitPrice": 80.0, "vatRate": 23}, {"name": "Konfiguracja serwera", "unit": "szt.", "quantity": 1, "unitPrice": 200.0, "vatRate": 23}],
+  "payment": {"paid": true, "date": "2026-03-24", "method": "transfer"}
+}'
 
 # Response: {"success":true,"data":{"ksefNumber":"1234567890-20260326-..."}}
 
 # Download PDF with QR code
-curl -H "X-Api-Key: $GATEWAY_API_KEY" -o faktura.pdf http://localhost:8080/ksef/invoice/{ksefNumber}/pdf
+curl -H "X-Api-Key: $GATEWAY_API_KEY" -o faktura.pdf "http://localhost:8080/ksef/invoice/$KSEF_NUMBER/pdf"
 ```
 
 > **Also supports raw XML** (`POST /ksef/send`) and xml-js JSON format (`POST /ksef/send/json`) - see [Sending Invoices](#sending-invoices) below.
@@ -212,7 +233,7 @@ On TEST/DEMO you can try this immediately without a second company: set `buyer.n
 ```bash
 curl "http://localhost:8080/ksef/invoices/received?from=2026-03-01&to=2026-04-01" \
   -H "X-Api-Key: $GATEWAY_API_KEY" \
-  -H "X-KSeF-NIP: YOUR_NIP"
+  -H "X-KSeF-NIP: $KSEF_NIP"
 
 # Response: {"success":true,"data":{"invoices":[{"ksefNumber":"...","invoiceNumber":"FV/2026/001",...}],"hasMore":false}}
 ```
@@ -352,28 +373,20 @@ curl -X POST http://localhost:8080/ksef/invoice \
 
 
 ```bash
-curl -X POST http://localhost:8080/ksef/invoice \
+curl -H "X-Api-Key: $GATEWAY_API_KEY" -X POST http://localhost:8080/ksef/invoice \
   -H "Content-Type: application/json" \
   -d '{
-    "invoiceNumber": "FV/2026/001",
-    "issueDate": "2026-03-26",
-    "saleDate": "2026-03-26",
-    "seller": {
-      "nip": "1234567890",
-      "name": "Seller sp. z o.o.",
-      "address": { "street": "ul. Testowa 1", "city": "00-001 Warszawa" }
-    },
-    "buyer": {
-      "nip": "0987654321",
-      "name": "Buyer sp. z o.o.",
-      "address": { "street": "ul. Kupiecka 2", "city": "00-002 Warszawa" }
-    },
-    "items": [
-      { "name": "Consulting service", "quantity": 10, "unitPrice": 150, "vatRate": 23 },
-      { "name": "Server hosting", "quantity": 1, "unitPrice": 50, "vatRate": 23 }
-    ],
-    "payment": { "paid": true, "date": "2026-03-26", "method": "transfer" }
-  }'
+  "invoiceNumber": "FV/EXAMPLE/001/2026",
+  "issueDate": "2026-03-24",
+  "issuePlace": "Warszawa",
+  "saleDate": "2026-03-24",
+  "currency": "PLN",
+  "type": "VAT",
+  "seller": {"nip": "3202004132", "name": "Przykładowa Firma sp. z o.o.", "address": {"street": "ul. Sprzedawcy 10", "city": "00-001 Warszawa", "country": "PL"}, "email": "firma@example.com", "phone": "123456789"},
+  "buyer": {"nip": "3202004132", "name": "Klient Testowy sp. z o.o.", "address": {"street": "ul. Kupiecka 5", "city": "30-001 Kraków", "country": "PL"}},
+  "items": [{"name": "Usługa konsultingowa IT", "unit": "godz.", "quantity": 10, "unitPrice": 80.0, "vatRate": 23}, {"name": "Konfiguracja serwera", "unit": "szt.", "quantity": 1, "unitPrice": 200.0, "vatRate": 23}],
+  "payment": {"paid": true, "date": "2026-03-24", "method": "transfer"}
+}'
 ```
 
 ### Option 2: Raw FA(3) XML
@@ -381,17 +394,17 @@ curl -X POST http://localhost:8080/ksef/invoice \
 For systems that already generate KSeF XML (accounting software, ERP):
 
 ```bash
-curl -X POST http://localhost:8080/ksef/send \
+curl -H "X-Api-Key: $GATEWAY_API_KEY" -X POST http://localhost:8080/ksef/send \
   -H "Content-Type: application/xml" \
-  -d @invoice.xml
+  --data-binary @examples/invoice.xml
 ```
 
 ### Option 3: JSON mirroring XML (xml-js format)
 
-1:1 JSON representation of FA(3) XML using [xml-js compact format](https://www.npmjs.com/package/xml-js#compact-notation). Zero-maintenance - when XSD changes, JSON structure changes automatically. See [`examples/invoice.json`](examples/invoice.json) for full example.
+1:1 JSON representation of FA(3) XML using [xml-js compact format](https://www.npmjs.com/package/xml-js#compact-notation). When XSD changes, adapt input data and validate the resulting XML. See [`examples/invoice.json`](examples/invoice.json) for full example.
 
 ```bash
-curl -X POST http://localhost:8080/ksef/send/json \
+curl -H "X-Api-Key: $GATEWAY_API_KEY" -X POST http://localhost:8080/ksef/send/json \
   -H "Content-Type: application/json" \
   -d @examples/invoice.json
 ```
@@ -432,17 +445,17 @@ Every endpoint returns the same shape on failure: `{"success": false, "data": nu
 
 ```bash
 # Get PDF with QR code by KSeF number (one call - downloads XML from KSeF internally)
-curl -o faktura.pdf http://localhost:8080/ksef/invoice/{ksefNumber}/pdf
+curl -H "X-Api-Key: $GATEWAY_API_KEY" -o faktura.pdf "http://localhost:8080/ksef/invoice/$KSEF_NUMBER/pdf"
 
 # Generate PDF from XML directly
-curl -X POST http://localhost:8080/pdf/invoice \
+curl -H "X-Api-Key: $GATEWAY_API_KEY" -X POST http://localhost:8080/pdf/invoice \
   -H "Content-Type: application/xml" \
-  -d @invoice.xml -o faktura.pdf
+  --data-binary @examples/invoice.xml -o faktura.pdf
 
 # Generate PDF with QR code
-curl -X POST "http://localhost:8080/pdf/invoice?nrKSeF={ksefNumber}" \
+curl -H "X-Api-Key: $GATEWAY_API_KEY" -X POST "http://localhost:8080/pdf/invoice?nrKSeF=$KSEF_NUMBER" \
   -H "Content-Type: application/xml" \
-  -d @invoice.xml -o faktura.pdf
+  --data-binary @examples/invoice.xml -o faktura.pdf
 ```
 
 PDFs are generated using the official [CIRFMF/ksef-pdf-generator](https://github.com/CIRFMF/ksef-pdf-generator) library. QR codes contain the KSeF verification URL with SHA-256 hash - scannable and verified by KSeF.
@@ -458,8 +471,8 @@ Both endpoints search for invoices where **your NIP is the buyer** (`Podmiot2`),
 ### Browse what you've received
 
 ```bash
-curl "http://localhost:8080/ksef/invoices/received?from=2026-06-01&to=2026-07-01" \
-  -H "X-KSeF-NIP: YOUR_NIP"
+curl -H "X-Api-Key: $GATEWAY_API_KEY" "http://localhost:8080/ksef/invoices/received?from=2026-06-01&to=2026-07-01" \
+  -H "X-KSeF-NIP: $KSEF_NIP"
 ```
 
 ```json
@@ -497,11 +510,11 @@ Download the PDF the same way you would for an invoice you sent - `GET /ksef/inv
 
 ```bash
 # First call - no checkpoint yet
-curl "http://localhost:8080/ksef/invoices/received/new" -H "X-KSeF-NIP: YOUR_NIP"
+curl -H "X-Api-Key: $GATEWAY_API_KEY" "http://localhost:8080/ksef/invoices/received/new" -H "X-KSeF-NIP: $KSEF_NIP"
 # → {"invoices": [...], "nextSince": "2026-07-01T07:00:00Z"}
 
 # Persist nextSince yourself, pass it back next time - only genuinely new invoices come back
-curl "http://localhost:8080/ksef/invoices/received/new?since=2026-07-01T07:00:00Z" -H "X-KSeF-NIP: YOUR_NIP"
+curl -H "X-Api-Key: $GATEWAY_API_KEY" "http://localhost:8080/ksef/invoices/received/new?since=2026-07-01T07:00:00Z" -H "X-KSeF-NIP: $KSEF_NIP"
 ```
 
 Wire this into a cron/n8n workflow polling every 15-30 minutes to get notified (email/Slack/webhook) when something new lands - the gateway itself stays stateless, your workflow owns the checkpoint.
@@ -523,7 +536,7 @@ Counters live **in memory in a single replica**, reset on restart and are not sy
 ```bash
 curl "http://localhost:8080/ksef/invoices/issued?from=2026-06-01&to=2026-07-01" \
   -H "X-Api-Key: $GATEWAY_API_KEY" \
-  -H "X-KSeF-NIP: YOUR_NIP"
+  -H "X-KSeF-NIP: $KSEF_NIP"
 ```
 
 ```json
@@ -570,17 +583,20 @@ Customer pays → Platform webhook → (optional: n8n transform) → POST /ksef/
 Add a `POST /ksef/invoice` call in your payment success handler:
 
 ```bash
-curl -X POST https://your-ksef-gateway.onrender.com/ksef/invoice \
+curl -H "X-Api-Key: $GATEWAY_API_KEY" -X POST https://your-ksef-gateway.onrender.com/ksef/invoice \
   -H "Content-Type: application/json" \
   -d '{
-    "invoiceNumber": "FV/2026/001",
-    "issueDate": "2026-03-26",
-    "saleDate": "2026-03-26",
-    "seller": { "nip": "YOUR_NIP", "name": "Your Company", "address": { "street": "...", "city": "..." } },
-    "buyer": { "nip": "BUYER_NIP", "name": "Customer", "address": { "street": "...", "city": "..." } },
-    "items": [{ "name": "Product name", "quantity": 1, "unitPrice": 100, "vatRate": 23 }],
-    "payment": { "paid": true, "date": "2026-03-26", "method": "transfer" }
-  }'
+  "invoiceNumber": "FV/EXAMPLE/001/2026",
+  "issueDate": "2026-03-24",
+  "issuePlace": "Warszawa",
+  "saleDate": "2026-03-24",
+  "currency": "PLN",
+  "type": "VAT",
+  "seller": {"nip": "3202004132", "name": "Przykładowa Firma sp. z o.o.", "address": {"street": "ul. Sprzedawcy 10", "city": "00-001 Warszawa", "country": "PL"}, "email": "firma@example.com", "phone": "123456789"},
+  "buyer": {"nip": "3202004132", "name": "Klient Testowy sp. z o.o.", "address": {"street": "ul. Kupiecka 5", "city": "30-001 Kraków", "country": "PL"}},
+  "items": [{"name": "Usługa konsultingowa IT", "unit": "godz.", "quantity": 10, "unitPrice": 80.0, "vatRate": 23}, {"name": "Konfiguracja serwera", "unit": "szt.", "quantity": 1, "unitPrice": 200.0, "vatRate": 23}],
+  "payment": {"paid": true, "date": "2026-03-24", "method": "transfer"}
+}'
 ```
 
 ### Option 2: n8n as middleware (no-code, recommended)
@@ -869,13 +885,13 @@ Two containers, no database, no Redis. Auth state in memory (restart = re-auth i
 | **InvoiceDownloadEndpoints** | High-level: `/ksef/invoices/received`, `/ksef/invoices/received/new`, `/ksef/invoices/issued` |
 | **EndpointErrorHandling** | Shared `Guard()` - lets KSeF rate-limit/circuit-breaker/API errors surface as proper 429/503/502 (with `Retry-After`) instead of a flat 500 |
 | **PDF Service** | XML to PDF via CIRFMF library + QR code generation |
-| **JSON-to-XML** | `js2xml()` - zero-maintenance JSON/XML conversion |
+| **JSON-to-XML** | `js2xml()` - XML-shaped JSON/XML conversion |
 
 ### Design Principles
 - **Thin wrapper** - zero business logic, HTTP-to-SDK translation
 - **Auto-adaptive** - reflection discovers endpoints from the pinned SDK version; changes require an explicit dependency update
 - **Transparent crypto** - callers send plaintext, gateway encrypts
-- **Zero-maintenance JSON** - mirrors XML 1:1, no mapping code
+- **XML-shaped JSON** - mirrors XML 1:1, no mapping code
 - **Resilient** - auth failures don't crash, retry automatically
 
 ---
@@ -900,7 +916,7 @@ Two containers, no database, no Redis. Auth state in memory (restart = re-auth i
 
 [![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com/deploy?repo=https://github.com/jurczykpawel/ksef-gateway)
 
-Click the button, set three env vars (`GITHUB_PAT`, `KSEF_TOKEN`, `KSEF_NIP`), done. Both services (API + PDF) deploy automatically from `render.yaml`. Prefer a certificate? Leave `KSEF_TOKEN` blank, upload the cert/key as [Secret Files](https://render.com/docs/configure-environment-variables) in the dashboard, and set `KSEF_CERT_PATH`/`KSEF_KEY_PATH` to `/etc/secrets/<filename>` instead.
+Click the button, set `GITHUB_PAT`, `GATEWAY_API_KEY`, `KSEF_TOKEN` and `KSEF_NIP`, done. Both services (API + PDF) deploy automatically from `render.yaml`. Prefer a certificate? Leave `KSEF_TOKEN` blank, upload the cert/key as [Secret Files](https://render.com/docs/configure-environment-variables) in the dashboard, and set `KSEF_CERT_PATH`/`KSEF_KEY_PATH` to `/etc/secrets/<filename>` instead.
 
 **Multi-NIP with several certificates on Render:** Secret Files aren't limited to one pair - upload as many cert/key files as you have companies (e.g. `company-a.crt`/`company-a.key`, `company-b.crt`/`company-b.key`, ...), *plus* your `contexts.json` itself as another Secret File, with each entry's `certificatePath`/`privateKeyPath` pointing at the matching `/etc/secrets/<filename>`. Then set `KSEF_CONTEXTS_FILE=/etc/secrets/contexts.json` (env var) instead of `KSEF_TOKEN`/`KSEF_CERT_PATH`. Requires a [multi-NIP license](#multi-nip-licensing) for more than one NIP.
 
@@ -943,7 +959,7 @@ Deploy as managed containers - mirrors Docker Compose, zero code changes.
 az deployment group create \
   --resource-group ksef-gateway \
   --template-file deploy/azure/main.bicep \
-  --parameters ksefToken=<token> ksefNip=<nip>
+  --parameters gatewayApiKey="$GATEWAY_API_KEY" ksefToken="$KSEF_TOKEN" ksefNip="$KSEF_NIP"
 ```
 
 See [`deploy/azure/README.md`](deploy/azure/README.md) for details.
@@ -964,7 +980,7 @@ See [`deploy/azure/README.md`](deploy/azure/README.md) for details.
 - [x] Auto-discovery of 60+ SDK endpoints via reflection
 - [x] Token-based authentication with background refresh
 - [x] `POST /ksef/send` - one-call invoice sending (XML)
-- [x] `POST /ksef/send/json` - JSON invoice sending (zero-maintenance format)
+- [x] `POST /ksef/send/json` - JSON invoice sending (XML-shaped format)
 - [x] `GET /ksef/invoice/{nr}/pdf` - PDF with verified QR code
 - [x] PDF generation with official CIRFMF library
 - [x] Token generator for TEST environment
@@ -972,7 +988,7 @@ See [`deploy/azure/README.md`](deploy/azure/README.md) for details.
 - [x] Docker one-command setup
 - [x] Client-side rate limiting (proactive, per official MF limits)
 - [x] `POST /ksef/invoice` - friendly JSON with auto VAT calculation
-- [x] 81 unit/integration tests (SdkReflector, RateLimiter, InvoiceXmlBuilder, XSD validation, KSeF E2E)
+- [x] Unit/integration tests — current results in the CI badge above (SdkReflector, RateLimiter, InvoiceXmlBuilder, XSD validation, KSeF E2E)
 - [x] GitHub Actions CI + TruffleHog secret scanning
 - [x] Multi-NIP / multi-tenant mode
 - [x] Bruno collection for manual and automated testing
@@ -1008,3 +1024,29 @@ API errors use `{"success":false,"data":null,"error":"…","correlationId":"…"
 `POST /ksef/invoice` validates before KSeF authentication or SDK calls: required parties, addresses, items, invoice number, valid `YYYY-MM-DD` dates, NIPs (10 ASCII digits), quantity > 0, price >= 0 and VAT 0/5/8/23. A 400 response includes `error: "Validation failed"` and `errors: [{"field":"items.0.quantity","message":"Must be greater than zero"}]`. Missing strings and objects identify the specific field. JSON syntax/type errors or missing required numeric properties detected during deserialization identify `body` as the field.
 
 `PDF_SERVICE_TIMEOUT_SECONDS` bounds sending and reading PDF responses (default 60 s, timeout → 504). Client disconnects cancel both KSeF invoice retrieval and the PDF request. The PDF service permits `PDF_MAX_CONCURRENT_RENDERS` concurrent renders (default 2); excess requests receive 503 with `Retry-After: 1`. Slots are released after rendering settles, including errors; disconnects cannot interrupt synchronous generator work.
+
+## Troubleshooting and maintenance
+
+| Symptom | Check |
+|---|---|
+| Invoice `400` | Read field errors; use the complete DTO in `examples/invoice-simple.json`. |
+| `401` | Send `X-Api-Key` matching the server's `GATEWAY_API_KEY`; a KSeF token does not replace it. |
+| `403` | Check the allowlist and proxy header overwrite rule (`TRUSTED_PROXY_HEADER`); origin requires the correct proxy secret. |
+| `429` | Wait at least `Retry-After`, with backoff and jitter. Limits are in one instance's RAM; replicas do not share budgets. |
+| `503` | Missing `GATEWAY_API_KEY`, KSeF authentication failure or open circuit breaker: check logs, `/ksef/status` and `Retry-After` when present. `/health` does not prove KSeF/PDF readiness. |
+| PDF/Render timeout or `502` | PDF can wake independently of the API. Check its `/health`, `PDF_SERVICE_URL`, matching `PDF_SERVICE_SECRET` in both services and `PDF_SERVICE_TIMEOUT_SECONDS` (default 60 s). On Render free use the public PDF HTTPS URL; private networking cannot reach that service. |
+| Multi-NIP falls back to 1 NIP | Check the license and HTTPS access to Sellf JWKS/CRL. Cache is in RAM and lost on restart; startup without JWKS uses the free tier. A CRL outage alone does not revoke a valid license. |
+| NuGet restore `401`/`403` | `GITHUB_PAT` needs `read:packages` and access to CIRFMF packages; use the repository's `nuget.config`. Keep PATs out of issues and logs. |
+| Wrong environment or missing SDK route | Match credentials to `KSEF_ENV`: `TEST`, `DEMO`, `PRODUCTION`. Set it in PDF too (QR); optional `KSEF_QR_URL` overrides the QR base. `KSEF_SDK_ENDPOINTS=safe` hides administration; explicitly select needed methods. Invalid configuration stops startup. |
+
+AWS `PdfServiceUrl` maps to `PDF_SERVICE_URL`: supply a reachable HTTP(S) PDF service URL. An empty value **does not disable routes** — conversion/PDF calls fail. Azure's template sets the internal PDF service URL. For a public PDF service, configure `PDF_SERVICE_SECRET` in both API and PDF (on AWS this requires adding environment configuration; the SAM parameters do not expose this secret).
+
+### Upgrade and rollback
+
+Before upgrading, record **both** image digests and back up configuration. In a Compose override set `image: ghcr.io/jurczykpawel/ksef-gateway-api@sha256:…` and the matching `ksef-gateway-pdf@sha256:…`, using full, actual digests of a tested release. Run `docker compose pull ksef-api ksef-pdf` and `docker compose up -d --no-build ksef-api ksef-pdf`; verify `/health`, authenticated `/ksef/status` and a sample PDF. In Azure pass the pinned references as `apiImage`/`pdfImage`; for Lambda pin the deployed ECR image. To roll back, restore previous digests and compatible configuration, redeploy and verify readiness. After a send timeout, determine whether KSeF accepted the invoice before retrying.
+
+### Rotation and backups
+
+The gateway accepts one value for each secret. Schedule a short maintenance window, pause automation and generate replacements outside logs. Change `GATEWAY_API_KEY` in the service and client credentials; change `PDF_SERVICE_SECRET` in both API and PDF; change `TRUSTED_PROXY_SECRET` in origin and the proxy header overwrite rule. Recreate containers or redeploy to load the environment. Verify the new key (200 on `/ksef/status`), rejection of the old key (401), origin protection (403) and PDF before resuming callers. For certificate rotation, obtain a replacement for the correct environment and permissions, replace certificate/key/password together, restart and confirm authentication in `/ksef/status`; then explicitly revoke the old certificate in KSeF. Issuing a new certificate does not revoke the old one.
+
+Keep encrypted backups of `.env`/deployment secrets, `contexts.json`, proxy configuration, image digests, certificates and keys (with passwords stored securely). The gateway has no database to back up. For n8n, export workflows and back up persistent data/credentials together with its encryption key; JSON export alone does not preserve the polling checkpoint in static data. Verify checkpoint and deduplication before re-enabling schedules after restoration. Periodically test restoration on TEST.

@@ -2,6 +2,8 @@ using System.Net;
 using System.Net.Http.Json;
 using System.Text;
 using System.Text.Json;
+using System.Text.Json.Nodes;
+using System.Xml.Linq;
 using KSeFGateway.Api.Invoice;
 
 namespace KSeFGateway.Api.Tests.Integration;
@@ -87,6 +89,44 @@ public class GatewayIntegrationTests
         var body = await resp.Content.ReadFromJsonAsync<JsonElement>();
         Assert.True(body.GetProperty("success").GetBoolean());
         Assert.False(string.IsNullOrEmpty(body.GetProperty("data").GetProperty("ksefNumber").GetString()));
+    }
+
+    [Fact]
+    public async Task SendXmlJsJson_ReturnsKsefNumber()
+    {
+        // Regression: POST /ksef/send/json used to call the gateway's own /ksef/send over HTTP
+        // without X-Api-Key, so the API-key middleware answered 401 on every request.
+        var xml = InvoiceXmlBuilder.Build(SampleInvoice(UniqueNumber("FV/INT/XMLJS")));
+        var xmlJs = new JsonObject { [XDocument.Parse(xml).Root!.Name.LocalName] = ToXmlJs(XDocument.Parse(xml).Root!) };
+
+        var resp = await Http.PostAsync($"{BaseUrl}/ksef/send/json",
+            new StringContent(xmlJs.ToJsonString(), Encoding.UTF8, "application/json"));
+
+        Assert.NotEqual(HttpStatusCode.Unauthorized, resp.StatusCode);
+        Assert.Equal(HttpStatusCode.OK, resp.StatusCode);
+        var body = await resp.Content.ReadFromJsonAsync<JsonElement>();
+        Assert.True(body.GetProperty("success").GetBoolean());
+        Assert.False(string.IsNullOrEmpty(body.GetProperty("data").GetProperty("ksefNumber").GetString()));
+    }
+
+    /// <summary>Minimal XML to xml-js "compact" converter (_attributes/_text, repeated elements become arrays).</summary>
+    private static JsonObject ToXmlJs(XElement el)
+    {
+        var obj = new JsonObject();
+        var attrs = el.Attributes().Where(a => !a.IsNamespaceDeclaration).ToList();
+        if (attrs.Count > 0)
+        {
+            var a = new JsonObject();
+            foreach (var at in attrs) a[at.Name.LocalName] = at.Value;
+            obj["_attributes"] = a;
+        }
+        foreach (var group in el.Elements().GroupBy(e => e.Name.LocalName))
+        {
+            var items = group.Select(ToXmlJs).ToList();
+            obj[group.Key] = items.Count == 1 ? items[0] : new JsonArray(items.Select(i => (JsonNode)i).ToArray());
+        }
+        if (!el.HasElements && !string.IsNullOrEmpty(el.Value)) obj["_text"] = el.Value;
+        return obj;
     }
 
     [Fact]

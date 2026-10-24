@@ -117,6 +117,9 @@ public static class WorkflowEndpoints
             var ctxProvider = httpContext.RequestServices.GetRequiredService<ContextProvider>();
             var config = httpContext.RequestServices.GetRequiredService<IConfiguration>();
             var httpClientFactory = httpContext.RequestServices.GetRequiredService<IHttpClientFactory>();
+            var ksefClient = httpContext.RequestServices.GetRequiredService<IKSeFClient>();
+            var cryptoService = httpContext.RequestServices.GetRequiredService<ICryptographyService>();
+            var logger = httpContext.RequestServices.GetRequiredService<ILogger<Program>>();
 
             using var reader = new StreamReader(httpContext.Request.Body, Encoding.UTF8);
             var jsonBody = await reader.ReadToEndAsync(httpContext.RequestAborted);
@@ -149,18 +152,12 @@ public static class WorkflowEndpoints
                 }
 
                 var invoiceXml = await convertResponse.Content.ReadAsStringAsync(httpContext.RequestAborted);
-                var sendRequest = new HttpRequestMessage(HttpMethod.Post, "http://localhost:8080/ksef/send");
-                sendRequest.Headers.Add(ContextResolver.NipHeader, nip);
-                sendRequest.Content = new StringContent(invoiceXml, Encoding.UTF8, "application/xml");
 
-                var sendResponse = await client.SendAsync(sendRequest, httpContext.RequestAborted);
-                var sendResult = await sendResponse.Content.ReadAsStringAsync(httpContext.RequestAborted);
-
-                httpContext.Response.ContentType = "application/json";
-                httpContext.Response.StatusCode = (int)sendResponse.StatusCode;
-                await httpContext.Response.WriteAsync(sendResult, httpContext.RequestAborted);
-                return Results.Empty;
-            });
+                // Same code path as POST /ksef/send. This used to call the gateway's own
+                // http://localhost:8080/ksef/send without X-Api-Key, so the API-key middleware
+                // rejected it with 401 on every request (and it broke on any non-8080 port).
+                return await SendInvoiceXml(invoiceXml, accessToken, ksefClient, cryptoService, logger, httpContext.RequestAborted);
+            }, logger, $"JSON invoice send failed for NIP {nip}");
         })
         .WithTags("Workflows")
         .WithName("send_invoice_json")

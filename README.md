@@ -379,6 +379,30 @@ Netto każdej pozycji jest zaokrąglane do 2 miejsc po przecinku metodą kupieck
 
 `vatRate: 0` oznacza wyłącznie krajową sprzedaż 0% z wyłączeniem WDT i eksportu (`P_13_6_1`, bez `P_14_6`; w pozycji `P_12 = 0 KR`). WDT i eksport ze stawką 0% wymagają surowego XML przez `POST /ksef/send`; format przyjazny ich nie obsługuje.
 
+Format przyjazny akceptuje liczbowe `vatRate: 23/8/5/0` oraz napisy:
+
+| `vatRate` | Znaczenie / podsumowanie XML |
+|---|---|
+| `"zw"` | Sprzedaż zwolniona, `P_13_7`; wymagane `exemptionBasis` (podstawa w polskiej ustawie, `Zwolnienie/P_19=1`, `P_19A`) |
+| `"np"` lub `"np I"` | Poza terytorium kraju z wyłączeniem art. 100 ust. 1 pkt 4 i OSS; `P_12=np I`, `P_13_8` |
+| `"np II"` | Usługi z art. 100 ust. 1 pkt 4 ustawy; `P_13_9` |
+
+Dla `zw`/`np` nie powstają pola `P_14`; `P_15` nadal sumuje te same zaokrąglone podsumowania netto i VAT. `np` jest aliasem `np I`, nie oznacza WDT. `P_13_10` dotyczy krajowego odwrotnego obciążenia i nie jest mapowaniem `np`. Inne adnotacje/procedury, w tym odwrotne obciążenie i identyfikatory zagranicznego nabywcy, wymagają surowego XML.
+
+Korekta wymaga `type: "KOR"`, niepustego `correctionReason` oraz `correctedInvoice`: `issueDate` (YYYY-MM-DD), `invoiceNumber` i dokładnie jednego wariantu: `ksefNumber` albo `outsideKsef: true`. Pozycje zawierają **różnice**, nie pełne wartości po korekcie: `quantity × unitPrice` to zmiana netto. W KOR ilość może być ujemna (lecz nie zerowa), a cena ujemna; dla zwykłych faktur ilość pozostaje dodatnia i cena nieujemna. Np. ilość 1 i cena -10 przy 23% oznacza -10 netto, -2,30 VAT, -12,30 brutto. Zmianę stawki można zapisać jako ujemną pozycję starej stawki i dodatnią nowej. Builder nie emituje `StanPrzed`, bo korzysta z wariantu różnicowego dopuszczonego w dokumentacji `FaWiersz` schematu FA(3). Rabaty i zaliczki nie mają osobnego modelu.
+
+Pełne przykłady: [zw](examples/invoice-exempt.json) i [korekta](examples/invoice-correction.json). Zastąp `SELLER_NIP` własnym NIP przed wysłaniem:
+
+```bash
+curl -X POST http://localhost:8080/ksef/invoice \
+  -H "X-Api-Key: $GATEWAY_API_KEY" -H "Content-Type: application/json" \
+  -d @examples/invoice-exempt.json
+curl -X POST http://localhost:8080/ksef/invoice \
+  -H "X-Api-Key: $GATEWAY_API_KEY" -H "Content-Type: application/json" \
+  -d @examples/invoice-correction.json
+```
+
+
 ```bash
 curl -X POST http://localhost:8080/ksef/invoice \
   -H "Content-Type: application/json" \

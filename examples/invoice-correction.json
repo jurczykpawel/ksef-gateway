@@ -1,0 +1,42 @@
+{
+  "invoiceNumber": "KOR/EXAMPLE/2026",
+  "issueDate": "2026-03-24",
+  "issuePlace": "Warszawa",
+  "saleDate": "2026-03-24",
+  "currency": "PLN",
+  "type": "KOR",
+  "seller": {
+    "nip": "SELLER_NIP",
+    "name": "Przykładowa Firma sp. z o.o.",
+    "address": {
+      "street": "ul. Sprzedawcy 10",
+      "city": "00-001 Warszawa",
+      "country": "PL"
+    },
+    "email": "firma@example.com",
+    "phone": "123456789"
+  },
+  "buyer": {
+    "nip": "5265877635",
+    "name": "Klient Testowy sp. z o.o.",
+    "address": {
+      "street": "ul. Kupiecka 5",
+      "city": "30-001 Kraków",
+      "country": "PL"
+    }
+  },
+  "items": [
+    {
+      "name": "Różnica ceny usługi",
+      "quantity": 1,
+      "unitPrice": -10,
+      "vatRate": 23
+    }
+  ],
+  "correctionReason": "Korekta błędnej ceny",
+  "correctedInvoice": {
+    "issueDate": "2026-03-01",
+    "invoiceNumber": "FV/OLD/2026",
+    "outsideKsef": true
+  }
+}

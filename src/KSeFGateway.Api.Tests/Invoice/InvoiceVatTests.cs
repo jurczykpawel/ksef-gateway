@@ -32,7 +32,7 @@ public class InvoiceVatTests
     private static XElement Fa(string xml) => XDocument.Parse(xml).Root!.Element(Ns + "Fa")!;
     private static decimal Amount(XElement parent, string name) =>
         decimal.Parse(parent.Element(Ns + name)!.Value, CultureInfo.InvariantCulture);
-    private static string Suffix(int rate) => rate switch { 23 => "1", 8 => "2", 5 => "3", 0 => "6_1", _ => throw new ArgumentOutOfRangeException(nameof(rate)) };
+    private static string Suffix(VatRate rate) => rate.Value switch { "23" => "1", "8" => "2", "5" => "3", "0" => "6_1", _ => throw new ArgumentOutOfRangeException(nameof(rate)) };
 
     [Fact]
     public void Build_TwoThreeGroszLines_GrossMatchesVatSummary()
@@ -106,7 +106,7 @@ public class InvoiceVatTests
         foreach (var group in items.GroupBy(i => i.VatRate))
         {
             var net = group.Sum(i => Math.Round(i.Quantity * i.UnitPrice, 2, MidpointRounding.AwayFromZero));
-            var vat = Math.Round(net * group.Key / 100m, 2, MidpointRounding.AwayFromZero);
+            var vat = Math.Round(net * group.Key.Percentage / 100m, 2, MidpointRounding.AwayFromZero);
             Assert.Equal(net, Amount(fa, $"P_13_{Suffix(group.Key)}"));
             if (group.Key != 0)
                 Assert.Equal(vat, Amount(fa, $"P_14_{Suffix(group.Key)}"));
@@ -138,7 +138,7 @@ public class InvoiceVatTests
         var oldGross = items.Sum(i =>
         {
             var net = Math.Round(i.Quantity * i.UnitPrice, 2, MidpointRounding.ToEven);
-            return net + Math.Round(net * i.VatRate / 100m, 2, MidpointRounding.ToEven);
+            return net + Math.Round(net * i.VatRate.Percentage / 100m, 2, MidpointRounding.ToEven);
         });
         Assert.Equal(decimal.Parse(expectedGross, CultureInfo.InvariantCulture), oldGross);
         Assert.Equal(oldGross, Amount(fa, "P_15"));
@@ -146,7 +146,7 @@ public class InvoiceVatTests
         {
             var oldNet = group.Sum(i => Math.Round(i.Quantity * i.UnitPrice, 2, MidpointRounding.ToEven));
             Assert.Equal(oldNet, Amount(fa, $"P_13_{Suffix(group.Key)}"));
-            Assert.Equal(Math.Round(oldNet * group.Key / 100m, 2, MidpointRounding.ToEven), Amount(fa, $"P_14_{Suffix(group.Key)}"));
+            Assert.Equal(Math.Round(oldNet * group.Key.Percentage / 100m, 2, MidpointRounding.ToEven), Amount(fa, $"P_14_{Suffix(group.Key)}"));
         }
     }
 }

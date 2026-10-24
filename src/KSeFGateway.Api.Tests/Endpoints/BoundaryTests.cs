@@ -64,6 +64,26 @@ public class BoundaryTests
     }
 
     [Theory]
+    [InlineData("rate")] [InlineData("exemption")] [InlineData("correction")]
+    public async Task SpecialInvoice_InvalidData_Returns400BeforeSdk(string scenario)
+    {
+        var sdk = new Mock<IKSeFClient>(MockBehavior.Strict);
+        await using var app = App(sdk);
+        var json = Invoice.InvoiceSpecialRatesTests.Input();
+        if (scenario == "rate") json["items"]![0]!["vatRate"] = "invalid";
+        if (scenario == "exemption") json["items"]![0]!["vatRate"] = "zw";
+        if (scenario == "correction") json["type"] = "KOR";
+        var ctx = await Invoke(app, "/ksef/invoice", json.ToJsonString());
+        Assert.Equal(400, ctx.Response.StatusCode);
+        using var body = await JsonDocument.ParseAsync(ctx.Response.Body);
+        var errors = body.RootElement.GetProperty("errors");
+        if (scenario == "rate") Assert.Contains("VAT rate", errors[0].GetProperty("message").GetString());
+        else Assert.Contains(errors.EnumerateArray(), e => e.GetProperty("field").GetString() ==
+            (scenario == "exemption" ? "exemptionBasis" : "correctedInvoice"));
+        sdk.VerifyNoOtherCalls();
+    }
+
+    [Theory]
     [InlineData("seller", null)] [InlineData("buyer", null)]
     [InlineData("seller.address", null)] [InlineData("buyer.address", null)]
     [InlineData("items", null)] [InlineData("items", "[]")]

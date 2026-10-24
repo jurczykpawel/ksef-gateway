@@ -1,4 +1,5 @@
 using System.Globalization;
+using System.Text.RegularExpressions;
 
 namespace KSeFGateway.Api.Invoice;
 
@@ -6,6 +7,11 @@ public record FieldError(string Field, string Message);
 
 public static class InvoiceRequestValidator
 {
+    // TNumerKSeF pattern from the official FA(3) XSD, anchored for whole-string validation.
+    private const string KsefNumberPattern = @"\A([1-9]((\d[1-9])|([1-9]\d))\d{7}|M\d{9}|[A-Z]{3}\d{7})-"
+        + @"(20[2-9][0-9]|2[1-9][0-9]{2}|[3-9][0-9]{3})(0[1-9]|1[0-2])(0[1-9]|[1-2][0-9]|3[0-1])-"
+        + @"([0-9A-F]{6})-?([0-9A-F]{6})-([0-9A-F]{2})\z";
+
     public static List<FieldError> Validate(InvoiceRequest? invoice)
     {
         var errors = new List<FieldError>();
@@ -40,6 +46,23 @@ public static class InvoiceRequestValidator
         else Party("seller", invoice.Seller.Nip, invoice.Seller.Name, invoice.Seller.Address);
         if (invoice.Buyer is null) errors.Add(new("buyer", "Required"));
         else Party("buyer", invoice.Buyer.Nip, invoice.Buyer.Name, invoice.Buyer.Address);
+        if (invoice.Type == "KOR")
+        {
+            Required(invoice.CorrectionReason, "correctionReason");
+            if (invoice.CorrectedInvoice is not { } corrected) errors.Add(new("correctedInvoice", "Required for KOR"));
+            else
+            {
+                Date(corrected.IssueDate, "correctedInvoice.issueDate");
+                Required(corrected.InvoiceNumber, "correctedInvoice.invoiceNumber");
+                if (corrected.OutsideKsef ? corrected.KsefNumber is not null :
+                    corrected.KsefNumber is null || !Regex.IsMatch(corrected.KsefNumber, KsefNumberPattern))
+                    errors.Add(new("correctedInvoice.ksefNumber", "Provide a valid KSeF number OR outsideKsef=true, exclusively"));
+            }
+        }
+        else if (invoice.CorrectedInvoice is not null || invoice.CorrectionReason is not null)
+            errors.Add(new("type", "Correction data requires type KOR"));
+        if (invoice.Items?.Any(item => item?.VatRate.Value == "zw") == true)
+            Required(invoice.ExemptionBasis, "exemptionBasis");
         if (invoice.Items is null || invoice.Items.Count == 0) errors.Add(new("items", "At least one item is required"));
         else for (var i = 0; i < invoice.Items.Count; i++)
         {
@@ -47,9 +70,9 @@ public static class InvoiceRequestValidator
             var item = invoice.Items[i];
             if (item is null) { errors.Add(new(field, "Required")); continue; }
             Required(item.Name, field + ".name");
-            if (item.Quantity <= 0) errors.Add(new(field + ".quantity", "Must be greater than zero"));
-            if (item.UnitPrice < 0) errors.Add(new(field + ".unitPrice", "Cannot be negative"));
-            if (item.VatRate is not (0 or 5 or 8 or 23)) errors.Add(new(field + ".vatRate", "Supported rates: 0, 5, 8, 23"));
+            if (item.Quantity == 0 || (invoice.Type != "KOR" && item.Quantity < 0)) errors.Add(new(field + ".quantity", "Must be nonzero (and positive unless type is KOR)"));
+            if (invoice.Type != "KOR" && item.UnitPrice < 0) errors.Add(new(field + ".unitPrice", "Cannot be negative"));
+            if (item.VatRate.SummarySuffix is null) errors.Add(new(field + ".vatRate", VatRateJsonConverter.ValidationMessage));
         }
         return errors;
     }

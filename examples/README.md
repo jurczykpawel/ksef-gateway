@@ -25,7 +25,7 @@ curl -X POST http://localhost:8080/ksef/send \
 
 **File:** [invoice.xml](invoice.xml)
 
-**When to use:** Your system already generates FA(3) XML, or you need features not covered by the other formats (corrections, attachments, special annotations).
+**When to use:** Your system already generates FA(3) XML, or you need features not covered by the other formats (attachments, special annotations).
 
 ## Option 2: JSON - xml-js format (`POST /ksef/send/json`)
 
@@ -53,7 +53,7 @@ curl -X POST http://localhost:8080/ksef/invoice \
 
 **File:** [invoice-simple.json](invoice-simple.json)
 
-**When to use:** Standard VAT invoices. Gateway auto-calculates net/VAT/gross totals per VAT rate, fills headers and annotations. Covers ~90% of use cases.
+**When to use:** Standard VAT invoices, exempt/outside-territory rates, and corrections expressed as signed differences. Gateway auto-calculates net/VAT/gross totals per VAT rate, fills headers and annotations. Covers ~90% of use cases.
 
 **Auto-calculated fields:**
 - `P_11` (net value per line) = quantity x unitPrice
@@ -157,3 +157,19 @@ Expected output:
 Each invoice send (steps 4-6) takes ~30-60 seconds because the gateway opens a session, encrypts, sends, closes, and polls for the KSeF number.
 
 The PDF (step 8) contains the official KSeF layout with QR verification code.
+
+## Exempt invoices and corrections
+
+- [invoice-exempt.json](invoice-exempt.json): `vatRate: "zw"` with the required Polish statutory `exemptionBasis`.
+- [invoice-correction.json](invoice-correction.json): `type: "KOR"`, reason, original invoice reference (outside KSeF), and a -10 net difference at 23%.
+
+Replace `SELLER_NIP` with your configured NIP. Send either file using:
+
+```bash
+curl -X POST http://localhost:8080/ksef/invoice \
+  -H "X-Api-Key: $GATEWAY_API_KEY" -H "Content-Type: application/json" \
+  -d @examples/invoice-exempt.json
+curl -X POST http://localhost:8080/ksef/invoice \
+  -H "X-Api-Key: $GATEWAY_API_KEY" -H "Content-Type: application/json" \
+  -d @examples/invoice-correction.json
+```

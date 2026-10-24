@@ -11,6 +11,9 @@ public record InvoiceRequest
     public required SellerData Seller { get; init; }
     public required BuyerData Buyer { get; init; }
     public required List<InvoiceItem> Items { get; init; }
+    public string? ExemptionBasis { get; init; }             // Polish statutory basis (P_19A), required for zw
+    public CorrectedInvoiceData? CorrectedInvoice { get; init; }
+    public string? CorrectionReason { get; init; }
     public PaymentData? Payment { get; init; }
 }
 
@@ -45,7 +48,7 @@ public record InvoiceItem
     public string Unit { get; init; } = "szt.";
     public required decimal Quantity { get; init; }
     public required decimal UnitPrice { get; init; }
-    public required int VatRate { get; init; }               // 23, 8, 5, 0 (domestic only; WDT/export require raw XML via /ksef/send)
+    public required VatRate VatRate { get; init; }           // 23, 8, 5, 0 (domestic), zw, np (= np I), np I, np II
 }
 
 public record PaymentData
@@ -53,4 +56,12 @@ public record PaymentData
     public bool Paid { get; init; } = true;
     public string? Date { get; init; }                        // YYYY-MM-DD
     public string Method { get; init; } = "transfer";         // transfer, cash, card, other
+}
+
+public record CorrectedInvoiceData
+{
+    public required string IssueDate { get; init; }
+    public required string InvoiceNumber { get; init; }
+    public string? KsefNumber { get; init; }
+    public bool OutsideKsef { get; init; }
 }

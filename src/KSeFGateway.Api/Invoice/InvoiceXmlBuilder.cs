@@ -46,16 +46,21 @@ public static class InvoiceXmlBuilder
         if (req.Items == null || req.Items.Count == 0)
             throw new ArgumentException("At least one invoice item is required.", nameof(req.Items));
 
+        var specialErrors = InvoiceRequestValidator.Validate(req).Where(e =>
+            e.Field is "exemptionBasis" or "correctionReason" or "type" || e.Field.StartsWith("correctedInvoice", StringComparison.Ordinal)).ToList();
+        if (specialErrors.Count > 0)
+            throw new ArgumentException(string.Join("; ", specialErrors.Select(e => $"{e.Field}: {e.Message}")));
+
         foreach (var item in req.Items)
         {
             if (string.IsNullOrWhiteSpace(item.Name))
                 throw new ArgumentException("Item name is required.", nameof(req.Items));
-            if (item.Quantity <= 0)
-                throw new ArgumentException($"Item '{item.Name}': quantity must be greater than zero.", nameof(req.Items));
-            if (item.UnitPrice < 0)
+            if (item.Quantity == 0 || (req.Type != "KOR" && item.Quantity < 0))
+                throw new ArgumentException($"Item '{item.Name}': quantity must be nonzero and positive unless type is KOR.", nameof(req.Items));
+            if (req.Type != "KOR" && item.UnitPrice < 0)
                 throw new ArgumentException($"Item '{item.Name}': unit price cannot be negative.", nameof(req.Items));
-            if (VatRateToSuffix(item.VatRate) == null)
-                throw new ArgumentException($"Item '{item.Name}': unsupported VAT rate {item.VatRate}%. Supported: 0, 5, 8, 23.", nameof(req.Items));
+            if (item.VatRate.SummarySuffix == null)
+                throw new ArgumentException($"Item '{item.Name}': unsupported VAT rate {item.VatRate}. Supported: 0, 5, 8, 23, zw, np, np I, np II.", nameof(req.Items));
         }
 
         // Calculate totals per VAT rate
@@ -71,13 +76,13 @@ public static class InvoiceXmlBuilder
         }).ToList();
 
         // Calculate each VAT summary once; P_15 uses the same rounded amounts as P_13/P_14.
-        var vatGroups = lines.GroupBy(l => l.VatRate).OrderByDescending(g => g.Key)
+        var vatGroups = lines.GroupBy(l => l.VatRate).OrderBy(g => g.Key.SummarySuffix, StringComparer.Ordinal)
             .Select(g => new { Rate = g.Key, Net = g.Sum(l => l.NetValue) })
             .Select(g => new
             {
                 g.Rate,
                 g.Net,
-                Vat = Math.Round(g.Net * g.Rate / 100m, 2, MidpointRounding.AwayFromZero)
+                Vat = Math.Round(g.Net * g.Rate.Percentage / 100m, 2, MidpointRounding.AwayFromZero)
             }).ToList();
         var totalGross = vatGroups.Sum(g => g.Net + g.Vat);
 
@@ -134,10 +139,10 @@ public static class InvoiceXmlBuilder
         // VAT summary fields (P_13_1/P_14_1 for 23%, P_13_2/P_14_2 for 8%, etc.)
         foreach (var group in vatGroups)
         {
-            var suffix = VatRateToSuffix(group.Rate);
+            var suffix = group.Rate.SummarySuffix;
             WriteElement(writer, $"P_13_{suffix}", FormatDecimal(group.Net));
-            // Domestic 0% has P_13_6_1 only, with no corresponding P_14 element.
-            if (group.Rate != 0)
+            // Domestic 0%, exempt and outside-territory sales have no P_14 element.
+            if (group.Rate.Percentage > 0)
                 WriteElement(writer, $"P_14_{suffix}", FormatDecimal(group.Vat));
         }
 
@@ -150,7 +155,12 @@ public static class InvoiceXmlBuilder
         WriteElement(writer, "P_18", "2");
         WriteElement(writer, "P_18A", "2");
         writer.WriteStartElement("Zwolnienie");
-        WriteElement(writer, "P_19N", "1");
+        if (req.Items.Any(i => i.VatRate.Value == "zw"))
+        {
+            WriteElement(writer, "P_19", "1");
+            WriteElement(writer, "P_19A", req.ExemptionBasis!);
+        }
+        else WriteElement(writer, "P_19N", "1");
         writer.WriteEndElement();
         writer.WriteStartElement("NoweSrodkiTransportu");
         WriteElement(writer, "P_22N", "1");
@@ -163,6 +173,24 @@ public static class InvoiceXmlBuilder
 
         WriteElement(writer, "RodzajFaktury", req.Type);
 
+        if (req.Type == "KOR")
+        {
+            var corrected = req.CorrectedInvoice!;
+            WriteElement(writer, "PrzyczynaKorekty", req.CorrectionReason!);
+            writer.WriteStartElement("DaneFaKorygowanej");
+            WriteElement(writer, "DataWystFaKorygowanej", corrected.IssueDate);
+            WriteElement(writer, "NrFaKorygowanej", corrected.InvoiceNumber);
+            if (corrected.OutsideKsef) WriteElement(writer, "NrKSeFN", "1");
+            else
+            {
+                WriteElement(writer, "NrKSeF", "1");
+                WriteElement(writer, "NrKSeFFaKorygowanej", corrected.KsefNumber!);
+            }
+            writer.WriteEndElement();
+        }
+
+        // FA(3) FaWiersz documentation permits signed differences for corrections;
+        // StanPrzed is only used by the alternative before/after representation.
         // FaWiersz (line items)
         foreach (var line in lines)
         {
@@ -173,7 +201,7 @@ public static class InvoiceXmlBuilder
             WriteElement(writer, "P_8B", FormatDecimal(line.Quantity));
             WriteElement(writer, "P_9A", FormatDecimal(line.UnitPrice));
             WriteElement(writer, "P_11", FormatDecimal(line.NetValue));
-            WriteElement(writer, "P_12", line.VatRate == 0 ? "0 KR" : line.VatRate.ToString());
+            WriteElement(writer, "P_12", line.VatRate.XmlValue);
             writer.WriteEndElement();
         }
 
@@ -235,16 +263,4 @@ public static class InvoiceXmlBuilder
     private static string FormatDecimal(decimal value) =>
         value.ToString("F2", CultureInfo.InvariantCulture);
 
-    /// <summary>
-    /// Maps VAT rate to P_13/P_14 suffix per FA(3) schema:
-    /// 23% → 1, 8% → 2, 5% → 3, domestic 0% → 6_1 (P_13 only)
-    /// </summary>
-    private static string? VatRateToSuffix(int vatRate) => vatRate switch
-    {
-        22 or 23 => "1",
-        7 or 8 => "2",
-        5 => "3",
-        0 => "6_1",
-        _ => null
-    };
 }

@@ -122,6 +122,39 @@ public class GatewayIntegrationTests
     }
 
     [Fact]
+    public async Task SendFriendlyJson_Exempt_IsAccepted()
+    {
+        var invoice = SampleInvoice(UniqueNumber("FV/INT/ZW")) with
+        {
+            ExemptionBasis = "art. 113 ust. 1 ustawy o VAT",
+            Items = [new InvoiceItem { Name = "Exempt service", Quantity = 1, UnitPrice = 100m, VatRate = "zw" }]
+        };
+        using var response = await Http.PostAsJsonAsync($"{BaseUrl}/ksef/invoice", invoice);
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var body = await response.Content.ReadFromJsonAsync<JsonElement>();
+        Assert.Equal("accepted", body.GetProperty("data").GetProperty("status").GetString());
+        Assert.False(string.IsNullOrEmpty(body.GetProperty("data").GetProperty("ksefNumber").GetString()));
+    }
+
+    [Fact]
+    public async Task SendFriendlyJson_DecreasingCorrection_IsAccepted()
+    {
+        // One send only: reference an outside-KSeF invoice, without creating another invoice.
+        var invoice = SampleInvoice(UniqueNumber("KOR/INT")) with
+        {
+            Type = "KOR", CorrectionReason = "Price correction",
+            CorrectedInvoice = new CorrectedInvoiceData { IssueDate = "2026-03-01", InvoiceNumber = "OUTSIDE/1", OutsideKsef = true },
+            Items = [new InvoiceItem { Name = "Service price difference", Quantity = 1, UnitPrice = -10m, VatRate = 23 }],
+            Payment = null
+        };
+        using var response = await Http.PostAsJsonAsync($"{BaseUrl}/ksef/invoice", invoice);
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var body = await response.Content.ReadFromJsonAsync<JsonElement>();
+        Assert.Equal("accepted", body.GetProperty("data").GetProperty("status").GetString());
+        Assert.False(string.IsNullOrEmpty(body.GetProperty("data").GetProperty("ksefNumber").GetString()));
+    }
+
+    [Fact]
     public async Task SendRawXml_ReturnsKsefNumber()
     {
         var invoice = SampleInvoice(UniqueNumber("FV/INT/XML"));

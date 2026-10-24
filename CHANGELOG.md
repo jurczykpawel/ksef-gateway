@@ -20,6 +20,8 @@
 
 ### Added
 
+- Support exempt (`zw`) and outside-territory (`np I`/`np II`) friendly invoice rates, statutory exemption basis, and `KOR` invoices with signed line differences and original-invoice references.
+
 - Approve the complete reflected SDK 2.9.0 route/signature manifest in tests; SDK contract changes require explicit review and a changelog entry.
 
 ### Fixed

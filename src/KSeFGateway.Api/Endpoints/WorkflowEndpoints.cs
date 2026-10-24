@@ -172,10 +172,13 @@ public static class WorkflowEndpoints
                 invoiceReq = JsonSerializer.Deserialize<InvoiceRequest>(body,
                     InvoiceJsonOptions);
             }
-            catch (JsonException)
+            catch (JsonException ex)
             {
                 return Results.Json(ApiResponse.Fail("Validation failed") with {
-                    Errors = new[] { new FieldError("body", "Invalid invoice JSON or missing required fields") }
+                    Errors = new[] { new FieldError(ex.Message.StartsWith("VAT rate", StringComparison.Ordinal) && ex.Path is not null
+                        ? ex.Path.Replace("$.", "").Replace("[", ".").Replace("]", "") : "body",
+                        ex.Message.StartsWith("VAT rate", StringComparison.Ordinal)
+                        ? VatRateJsonConverter.ValidationMessage : "Invalid invoice JSON or missing required fields") }
                 }, statusCode: 400);
             }
 

@@ -327,6 +327,30 @@ Each line's net amount is rounded to 2 decimal places using commercial rounding 
 
 `vatRate: 0` means domestic 0% sales only, excluding intra-community supplies (WDT) and exports (`P_13_6_1`, no `P_14_6`; line `P_12 = 0 KR`). WDT and exports at 0% require raw XML via `POST /ksef/send`; the friendly format does not support them.
 
+The friendly format accepts numeric `vatRate: 23/8/5/0` and these strings:
+
+| `vatRate` | Meaning / XML summary |
+|---|---|
+| `"zw"` | Exempt sales, `P_13_7`; requires `exemptionBasis` (Polish statutory basis, `Zwolnienie/P_19=1`, `P_19A`) |
+| `"np"` or `"np I"` | Outside-territory supplies excluding Article 100(1)(4) and OSS; `P_12=np I`, `P_13_8` |
+| `"np II"` | Services under Article 100(1)(4) of the Polish VAT Act; `P_13_9` |
+
+No `P_14` fields are emitted for `zw`/`np`; `P_15` still sums the same rounded net and VAT summaries. `np` is an alias of `np I`, not intra-community supplies (WDT). `P_13_10` covers domestic reverse charge and does not map to `np`. Other annotations/procedures, including reverse charge and foreign buyer identifiers, require raw XML.
+
+Corrections require `type: "KOR"`, a nonempty `correctionReason`, and `correctedInvoice`: `issueDate` (YYYY-MM-DD), `invoiceNumber`, and exactly one of `ksefNumber` or `outsideKsef: true`. Items express **differences**, rather than full corrected values: `quantity × unitPrice` is the net change. KOR quantities may be negative (but not zero), and prices may be negative; ordinary invoices still require positive quantities and nonnegative prices. For example, quantity 1 and price -10 at 23% means -10 net, -2.30 VAT, -12.30 gross. A rate change can use a negative line at the old rate and a positive line at the new rate. The builder omits `StanPrzed` because it uses the difference representation explicitly permitted by the FA(3) `FaWiersz` documentation. Discounts and advances have no dedicated model.
+
+Complete examples: [exempt](examples/invoice-exempt.json) and [correction](examples/invoice-correction.json). Replace `SELLER_NIP` with your NIP before sending:
+
+```bash
+curl -X POST http://localhost:8080/ksef/invoice \
+  -H "X-Api-Key: $GATEWAY_API_KEY" -H "Content-Type: application/json" \
+  -d @examples/invoice-exempt.json
+curl -X POST http://localhost:8080/ksef/invoice \
+  -H "X-Api-Key: $GATEWAY_API_KEY" -H "Content-Type: application/json" \
+  -d @examples/invoice-correction.json
+```
+
+
 ```bash
 curl -X POST http://localhost:8080/ksef/invoice \
   -H "Content-Type: application/json" \

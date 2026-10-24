@@ -106,6 +106,10 @@ docker run --rm \
   -e GATEWAY_API_KEY="$GATEWAY_API_KEY" \
   -e GATEWAY_URL="http://host.docker.internal:8080" \
   -v "$REPO_ROOT/src:/src" \
+  -v "$REPO_ROOT/tools:/src/tools:ro" \
+  -v "$REPO_ROOT/README.md:/docs/README.md:ro" \
+  -v "$REPO_ROOT/README.en.md:/docs/README.en.md:ro" \
+  -v "$REPO_ROOT/examples:/docs/examples:ro" \
   mcr.microsoft.com/dotnet/sdk:10.0 \
   bash -c "
     set -euo pipefail

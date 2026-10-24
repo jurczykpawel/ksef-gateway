@@ -35,6 +35,13 @@ public class GatewayIntegrationTests
         return client;
     }
 
+    /// <summary>Asserts HTTP 200 and, on failure, shows the response body (KSeF rejections explain themselves there).</summary>
+    private static async Task AssertOkAsync(HttpResponseMessage resp)
+    {
+        if (resp.StatusCode == HttpStatusCode.OK) return;
+        Assert.Fail($"Expected 200 OK but got {(int)resp.StatusCode} {resp.StatusCode}: {await resp.Content.ReadAsStringAsync()}");
+    }
+
     private static string SellerNip =>
         Environment.GetEnvironmentVariable("KSEF_NIP") ?? "9124229327";
 
@@ -70,7 +77,7 @@ public class GatewayIntegrationTests
         var invoice = SampleInvoice(UniqueNumber("FV/INT/JSON"));
         var resp = await Http.PostAsJsonAsync($"{BaseUrl}/ksef/invoice", invoice);
 
-        Assert.Equal(HttpStatusCode.OK, resp.StatusCode);
+        await AssertOkAsync(resp);
         var body = await resp.Content.ReadFromJsonAsync<JsonElement>();
         Assert.True(body.GetProperty("success").GetBoolean());
         Assert.False(string.IsNullOrEmpty(body.GetProperty("data").GetProperty("ksefNumber").GetString()));
@@ -162,7 +169,7 @@ public class GatewayIntegrationTests
         var resp = await Http.PostAsync($"{BaseUrl}/ksef/send",
             new StringContent(xml, Encoding.UTF8, "application/xml"));
 
-        Assert.Equal(HttpStatusCode.OK, resp.StatusCode);
+        await AssertOkAsync(resp);
         var body = await resp.Content.ReadFromJsonAsync<JsonElement>();
         Assert.True(body.GetProperty("success").GetBoolean());
         Assert.False(string.IsNullOrEmpty(body.GetProperty("data").GetProperty("ksefNumber").GetString()));
@@ -180,7 +187,7 @@ public class GatewayIntegrationTests
             new StringContent(xmlJs.ToJsonString(), Encoding.UTF8, "application/json"));
 
         Assert.NotEqual(HttpStatusCode.Unauthorized, resp.StatusCode);
-        Assert.Equal(HttpStatusCode.OK, resp.StatusCode);
+        await AssertOkAsync(resp);
         var body = await resp.Content.ReadFromJsonAsync<JsonElement>();
         Assert.True(body.GetProperty("success").GetBoolean());
         Assert.False(string.IsNullOrEmpty(body.GetProperty("data").GetProperty("ksefNumber").GetString()));
@@ -214,7 +221,7 @@ public class GatewayIntegrationTests
             () => Http.GetAsync($"{BaseUrl}/ksef/invoice/{ksefNumber}"),
             r => r.StatusCode == HttpStatusCode.OK);
 
-        Assert.Equal(HttpStatusCode.OK, resp.StatusCode);
+        await AssertOkAsync(resp);
         var xml = await resp.Content.ReadAsStringAsync();
         Assert.Contains("<Faktura", xml);
         Assert.Contains("http://crd.gov.pl/wzor/2025/06/25/13775/", xml);
@@ -228,7 +235,7 @@ public class GatewayIntegrationTests
             () => Http.GetAsync($"{BaseUrl}/ksef/invoice/{ksefNumber}/pdf"),
             r => r.StatusCode == HttpStatusCode.OK);
 
-        Assert.Equal(HttpStatusCode.OK, resp.StatusCode);
+        await AssertOkAsync(resp);
         Assert.Equal("application/pdf", resp.Content.Headers.ContentType?.MediaType);
         var bytes = await resp.Content.ReadAsByteArrayAsync();
         Assert.True(bytes.Length > 1000, $"PDF suspiciously small: {bytes.Length} bytes");
@@ -296,7 +303,7 @@ public class GatewayIntegrationTests
         var since = DateTimeOffset.UtcNow.ToString("O");
         var resp = await Http.GetAsync($"{BaseUrl}/ksef/invoices/received/new?since={Uri.EscapeDataString(since)}");
 
-        Assert.Equal(HttpStatusCode.OK, resp.StatusCode);
+        await AssertOkAsync(resp);
         var body = await resp.Content.ReadFromJsonAsync<JsonElement>();
         Assert.True(body.GetProperty("success").GetBoolean());
         Assert.Empty(body.GetProperty("data").GetProperty("invoices").EnumerateArray());
@@ -330,7 +337,7 @@ public class GatewayIntegrationTests
         using var client = CreateHttpClient(includeApiKey: false);
         var resp = await client.GetAsync($"{BaseUrl}/health");
 
-        Assert.Equal(HttpStatusCode.OK, resp.StatusCode);
+        await AssertOkAsync(resp);
     }
 
     // ── Error paths ───────────────────────────────────────────────────────────

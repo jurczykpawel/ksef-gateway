@@ -4,6 +4,8 @@
 
 ### Security
 
+- Pin container base digests and Azure release tags; expand Dependabot coverage to Docker, submodules, tests and tools with authenticated NuGet access.
+
 - Gate image publication on CI for the same ref, attach SPDX SBOMs and sign image digests with keyless cosign.
 
 - Pin all external GitHub Actions to verified commit SHAs.

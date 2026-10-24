@@ -953,6 +953,8 @@ See [`deploy/aws/README.md`](deploy/aws/README.md) for details.
 
 ### Azure Container Apps
 
+The Azure template defaults to release `v0.2.1`; use `apiImage` and `pdfImage` to select a newer release or verified digests.
+
 Deploy as managed containers - mirrors Docker Compose, zero code changes.
 
 ```bash

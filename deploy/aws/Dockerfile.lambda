@@ -1,4 +1,4 @@
-FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build
+FROM mcr.microsoft.com/dotnet/sdk:10.0@sha256:747cbade5bfd918a175ac32f8f1d931edec2c7d0d5397a3de72eaef1ac1f66d2 AS build
 WORKDIR /src
 
 # GitHub PAT (read:packages) for the CIRFMF NuGet feed on GitHub Packages.
@@ -18,6 +18,6 @@ COPY KSeFGateway.Api/ KSeFGateway.Api/
 RUN dotnet publish KSeFGateway.Api/KSeFGateway.Api.csproj \
     -c Release -o /app/publish --no-restore
 
-FROM public.ecr.aws/lambda/dotnet:10 AS runtime
+FROM public.ecr.aws/lambda/dotnet:10@sha256:e8af00086e7c9095570a7ed8d24fe813f863d8a590e09a211225c02780f7f2c8 AS runtime
 COPY --from=build /app/publish ${LAMBDA_TASK_ROOT}
 CMD ["KSeFGateway.Api"]

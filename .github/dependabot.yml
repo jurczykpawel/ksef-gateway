@@ -1,25 +1,99 @@
 version: 2
+registries:
+  cirfmf:
+    type: nuget-feed
+    url: https://nuget.pkg.github.com/CIRFMF/index.json
+    username: jurczykpawel
+    password: ${{ secrets.CIRFMF_PAT }}
 updates:
   - package-ecosystem: nuget
     directory: /src/KSeFGateway.Api
+    registries: [cirfmf]
     schedule:
       interval: weekly
     open-pull-requests-limit: 5
-
+    groups:
+      compatible-patches:
+        update-types: [patch]
+  - package-ecosystem: nuget
+    directory: /src/KSeFGateway.Api.Tests
+    registries: [cirfmf]
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
+    groups:
+      compatible-patches:
+        update-types: [patch]
+  - package-ecosystem: nuget
+    directory: /tools/CertGenerator
+    registries: [cirfmf]
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
+    groups:
+      compatible-patches:
+        update-types: [patch]
+  - package-ecosystem: nuget
+    directory: /tools/InvoiceDemo
+    registries: [cirfmf]
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
+    groups:
+      compatible-patches:
+        update-types: [patch]
+  - package-ecosystem: nuget
+    directory: /tools/TokenGenerator
+    registries: [cirfmf]
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
+    groups:
+      compatible-patches:
+        update-types: [patch]
   - package-ecosystem: npm
     directory: /pdf-service
     schedule:
       interval: weekly
     open-pull-requests-limit: 5
-
+    groups:
+      compatible-patches:
+        update-types: [patch]
   - package-ecosystem: npm
     directory: /landing
     schedule:
       interval: weekly
     open-pull-requests-limit: 5
-
+    groups:
+      compatible-patches:
+        update-types: [patch]
   - package-ecosystem: github-actions
     directory: /
     schedule:
       interval: weekly
-    open-pull-requests-limit: 3
+    open-pull-requests-limit: 5
+    groups:
+      compatible-patches:
+        update-types: [patch]
+
+  # Majors (and minors) stay in individual PRs; only patches are grouped above.
+  - package-ecosystem: docker
+    directories:
+      - /src/KSeFGateway.Api
+      - /pdf-service
+      - /tools/CertGenerator
+      - /tools/InvoiceDemo
+      - /tools/TokenGenerator
+      - /deploy/aws
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
+    groups:
+      compatible-patches:
+        update-types: [patch]
+
+  - package-ecosystem: gitsubmodule
+    directory: /
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5

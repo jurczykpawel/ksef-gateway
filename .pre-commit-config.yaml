@@ -25,16 +25,11 @@ repos:
         pass_filenames: false
         files: ^pdf-service/
 
-      - id: dotnet-build
-        name: .NET build check
-        entry: bash -c 'which dotnet > /dev/null 2>&1 || exit 0; cd src && dotnet build KSeFGateway.Api/KSeFGateway.Api.csproj --no-restore -q'
-        language: system
-        pass_filenames: false
-        files: ^src/.*\.cs$
-
-      - id: dotnet-test
-        name: .NET unit tests
-        entry: bash -c 'which dotnet > /dev/null 2>&1 || exit 0; cd src && dotnet test KSeFGateway.Api.Tests/KSeFGateway.Api.Tests.csproj --no-restore --no-build --filter "Category!=Integration" -q'
+      # .NET build + unit tests run in Docker (the same `ksef-api-tests` image CI uses), so the hook
+      # needs no local SDK, no pre-restored packages and no matching runtime version.
+      - id: dotnet-tests
+        name: .NET build + unit tests (Docker)
+        entry: bash -c 'docker info >/dev/null 2>&1 || { echo "Docker not running - skipping .NET tests"; exit 0; }; [ -f .env ] || { echo ".env missing - skipping .NET tests"; exit 0; }; docker compose --env-file .env --profile tools run --rm --build ksef-api-tests'
         language: system
         pass_filenames: false
         files: ^src/.*\.cs$

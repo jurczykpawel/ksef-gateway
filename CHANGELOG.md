@@ -5,7 +5,6 @@
 ### Security
 
 - **BREAKING (v0.3.0):** expose only invoice sending/receiving SDK groups by default. Use `KSEF_SDK_ENDPOINTS` for explicit groups/methods or opt into `all` (including token, permission and certificate administration); hidden routes are absent from routing and OpenAPI.
-
 - API and PDF containers run as non-root users; the API retains read access to Render Secret Files. PDF errors return concise JSON without internal messages or stack traces.
 
 ### Changed
@@ -18,7 +17,6 @@
 - Use commercial rounding (midpoints away from zero) for invoice line net amounts and VAT summaries.
 - Derive invoice gross totals from the same per-rate net and VAT summaries, fixing discrepancies for small line amounts.
 - Emit schema-valid domestic 0% VAT fields (`P_13_6_1` and line `0 KR`, without `P_14_6`); document raw XML for WDT and exports.
-
 - Restore clean landing installs by using TypeScript 6, compatible with `@astrojs/check`; build the landing in CI, including Dependabot PRs.
 - Stabilize PDF service tests with per-test ephemeral IPv4 servers and restore environment variables without leaking the string `"undefined"`.
 - Derive PDF invoice QR verification hosts from the shared KSeF environment (TEST/DEMO/PRODUCTION/PRD), preserving explicit `KSEF_QR_URL` overrides.

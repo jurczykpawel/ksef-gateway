@@ -90,7 +90,10 @@ public class TokenPoolTests
     {
         using var pool = new TestPool();
         pool.Authenticate = _ => throw new OperationCanceledException("eager cancelled");
-        await Assert.ThrowsAnyAsync<OperationCanceledException>(() => pool.StartAsync(default));
+        // .NET 10 runs BackgroundService.ExecuteAsync on its own task, so StartAsync no longer surfaces a
+        // synchronous failure; the cancellation must be observable on ExecuteTask (and must not be swallowed).
+        await pool.StartAsync(default);
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() => pool.ExecuteTask!);
     }
 
     [Fact]

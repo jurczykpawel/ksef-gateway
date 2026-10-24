@@ -24,7 +24,7 @@ public class OpenApiContractTests
         await using var application = builder.Build();
         app = application;
         app.MapDiscoveredEndpoints(SdkReflector.DiscoverEndpoints());
-        app.MapHealthEndpoints(64);
+        app.MapHealthEndpoints(64, 64);
         app.MapWorkflowEndpoints();
         app.MapInvoiceDownloadEndpoints();
         app.MapOpenApi();

@@ -31,7 +31,7 @@ var exposedEndpoints = SdkEndpointPolicy.Select(endpoints, sdkSelection);
 builder.Services.AddKSeFClient(options =>
 {
     options.BaseUrl = ksefEnv.BaseUrl;
-});
+}, http => http.AddKsefOperationRateLimiting());
 builder.Services.AddCryptographyClient();
 
 // Licensing: multi-NIP requires a valid GATEWAY_LICENSE (see LicenseService) - must be

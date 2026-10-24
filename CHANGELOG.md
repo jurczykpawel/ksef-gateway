@@ -16,7 +16,7 @@
 ### Fixed
 
 - Serialize per-NIP token authentication and refresh, publish immutable snapshots, refresh at 80% of actual lifetime, and preserve valid tokens on transient refresh failures without swallowing cancellation.
-
+- Count each SDK HTTP attempt against per-NIP operation budgets (anonymous calls per IP), honor upstream Retry-After, update session-close/export limits, and exclude local diagnostics regardless of route casing.
 - Use commercial rounding (midpoints away from zero) for invoice line net amounts and VAT summaries.
 - Derive invoice gross totals from the same per-rate net and VAT summaries, fixing discrepancies for small line amounts.
 - Emit schema-valid domestic 0% VAT fields (`P_13_6_1` and line `0 KR`, without `P_14_6`); document raw XML for WDT and exports.

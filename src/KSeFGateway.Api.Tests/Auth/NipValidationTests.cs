@@ -118,7 +118,8 @@ public class NipValidationTests
     public async Task Pipeline_1000RejectedNips_NoPoolOrLimiterGrowth(bool validFormat)
     {
         var provider = Provider();
-        using var services = new ServiceCollection().AddSingleton(provider).BuildServiceProvider();
+        var operationLimiter = new KsefOperationLimiter(TimeProvider.System);
+        using var services = new ServiceCollection().AddSingleton(provider).AddSingleton(operationLimiter).BuildServiceProvider();
         using var pool = new TokenPool(services, provider, NullLogger<TokenPool>.Instance);
         var reachedEndpoint = false;
         var limiter = new RateLimitMiddleware(async context =>
@@ -144,8 +145,8 @@ public class NipValidationTests
         Assert.False(reachedEndpoint);
         Assert.Empty(pool.GetAllStates());
         Assert.Empty(AuthLocks(pool));
-        var counters = typeof(RateLimitMiddleware).GetField("_counters", BindingFlags.Instance | BindingFlags.NonPublic)!;
-        Assert.Empty((System.Collections.IEnumerable)counters.GetValue(limiter)!);
+        var counters = typeof(KsefOperationLimiter).GetField("_counters", BindingFlags.Instance | BindingFlags.NonPublic)!;
+        Assert.Empty((System.Collections.IEnumerable)counters.GetValue(operationLimiter)!);
     }
 
     [Fact]

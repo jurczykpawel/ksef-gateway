@@ -537,6 +537,10 @@ Podłącz to do workflow cron/n8n odpytującego co 15-30 minut, żeby dostawać 
 
 Endpoint `query/metadata` KSeF (który to opakowuje) jest ograniczony do **20 żądań/godzinę** - własny limiter żądań usługi egzekwuje to proaktywnie (429 z `Retry-After`, zanim żądanie w ogóle dotrze do KSeF). Nie odpytuj częściej niż co 15 minut, zgodnie z zaleceniem samego KSeF. Przy bardzo dużym wolumenie faktur użyj zamiast tego surowego endpointu `invoice-download/export-invoices` (asynchroniczny eksport wsadowy) - jeszcze nie opakowanego tutaj w przyjazny endpoint.
 
+Limiter nalicza każdą rzeczywistą próbę HTTP klienta SDK: każdą stronę pollingu, otwarcie/wysłanie/zamknięcie sesji, odpytanie statusu i ponowienie. Przyjazne i surowe endpointy współdzielą budżet operacji niezależnie od wielkości liter trasy. Chronione operacje mają osobne liczniki per NIP i kategoria (dla jednego wychodzącego IP); operacje anonimowe współdzielą limit per IP. `/health`, `/ksef/status` i `/ksef/contexts` nie zużywają budżetu KSeF. Gateway respektuje również `Retry-After` otrzymany z KSeF.
+
+Liczniki są przechowywane **w pamięci jednej repliki**, zerują się po restarcie i nie synchronizują z innymi instancjami ani klientami korzystającymi z tego samego NIP-u/IP. Stosowane są domyślne limity produkcyjne MF (w tym osobne limity zamknięcia sesji z API 2.8.0); indywidualnie zmieniony profil KSeF może mieć inne wartości. Przyszły globalny limit per IP jest według changeloga MF 2.8.0 wyłączony. Przy odmowie w środku workflow wcześniejsze operacje mogły już zostać wykonane; przed ponowną wysyłką sprawdź stan sesji/faktury.
+
 **Gotowy do zaimportowania przykład n8n:** [`examples/n8n/receive-invoices.json`](examples/n8n/receive-invoices.json) ([wersja polska](examples/n8n/receive-invoices-PL.json)) - odpytuje `/ksef/invoices/received/new` co 20 minut, trzyma checkpoint we własnych danych statycznych workflow, pobiera PDF każdej nowej faktury na dysk i zostawia węzeł `Notify (TODO)` do podłączenia Slacka/e-maila/Discorda.
 
 ---

@@ -76,50 +76,26 @@ public class SlidingWindowCounterTests
 public class KsefRateLimitsTests
 {
     [Theory]
-    [InlineData("/ksef/send", "sessions/online/send")]
-    [InlineData("/ksef/send/json", "sessions/online/send")]
-    [InlineData("/ksef/invoice/123-456/pdf", "invoices/get")]
-    [InlineData("/ksef/invoice-download/get-invoice", "invoices/get")]
-    [InlineData("/ksef/invoice-download/query-invoice-metadata", "invoices/query")]
-    [InlineData("/ksef/invoices/received", "invoices/query")]
-    [InlineData("/ksef/invoices/received/new", "invoices/query")]
-    [InlineData("/ksef/invoices/issued", "invoices/query")]
-    [InlineData("/ksef/invoice-download/export-invoices", "invoices/exports")]
-    [InlineData("/ksef/online-session/open-online-session", "sessions/online/open")]
-    [InlineData("/ksef/online-session/send-online-session-invoice", "sessions/online/send")]
-    [InlineData("/ksef/online-session/close-online-session", "sessions/online/close")]
-    [InlineData("/ksef/batch-session/open-batch-session", "sessions/batch/open")]
-    [InlineData("/ksef/batch-session/close-batch-session", "sessions/batch/close")]
-    [InlineData("/ksef/session-status/get-sessions", "sessions/list")]
-    [InlineData("/ksef/ksef-token/generate-ksef-token", "default")]
-    [InlineData("/ksef/status", "default")]
-    public void GetLimit_ReturnsCorrectKey(string path, string expectedKey)
+    [InlineData("/invoices/query/metadata", "invoices/query", 8, 16, 20)]
+    [InlineData("/INVOICES/query/metadata", "invoices/query", 8, 16, 20)]
+    [InlineData("/invoices/exports", "invoices/exports", 8, 16, 20)]
+    [InlineData("/invoices/exports/ref", "invoices/exports/status", 10, 60, 600)]
+    [InlineData("/invoices/ksef/number", "invoices/get", 8, 16, 64)]
+    [InlineData("/sessions/online", "sessions/online/open", 10, 30, 120)]
+    [InlineData("/sessions/online/ref/invoices", "sessions/online/send", 10, 30, 180)]
+    [InlineData("/sessions/online/ref/close", "sessions/online/close", 20, 60, 240)]
+    [InlineData("/sessions/batch", "sessions/batch/open", 10, 20, 60)]
+    [InlineData("/sessions/batch/ref/close", "sessions/batch/close", 20, 40, 120)]
+    [InlineData("/sessions/ref/invoices/invoice", "sessions/status/invoice", 30, 120, 1200)]
+    [InlineData("/sessions/ref/invoices/failed", "sessions/status/invoices", 10, 20, 200)]
+    [InlineData("/sessions/ref/invoices", "sessions/status/invoices", 10, 20, 200)]
+    [InlineData("/sessions", "sessions/list", 5, 10, 60)]
+    [InlineData("/sessions/ref/upo/upo", "sessions/misc", 10, 120, 1200)]
+    [InlineData("/collective-identifiers/query", "collective-identifiers", 20, 120, 240)]
+    [InlineData("/auth/challenge", "anonymous", 60, int.MaxValue, int.MaxValue)]
+    [InlineData("/security/public-key-certificates", "anonymous", 60, int.MaxValue, int.MaxValue)]
+    public void GetLimit_UsesOfficialOperationCategory(string path, string key, int second, int minute, int hour)
     {
-        var limit = KsefRateLimits.GetLimit(path);
-        Assert.Equal(expectedKey, limit.Key);
-    }
-
-    [Fact]
-    public void GetLimit_InvoiceSend_Has30PerMinute()
-    {
-        var limit = KsefRateLimits.GetLimit("/ksef/send");
-        Assert.Equal(30, limit.PerMinute);
-        Assert.Equal(180, limit.PerHour);
-    }
-
-    [Fact]
-    public void GetLimit_InvoiceGet_Has16PerMinute()
-    {
-        var limit = KsefRateLimits.GetLimit("/ksef/invoice-download/get-invoice");
-        Assert.Equal(16, limit.PerMinute);
-        Assert.Equal(64, limit.PerHour);
-    }
-
-    [Fact]
-    public void GetLimit_Default_Has30PerMinute()
-    {
-        var limit = KsefRateLimits.GetLimit("/ksef/some-unknown-endpoint");
-        Assert.Equal(30, limit.PerMinute);
-        Assert.Equal(120, limit.PerHour);
+        Assert.Equal(new EndpointRateLimit(key, second, minute, hour), KsefRateLimits.GetLimit(path));
     }
 }

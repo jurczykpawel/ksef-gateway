@@ -1,184 +1,118 @@
-using System.Collections.Concurrent;
-using KSeFGateway.Api.Models;
 using KSeFGateway.Api.Auth;
 
 namespace KSeFGateway.Api.Middleware;
 
-/// <summary>
-/// Client-side rate limiter that proactively prevents hitting KSeF's rate limits.
-/// Uses sliding window counters per SDK endpoint pattern.
-/// Returns 429 with Retry-After BEFORE calling KSeF (avoids escalating penalties).
-/// </summary>
+/// <summary>Validate caller context only. Budgets are consumed by the SDK transport.</summary>
 public class RateLimitMiddleware
 {
     private readonly RequestDelegate _next;
-    private readonly ILogger<RateLimitMiddleware> _logger;
-    private readonly ConcurrentDictionary<string, SlidingWindowCounter> _counters = new();
-
-    public RateLimitMiddleware(RequestDelegate next, ILogger<RateLimitMiddleware> logger)
-    {
-        _next = next;
-        _logger = logger;
-    }
+    public RateLimitMiddleware(RequestDelegate next, ILogger<RateLimitMiddleware> logger) => _next = next;
 
     public async Task InvokeAsync(HttpContext context)
     {
-        // Only rate-limit /ksef/* endpoints (not /health, /scalar, etc.)
-        var path = context.Request.Path.Value;
-        if (path is null || !path.StartsWith("/ksef/"))
-        {
-            await _next(context);
-            return;
-        }
-
-        ContextResolver.ValidateHeader(context, context.RequestServices.GetRequiredService<ContextProvider>());
-
-        var limit = KsefRateLimits.GetLimit(path);
-        var counter = _counters.GetOrAdd(limit.Key, _ => new SlidingWindowCounter());
-
-        var denial = counter.TryConsume(limit);
-        if (denial is { } d)
-        {
-            _logger.LogWarning(
-                "Rate limit would be exceeded for {Key}: {Window} limit {Limit} (current: {Current}). Retry after {RetryAfter}s",
-                limit.Key, d.Window, d.Limit, d.Current, d.RetryAfterSeconds);
-
-            context.Response.StatusCode = 429;
-            context.Response.Headers.RetryAfter = d.RetryAfterSeconds.ToString();
-            context.Response.ContentType = "application/json";
-            await context.Response.WriteAsJsonAsync(
-                ApiResponse.Fail($"Rate limit for {limit.Key}: {d.Current}/{d.Limit} per {d.Window}. Retry after {d.RetryAfterSeconds}s"));
-            return;
-        }
-
+        if (context.Request.Path.StartsWithSegments("/ksef", StringComparison.OrdinalIgnoreCase))
+            ContextResolver.ValidateHeader(context, context.RequestServices.GetRequiredService<ContextProvider>());
         await _next(context);
     }
 }
 
 public record RateLimitDenial(string Window, int Limit, int Current, int RetryAfterSeconds);
-
 public record EndpointRateLimit(string Key, int PerSecond, int PerMinute, int PerHour);
 
-public class SlidingWindowCounter
+public class SlidingWindowCounter(TimeProvider? timeProvider = null)
 {
-    private readonly ConcurrentQueue<DateTimeOffset> _timestamps = new();
+    private readonly Queue<DateTimeOffset> _timestamps = new();
     private readonly object _lock = new();
+    private DateTimeOffset _blockedUntil;
+    private readonly TimeProvider _clock = timeProvider ?? TimeProvider.System;
+
+    public void DeferUntil(DateTimeOffset deadline)
+    {
+        lock (_lock)
+            if (deadline > _blockedUntil) _blockedUntil = deadline;
+    }
 
     public RateLimitDenial? TryConsume(EndpointRateLimit limit)
     {
-        var now = DateTimeOffset.UtcNow;
-        Cleanup(now);
-
         lock (_lock)
         {
-            var timestamps = _timestamps.ToArray();
+            var now = _clock.GetUtcNow();
+            var retention = limit.PerHour != int.MaxValue ? TimeSpan.FromHours(1)
+                : limit.PerMinute != int.MaxValue ? TimeSpan.FromMinutes(1) : TimeSpan.FromSeconds(1);
+            while (_timestamps.TryPeek(out var oldest) && oldest <= now - retention)
+                _timestamps.Dequeue();
 
-            // Check per-second
-            var lastSecond = timestamps.Count(t => t > now.AddSeconds(-1));
-            if (lastSecond >= limit.PerSecond)
-                return new RateLimitDenial("second", limit.PerSecond, lastSecond, 1);
-
-            // Check per-minute
-            var lastMinute = timestamps.Count(t => t > now.AddMinutes(-1));
-            if (lastMinute >= limit.PerMinute)
-            {
-                var oldestInWindow = timestamps.Where(t => t > now.AddMinutes(-1)).Min();
-                var retryAfter = (int)Math.Ceiling((oldestInWindow.AddMinutes(1) - now).TotalSeconds);
-                return new RateLimitDenial("minute", limit.PerMinute, lastMinute, Math.Max(1, retryAfter));
-            }
-
-            // Check per-hour
-            var lastHour = timestamps.Count(t => t > now.AddHours(-1));
-            if (lastHour >= limit.PerHour)
-            {
-                var oldestInWindow = timestamps.Where(t => t > now.AddHours(-1)).Min();
-                var retryAfter = (int)Math.Ceiling((oldestInWindow.AddHours(1) - now).TotalSeconds);
-                return new RateLimitDenial("hour", limit.PerHour, lastHour, Math.Max(1, retryAfter));
-            }
-
-            // Within limits - record this request
+            RateLimitDenial? denial = _blockedUntil > now
+                ? new("Retry-After", 0, 0, Seconds(_blockedUntil - now)) : null;
+            Check("second", TimeSpan.FromSeconds(1), limit.PerSecond);
+            Check("minute", TimeSpan.FromMinutes(1), limit.PerMinute);
+            Check("hour", TimeSpan.FromHours(1), limit.PerHour);
+            if (denial != null) return denial;
             _timestamps.Enqueue(now);
             return null;
+
+            void Check(string window, TimeSpan duration, int maximum)
+            {
+                if (maximum == int.MaxValue) return;
+                var timestamps = _timestamps.Where(t => t > now - duration).ToArray();
+                if (timestamps.Length < maximum) return;
+                var retry = Seconds(timestamps[0] + duration - now);
+                if (denial == null || retry > denial.RetryAfterSeconds)
+                    denial = new(window, maximum, timestamps.Length, retry);
+            }
         }
     }
 
-    private void Cleanup(DateTimeOffset now)
-    {
-        var cutoff = now.AddHours(-1);
-        while (_timestamps.TryPeek(out var oldest) && oldest < cutoff)
-            _timestamps.TryDequeue(out _);
-    }
+    private static int Seconds(TimeSpan duration) => Math.Max(1, (int)Math.Ceiling(duration.TotalSeconds));
 }
 
-/// <summary>
-/// KSeF API rate limits from official documentation.
-/// https://github.com/CIRFMF/ksef-docs/blob/main/limity/limity-api.md
-/// </summary>
+/// <summary>Default production limits from CIRFMF limity/limity-api.md and API 2.8.0.</summary>
 public static class KsefRateLimits
 {
-    private static readonly EndpointRateLimit InvoiceQuery = new("invoices/query", 8, 16, 20);
-    private static readonly EndpointRateLimit InvoiceExport = new("invoices/exports", 4, 8, 20);
-    private static readonly EndpointRateLimit InvoiceExportStatus = new("invoices/exports/status", 10, 60, 600);
-    private static readonly EndpointRateLimit InvoiceGet = new("invoices/get", 8, 16, 64);
-
-    private static readonly EndpointRateLimit SessionOnlineOpen = new("sessions/online/open", 10, 30, 120);
-    private static readonly EndpointRateLimit SessionOnlineSend = new("sessions/online/send", 10, 30, 180);
-    private static readonly EndpointRateLimit SessionOnlineClose = new("sessions/online/close", 10, 30, 120);
-
-    private static readonly EndpointRateLimit SessionBatchOpen = new("sessions/batch/open", 10, 20, 60);
-    private static readonly EndpointRateLimit SessionBatchClose = new("sessions/batch/close", 10, 20, 60);
-
-    private static readonly EndpointRateLimit SessionStatusInvoice = new("sessions/status/invoice", 30, 120, 1200);
-    private static readonly EndpointRateLimit SessionStatusList = new("sessions/list", 5, 10, 60);
-    private static readonly EndpointRateLimit SessionStatusInvoices = new("sessions/status/invoices", 10, 20, 200);
-
-    private static readonly EndpointRateLimit Default = new("default", 10, 30, 120);
-
+    // Paths here are upstream API resources, never caller-facing gateway URLs.
     public static EndpointRateLimit GetLimit(string path)
     {
-        // Workflow endpoints map to their underlying SDK calls
-        if (path.Contains("/ksef/send"))
-            return SessionOnlineSend; // Most restrictive operation in the flow
+        var parts = path.ToLowerInvariant().Trim('/').Split('/');
+        return parts switch
+        {
+            ["invoices", "query", "metadata"] => new("invoices/query", 8, 16, 20),
+            ["invoices", "exports"] => new("invoices/exports", 8, 16, 20),
+            ["invoices", "exports", _] => new("invoices/exports/status", 10, 60, 600),
+            ["invoices", "ksef", _] => new("invoices/get", 8, 16, 64),
+            ["sessions", "online"] => new("sessions/online/open", 10, 30, 120),
+            ["sessions", "online", _, "invoices"] => new("sessions/online/send", 10, 30, 180),
+            ["sessions", "online", _, "close"] => new("sessions/online/close", 20, 60, 240),
+            ["sessions", "batch"] => new("sessions/batch/open", 10, 20, 60),
+            ["sessions", "batch", _, "close"] => new("sessions/batch/close", 20, 40, 120),
+            ["sessions"] => new("sessions/list", 5, 10, 60),
+            ["sessions", _, "invoices"] or ["sessions", _, "invoices", "failed"] => new("sessions/status/invoices", 10, 20, 200),
+            ["sessions", _, "invoices", _] => new("sessions/status/invoice", 30, 120, 1200),
+            ["sessions", ..] => new("sessions/misc", 10, 120, 1200),
+            ["collective-identifiers", ..] => new("collective-identifiers", 20, 120, 240),
+            ["auth", "sessions", ..] => Other(parts),
+            ["auth", ..] or ["security", "public-key-certificates"] or ["peppol", "query"] => Anonymous(),
+            ["testdata", "subject" or "person" or "permissions" or "attachment", ..] => Anonymous(),
+            _ => Other(parts)
+        };
+    }
 
-        if (path.Contains("/ksef/invoice") && path.EndsWith("/pdf"))
-            return InvoiceGet;
+    private static EndpointRateLimit Anonymous() => new("anonymous", 60, int.MaxValue, int.MaxValue);
 
-        // Friendly workflow endpoints - all proxy QueryInvoiceMetadataAsync directly
-        if (path.Contains("/ksef/invoices/received") || path.Contains("/ksef/invoices/issued"))
-            return InvoiceQuery;
-
-        // Auto-discovered SDK endpoints
-        if (path.Contains("/invoice-download/query-invoice-metadata"))
-            return InvoiceQuery;
-        if (path.Contains("/invoice-download/export-invoices"))
-            return InvoiceExport;
-        if (path.Contains("/invoice-download/get-invoice-export-status"))
-            return InvoiceExportStatus;
-        if (path.Contains("/invoice-download/get-invoice"))
-            return InvoiceGet;
-
-        if (path.Contains("/online-session/open"))
-            return SessionOnlineOpen;
-        if (path.Contains("/online-session/send"))
-            return SessionOnlineSend;
-        if (path.Contains("/online-session/close"))
-            return SessionOnlineClose;
-
-        if (path.Contains("/batch-session/open"))
-            return SessionBatchOpen;
-        if (path.Contains("/batch-session/close"))
-            return SessionBatchClose;
-
-        if (path.Contains("/session-status/get-session-invoice/"))
-            return SessionStatusInvoice;
-        if (path.Contains("/session-status/get-sessions"))
-            return SessionStatusList;
-        if (path.Contains("/session-status/get-session-invoices"))
-            return SessionStatusInvoices;
-
-        if (path.Contains("/ksef/invoice/"))
-            return InvoiceGet;
-
-        return Default;
+    private static EndpointRateLimit Other(string[] parts)
+    {
+        // Each remaining resource has its own budget; references must not create new buckets.
+        var resource = parts switch
+        {
+            ["auth", "sessions", "current"] => "auth/sessions/current",
+            ["auth", "sessions", _] => "auth/sessions/{id}",
+            ["certificates", "enrollments", not "data"] => "certificates/enrollments/{id}",
+            ["certificates", _, "revoke"] => "certificates/{id}/revoke",
+            ["testdata", "certificates", _] => "testdata/certificates/{id}",
+            ["permissions", "common" or "authorizations", "grants", _] => $"permissions/{parts[1]}/grants/{{id}}",
+            ["permissions", "operations", _] => "permissions/operations/{id}",
+            ["tokens", _] => "tokens/{id}",
+            _ => string.Join('/', parts)
+        };
+        return new("other/" + resource, 10, 30, 120);
     }
 }

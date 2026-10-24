@@ -285,6 +285,7 @@ public static class WorkflowEndpoints
                     if (statusDescription is not null)
                         break;
                 }
+                catch (KSeF.Client.Core.Exceptions.KsefRateLimitException) { throw; }
                 catch { }
             }
 

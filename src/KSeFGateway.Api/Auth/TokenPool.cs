@@ -1,4 +1,5 @@
 using System.Collections.Concurrent;
+using KSeF.Client.Core.Exceptions;
 using System.Security.Cryptography.X509Certificates;
 using KSeF.Client.Api.Services;
 using KSeF.Client.Core.Interfaces;
@@ -15,6 +16,8 @@ namespace KSeFGateway.Api.Auth;
 /// </summary>
 public class TokenPool : BackgroundService
 {
+    internal static readonly object RateLimitContextKey = new();
+    private readonly IHttpContextAccessor? _httpContextAccessor;
     private readonly IServiceProvider _services;
     private readonly TimeProvider _timeProvider;
     private readonly ContextProvider _contextProvider;
@@ -26,8 +29,10 @@ public class TokenPool : BackgroundService
         IServiceProvider services,
         ContextProvider contextProvider,
         ILogger<TokenPool> logger,
-        TimeProvider? timeProvider = null)
+        TimeProvider? timeProvider = null,
+        IHttpContextAccessor? httpContextAccessor = null)
     {
+        _httpContextAccessor = httpContextAccessor;
         _services = services;
         _timeProvider = timeProvider ?? TimeProvider.System;
         _contextProvider = contextProvider;
@@ -40,6 +45,9 @@ public class TokenPool : BackgroundService
     public async Task<string?> GetAccessTokenAsync(string nip, CancellationToken ct = default)
     {
         ContextResolver.ValidateNip(nip, _contextProvider);
+        // Keep the selected context stable even if background refresh rotates this token.
+        if (_httpContextAccessor?.HttpContext is { } httpContext)
+            httpContext.Items[RateLimitContextKey] = nip;
         var state = _states.GetOrAdd(nip, _ => new AuthState(_timeProvider));
 
         if (state.IsAuthenticated)
@@ -58,6 +66,7 @@ public class TokenPool : BackgroundService
             state = await AuthenticateContextAsync(nip, ct);
             return state.AccessToken;
         }
+        catch (KsefRateLimitException) { throw; }
         catch (Exception ex) when (ex is not OperationCanceledException)
         {
             _logger.LogError(ex, "Authentication failed for NIP {Nip}", nip);
@@ -95,6 +104,10 @@ public class TokenPool : BackgroundService
         var defaultCtx = _contextProvider.GetDefault();
         return defaultCtx != null ? GetState(defaultCtx.Nip) : new AuthState(_timeProvider);
     }
+
+    // Match only gateway-owned tokens, never untrusted caller-supplied context identifiers.
+    public string? FindNipByAccessToken(string? token) => string.IsNullOrEmpty(token) ? null
+        : _states.FirstOrDefault(entry => entry.Value.AccessToken == token).Key;
 
     public IReadOnlyDictionary<string, AuthState> GetAllStates() =>
         _states.ToDictionary(kv => kv.Key, kv => kv.Value);

@@ -476,6 +476,10 @@ Wire this into a cron/n8n workflow polling every 15-30 minutes to get notified (
 
 KSeF's `query/metadata` endpoint (which this wraps) is capped at **20 requests/hour** - the gateway's own rate limiter enforces this proactively (429 with `Retry-After` before it ever reaches KSeF). Don't poll more often than every 15 minutes per KSeF's own guidance. For very high invoice volume, use the raw `invoice-download/export-invoices` endpoint (async batch export) instead - not yet wrapped in a friendly endpoint here.
 
+The limiter counts every actual SDK HTTP attempt: each polling page, session open/send/close, status lookup and retry. Friendly and raw endpoints share the operation budget regardless of route casing. Protected operations have separate counters per NIP and category (for one egress IP); anonymous operations share the per-IP budget. `/health`, `/ksef/status` and `/ksef/contexts` consume no KSeF budget. The gateway also honors upstream `Retry-After`.
+
+Counters live **in memory in a single replica**, reset on restart and are not synchronized with other instances or clients using the same NIP/IP. The gateway uses MF's default production limits (including separate session-close limits introduced in API 2.8.0); customized KSeF profiles can differ. The future global per-IP limit is disabled according to MF's 2.8.0 changelog. If a workflow is denied midway, earlier operations may already have completed; check session/invoice status before sending again.
+
 **Ready-to-import n8n example:** [`examples/n8n/receive-invoices.json`](examples/n8n/receive-invoices.json) ([polska wersja](examples/n8n/receive-invoices-PL.json)) - polls `/ksef/invoices/received/new` every 20 minutes, keeps the checkpoint in the workflow's own static data, downloads each new invoice's PDF to disk, and leaves a `Notify (TODO)` node to wire up Slack/email/Discord.
 
 ---

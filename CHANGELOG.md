@@ -2,13 +2,15 @@
 
 ## [Unreleased]
 
-### Added
+## [0.3.0] - 2026-10-24
 
+### Added
 - Regression suite: host contracts and route coverage matrix, quota-aware shared TEST fixture, nightly CI, published-image smoke gate and local `test-full.sh --all`.
 - Failing dependency audit gates; pin patched CMS/XML signature packages to 10.0.13 in tests and tools.
+- Support exempt (`zw`) and outside-territory (`np I`/`np II`) friendly invoice rates, statutory exemption basis, and `KOR` invoices with signed line differences and original-invoice references.
+- Approve the complete reflected SDK 2.9.0 route/signature manifest in tests; SDK contract changes require explicit review and a changelog entry.
 
 ### Security
-
 - Add `Cache-Control: no-store` and `X-Content-Type-Options: nosniff` to API and PDF service responses, including errors; exempt health and API documentation.
 - Validate JSON-to-XML names and compact metadata, escape attribute values, and cap JSON depth at 100 and values at 100,000 before serialization.
 - Add optional SHA-256 client API keys scoped to NIPs, filtered diagnostics and safe SDK routes; preserve the administrator key and fail-closed configuration.
@@ -25,19 +27,12 @@
 - API and PDF containers run as non-root users; the API retains read access to Render Secret Files. PDF errors return concise JSON without internal messages or stack traces.
 
 ### Changed
-
 - Upgrade the PDF generator to CIRFMF release 1.1.46, initialize bundled Polish translations and retain pdfmake 0.3 Promise rendering; verify invoice amounts, zero totals, pagination and environment QR links from real PDF content.
 - Migrate the API, tests, tools, CI, and container deployments to .NET 10 LTS while retaining the OpenAPI 3.0 contract and KSeF SDK 2.9.0.
 - Pin all NuGet PackageReference versions in the API, tests, and tools to their currently resolved versions, including KSeF SDK 2.9.0.
 - PDF image installs production dependencies only (`tsx` remains a runtime dependency) and sets `NODE_ENV=production`.
 
-### Added
-
-- Support exempt (`zw`) and outside-territory (`np I`/`np II`) friendly invoice rates, statutory exemption basis, and `KOR` invoices with signed line differences and original-invoice references.
-- Approve the complete reflected SDK 2.9.0 route/signature manifest in tests; SDK contract changes require explicit review and a changelog entry.
-
 ### Fixed
-
 - Restore commercial n8n webhook secret fallback for default n8n 2.x/Cloud; prefer environment secrets and document Configuration export exposure.
 - Fix InvoiceDemo compilation against KSeF SDK 2.9.0; compile all tools during Docker builds and gate them in CI.
 - Align bilingual invoice examples and landing claims with API contracts; validate documentation DTOs and FA(3) fixtures in tests.

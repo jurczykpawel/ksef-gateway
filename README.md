@@ -1030,7 +1030,7 @@ Szczegóły w [`deploy/aws/README.md`](deploy/aws/README.md).
 
 ### Azure Container Apps
 
-Szablon Azure domyślnie wybiera wydanie `v0.2.1`; parametry `apiImage` i `pdfImage` pozwalają wskazać nowsze wydanie lub zweryfikowane digesty.
+Szablon Azure domyślnie wybiera wydanie `v0.3.0`; parametry `apiImage` i `pdfImage` pozwalają wskazać nowsze wydanie lub zweryfikowane digesty.
 
 Wdróż jako zarządzane kontenery - odzwierciedla Docker Compose, zero zmian kodu.
 

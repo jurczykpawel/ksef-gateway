@@ -4,6 +4,8 @@
 
 ### Security
 
+- Pin all external GitHub Actions to verified commit SHAs.
+
 - Add private vulnerability reporting, ownership templates and third-party license notices in API/PDF images.
 
 - Return minimal public health status and generic server errors with logged correlation IDs.

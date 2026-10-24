@@ -11,8 +11,8 @@ jobs:
     name: Test n8n templates (Node)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v7
-      - uses: actions/setup-node@v6
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6.5.0
         with:
           node-version: 22
       - run: node --test examples/n8n/test
@@ -24,9 +24,9 @@ jobs:
       run:
         working-directory: landing
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
-      - uses: actions/setup-node@v6
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6.5.0
         with:
           node-version: 22
           cache: npm
@@ -43,9 +43,9 @@ jobs:
       run:
         working-directory: src
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
-      - uses: actions/setup-dotnet@v5
+      - uses: actions/setup-dotnet@26b0ec14cb23fa6904739307f278c14f94c95bf1 # v5.4.0
         with:
           dotnet-version: '10.0.x'
 
@@ -65,7 +65,7 @@ jobs:
     if: github.actor != 'dependabot[bot]'
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           submodules: recursive
 
@@ -90,13 +90,13 @@ jobs:
 
       - name: Wait for gateway
         run: |
-          for i in $(seq 1 30); do
+          for _ in $(seq 1 30); do
             if curl -sf http://localhost:8080/health; then exit 0; fi
             sleep 2
           done
           echo "Gateway failed to start" && docker compose logs && exit 1
 
-      - uses: actions/setup-dotnet@v5
+      - uses: actions/setup-dotnet@26b0ec14cb23fa6904739307f278c14f94c95bf1 # v5.4.0
         with:
           dotnet-version: '10.0.x'
 
@@ -118,11 +118,11 @@ jobs:
       run:
         working-directory: pdf-service
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           submodules: recursive
 
-      - uses: actions/setup-node@v6
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6.5.0
         with:
           node-version: 22
           cache: npm
@@ -145,7 +145,7 @@ jobs:
     if: github.actor != 'dependabot[bot]'
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           submodules: recursive
 
@@ -178,7 +178,7 @@ jobs:
 
       - name: Wait for gateway
         run: |
-          for i in $(seq 1 30); do
+          for _ in $(seq 1 30); do
             if curl -sf http://localhost:8081/health; then exit 0; fi
             sleep 2
           done
@@ -186,7 +186,7 @@ jobs:
 
       - name: Verify certificate-based context is authenticated
         run: |
-          for i in $(seq 1 15); do
+          for _ in $(seq 1 15); do
             if curl -sf -H "X-Api-Key: ci-test-key" http://localhost:8081/ksef/status | tee status.json | grep -q '"authenticated":true'; then
               echo "Certificate auth OK (file path)"
               exit 0
@@ -209,7 +209,7 @@ jobs:
 
       - name: Wait for second gateway
         run: |
-          for i in $(seq 1 30); do
+          for _ in $(seq 1 30); do
             if curl -sf http://localhost:8082/health; then exit 0; fi
             sleep 2
           done
@@ -217,7 +217,7 @@ jobs:
 
       - name: Verify certificate-content-based context is authenticated
         run: |
-          for i in $(seq 1 15); do
+          for _ in $(seq 1 15); do
             if curl -sf -H "X-Api-Key: ci-test-key" http://localhost:8082/ksef/status | tee status-content.json | grep -q '"authenticated":true'; then
               echo "Certificate auth OK (PEM content)"
               exit 0
@@ -234,7 +234,7 @@ jobs:
     if: github.actor != 'dependabot[bot]'
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           submodules: recursive
 

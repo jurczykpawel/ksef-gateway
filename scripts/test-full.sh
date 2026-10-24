@@ -25,11 +25,7 @@ if [ "$#" -ne 0 ]; then fail "Usage: $0 [--all]"; exit 2; fi
 if [ "$ALL" = "1" ]; then
   log "Running PDF, n8n and landing regression layers..."
   (cd "$REPO_ROOT/pdf-service" && npm ci && npx vitest run)
-  # Match the existing CI typecheck policy for diagnostics from the upstream submodule.
-  (cd "$REPO_ROOT/pdf-service" && \
-    OUT=$(npx tsc --noEmit --project tsconfig.json 2>&1 | grep -v "lib/" | grep -v "TS6059" || true)
-    echo "$OUT"
-    ! echo "$OUT" | grep -q "error TS")
+  (cd "$REPO_ROOT/pdf-service" && npx tsc --noEmit --project tsconfig.json)
   (cd "$REPO_ROOT" && node --test "examples/n8n/test/*.test.mjs")
   (cd "$REPO_ROOT/landing" && npm ci && npm run build)
 fi

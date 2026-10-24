@@ -635,6 +635,8 @@ Gotowe do zaimportowania workflow w [`examples/n8n/`](examples/n8n/):
 - **WooCommerce → KSeF** (`woocommerce-ksef.json`) - zamówienia WooCommerce, automatyczne wykrywanie stawki VAT, pomijanie konsumentów
 - **Odbieranie i Pobieranie Faktur** (`receive-invoices.json`) - odpytuje o faktury wystawione *na Ciebie* co 20 minut, pobiera PDF-y, z checkpointem, żeby nic nie zostało pominięte ani zeskanowane ponownie - patrz [Odbieranie Faktur](#odbieranie-faktur)
 
+Szablony Sellf/WooCommerce wymagają credentiala Header Auth, sekretu podpisu w środowisku i sekwencyjnych wykonań. Przed aktywacją przeczytaj [konfigurację i ograniczenia deduplikacji](examples/n8n/README.md#commercial-workflow-safety-sellf-and-woocommerce).
+
 ### Wdróż usługę
 
 Potrzebujesz działającej instancji KSeF Gateway. Wybierz jedną:

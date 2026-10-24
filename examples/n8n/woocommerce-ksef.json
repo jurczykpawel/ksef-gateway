@@ -3,7 +3,7 @@
   "nodes": [
     {
       "parameters": {
-        "content": "## Send WooCommerce orders to KSeF automatically\n\n### How it works\nThis workflow listens for a signed WooCommerce order webhook, verifies its `X-WC-Webhook-Signature` header, pulls the buyer's NIP from order meta data, and forwards the order to your self-hosted [KSeF Gateway](https://github.com/jurczykpawel/ksef-gateway) - a small HTTP wrapper around Poland's official e-invoice API. Orders without a NIP are treated as consumer purchases and skipped, since KSeF is only required for B2B sales. VAT rate is auto-detected per line item from WooCommerce's tax totals.\n\n### Setup\n1. Deploy a KSeF Gateway instance (Docker, Render, or StackPilot - see the project README) and note its URL. New to KSeF, or need a certificate (KSeF tokens are being phased out)? See [the main README](https://github.com/jurczykpawel/ksef-gateway#certificate-based-auth-alternative-to-tokens).\n2. Open **Configuration (EDIT ME)** and fill in your gateway URL, gateway API key, seller details, and the WooCommerce webhook secret.\n3. In WooCommerce, add a custom checkout field storing the buyer's NIP as order meta `_billing_nip` (or `billing_nip`), then create a webhook (Settings → Advanced → Webhooks) pointing at this workflow's Production URL with that same secret.\n4. See the red note on **Verify Signature** for one required n8n environment setting.\n\n### Customization tips\nAdd a Slack or email node after **Respond Skipped** if you want a heads-up whenever an order is missing a NIP.",
+        "content": "## Setup\nSelect Header Auth (X-Api-Key) in Send to KSeF Gateway. Set SELLF_WEBHOOK_SECRET / WOO_WEBHOOK_SECRET in the n8n environment. Read README: static data requires serialized executions; process crashes require reconciliation with KSeF.",
         "height": 720,
         "width": 700,
         "color": 1
@@ -51,9 +51,9 @@
     },
     {
       "parameters": {
-        "content": "## Send & Respond\nSends the invoice to your KSeF Gateway and reports the result back to WooCommerce.",
-        "height": 350,
-        "width": 520,
+        "content": "## Reserve, wake & send\nGlobal state blocks repeat sends. Uncertain results require KSeF reconciliation. See README for durability limits.",
+        "height": 800,
+        "width": 2900,
         "color": 7
       },
       "id": "sticky-section-c",
@@ -62,7 +62,7 @@
       "typeVersion": 1,
       "position": [
         1040,
-        360
+        230
       ]
     },
     {
@@ -134,18 +134,6 @@
               "name": "sellerCity",
               "value": "00-001 Warszawa",
               "type": "string"
-            },
-            {
-              "id": "a6",
-              "name": "webhookSecret",
-              "value": "change-me-webhook-secret",
-              "type": "string"
-            },
-            {
-              "id": "a7",
-              "name": "gatewayApiKey",
-              "value": "your-gateway-api-key",
-              "type": "string"
             }
           ]
         },
@@ -166,7 +154,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const crypto = require('crypto');\nconst config = $('Configuration (EDIT ME)').first().json;\nconst item = $input.first();\n\nconst signatureHeader = (item.json.headers && item.json.headers['x-wc-webhook-signature']) || '';\nconst rawBody = item.binary && item.binary.data\n  ? Buffer.from(item.binary.data.data, 'base64').toString('utf8')\n  : JSON.stringify(item.json.body || {});\n\nconst expected = crypto.createHmac('sha256', config.webhookSecret).update(rawBody).digest('base64');\n\nlet valid = false;\nif (signatureHeader && expected.length === signatureHeader.length) {\n  valid = crypto.timingSafeEqual(Buffer.from(expected), Buffer.from(signatureHeader));\n}\n\nreturn [{ json: { valid, body: JSON.parse(rawBody) } }];"
+        "jsCode": "const crypto = require('crypto');\nconst item = $input.first();\nconst deny = () => [{ json: { valid: false } }];\nlet secret;\ntry { secret = $env.WOO_WEBHOOK_SECRET; } catch { return deny(); }\nif (!secret || !item.binary?.data) return deny();\nlet raw;\ntry { raw = await this.helpers.getBinaryDataBuffer(0, 'data'); } catch { return deny(); }\nconst header = item.json.headers?.['x-wc-webhook-signature'];\nif (typeof header !== 'string') return deny();\nif (!/^[A-Za-z0-9+/]{43}=$/.test(header)) return deny();\nconst supplied = Buffer.from(header, 'base64');\nif (supplied.toString('base64') !== header) return deny();\nconst expected = crypto.createHmac('sha256', secret).update(raw).digest();\nif (supplied.length !== expected.length || !crypto.timingSafeEqual(supplied, expected)) return deny();\ntry { return [{ json: { valid: true, body: JSON.parse(raw.toString('utf8')) } }]; }\ncatch { return deny(); }\n"
       },
       "id": "code-verify",
       "name": "Verify Signature",
@@ -229,7 +217,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// Transform WooCommerce order to KSeF invoice format\nconst order = $input.first().json.body;\nconst config = $('Configuration (EDIT ME)').first().json;\n\n// Extract NIP from billing fields or meta_data\nconst nipField = (order.meta_data || []).find(m => m.key === '_billing_nip' || m.key === 'billing_nip');\nconst buyerNip = nipField?.value || '';\n\nif (!buyerNip) {\n  // No NIP = consumer (osoba fizyczna), skip KSeF\n  return [{ json: { skip: true, reason: 'No buyer NIP - consumer purchase, KSeF not required' } }];\n}\n\n// Map WooCommerce line items to KSeF items\nconst items = (order.line_items || []).map(item => {\n  const netTotal = parseFloat(item.total) || 0;\n  const taxTotal = parseFloat(item.total_tax) || 0;\n  const quantity = item.quantity || 1;\n  const unitPrice = Math.round((netTotal / quantity) * 100) / 100;\n\n  // Detect VAT rate from tax amount\n  let vatRate = 23; // default\n  if (netTotal > 0) {\n    const rate = Math.round((taxTotal / netTotal) * 100);\n    if ([23, 8, 5, 0].includes(rate)) vatRate = rate;\n  }\n\n  return {\n    name: item.name,\n    quantity: quantity,\n    unitPrice: unitPrice,\n    vatRate: vatRate\n  };\n});\n\nconst today = new Date().toISOString().split('T')[0];\n\nconst invoice = {\n  invoiceNumber: `WOO/${order.number || order.id}`,\n  issueDate: today,\n  saleDate: order.date_created?.split('T')[0] || today,\n  issuePlace: order.billing?.city || 'Warszawa',\n  currency: order.currency || 'PLN',\n  type: 'VAT',\n  seller: {\n    nip: config.sellerNip,\n    name: config.sellerName,\n    address: {\n      street: config.sellerStreet,\n      city: config.sellerCity\n    }\n  },\n  buyer: {\n    nip: buyerNip,\n    name: order.billing?.company || `${order.billing?.first_name} ${order.billing?.last_name}`,\n    address: {\n      street: order.billing?.address_1 || '',\n      city: `${order.billing?.postcode || ''} ${order.billing?.city || ''}`\n    }\n  },\n  items: items,\n  payment: {\n    paid: order.status === 'completed' || order.date_paid != null,\n    date: order.date_paid?.split('T')[0] || today,\n    method: order.payment_method === 'cod' ? 'cash' : 'transfer'\n  }\n};\n\nreturn [{ json: { skip: false, invoice } }];"
+        "jsCode": "// Transform WooCommerce order to KSeF invoice format\nconst order = $input.first().json.body;\nconst config = $('Configuration (EDIT ME)').first().json;\n\n// Extract NIP from billing fields or meta_data\nconst nipField = (order.meta_data || []).find(m => m.key === '_billing_nip' || m.key === 'billing_nip');\nconst buyerNip = nipField?.value || '';\n\nif (!buyerNip) {\n  // No NIP = consumer (osoba fizyczna), skip KSeF\n  return [{ json: { skip: true, reason: 'No buyer NIP - consumer purchase, KSeF not required' } }];\n}\n\n// Map WooCommerce line items to KSeF items\nconst rows = [...(order.line_items || []), ...(order.shipping_lines || []).map(i => ({...i, name: i.method_title || 'Shipping', quantity: 1})), ...(order.fee_lines || []).map(i => ({...i, quantity: 1}))];\nconst items = rows.map(item => {\n  const netTotal = parseFloat(item.total) || 0;\n  const taxTotal = parseFloat(item.total_tax) || 0;\n  const quantity = item.quantity || 1;\n  const unitPrice = netTotal / quantity;\n\n  // Detect VAT rate from tax amount\n  let vatRate = 23; // default\n  if (netTotal > 0) {\n    const rate = Math.round((taxTotal / netTotal) * 100);\n    if ([23, 8, 5, 0].includes(rate)) vatRate = rate;\n  }\n\n  return {\n    name: item.name,\n    quantity: quantity,\n    unitPrice: unitPrice,\n    vatRate: vatRate\n  };\n});\n\nconst today = new Date().toISOString().split('T')[0];\n\nconst invoice = {\n  invoiceNumber: `WOO/${order.id}`,\n  issueDate: today,\n  saleDate: order.date_created?.split('T')[0] || today,\n  issuePlace: order.billing?.city || 'Warszawa',\n  currency: order.currency || 'PLN',\n  type: 'VAT',\n  seller: {\n    nip: config.sellerNip,\n    name: config.sellerName,\n    address: {\n      street: config.sellerStreet,\n      city: config.sellerCity\n    }\n  },\n  buyer: {\n    nip: buyerNip,\n    name: order.billing?.company || `${order.billing?.first_name} ${order.billing?.last_name}`,\n    address: {\n      street: order.billing?.address_1 || '',\n      city: `${order.billing?.postcode || ''} ${order.billing?.city || ''}`\n    }\n  },\n  items: items,\n  payment: {\n    paid: order.status === 'completed' || order.date_paid != null,\n    date: order.date_paid?.split('T')[0] || today,\n    method: order.payment_method === 'cod' ? 'cash' : 'transfer'\n  }\n};\n\nif (!order.id) throw new Error('Missing order.id');\nreturn [{ json: { skip: false, eventKey: `woo:${order.id}`, invoice } }];"
       },
       "id": "transform",
       "name": "Transform to KSeF",
@@ -292,21 +280,20 @@
     {
       "parameters": {
         "method": "POST",
-        "url": "={{ $('Configuration (EDIT ME)').item.json.ksefGatewayUrl }}/ksef/invoice",
+        "url": "={{ $('Configuration (EDIT ME)').first().json.ksefGatewayUrl + '/ksef/invoice' }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={{ JSON.stringify($json.invoice) }}",
+        "jsonBody": "={{ JSON.stringify($('Reserve Invoice').first().json.invoice) }}",
         "options": {
-          "timeout": 120000
-        },
-        "sendHeaders": true,
-        "headerParameters": {
-          "parameters": [
-            {
-              "name": "X-Api-Key",
-              "value": "={{ $('Configuration (EDIT ME)').item.json.gatewayApiKey }}"
+          "timeout": 120000,
+          "response": {
+            "response": {
+              "neverError": true,
+              "fullResponse": true
             }
-          ]
+          }
         }
       },
       "id": "send-invoice",
@@ -314,23 +301,249 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        1100,
+        2600,
         550
-      ]
+      ],
+      "onError": "continueRegularOutput"
     },
     {
       "parameters": {
         "respondWith": "json",
-        "responseBody": "={{ JSON.stringify({ success: $json.data?.ksefNumber ? true : false, ksefNumber: $json.data?.ksefNumber || null, error: $json.error || null }) }}"
+        "responseBody": "={{ JSON.stringify($json) }}",
+        "options": {
+          "responseCode": 200
+        }
       },
       "id": "respond-ok",
       "name": "Respond OK",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.1,
       "position": [
-        1400,
+        3500,
         550
       ]
+    },
+    {
+      "id": "fc62839b-46a3-59e9-b299-5872848797b0",
+      "name": "Reserve Invoice",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1100,
+        550
+      ],
+      "parameters": {
+        "jsCode": "const input = $input.first().json;\nconst sd = $getWorkflowStaticData('global');\nsd.invoices ??= [];\nconst key = input.eventKey;\nif (!key) return [{ json: { success: false, error: 'missing order identifier' } }];\nconst previous = sd.invoices.find(entry => entry.key === key);\nif (previous) return [{ json: { success: previous.status === 'sent', duplicate: true, status: previous.status, ksefNumber: previous.ksefNumber || null } }];\n// Do not evict unresolved sends: capacity exhaustion requires operator reconciliation.\nif (sd.invoices.length >= 1000) {\n  const index = sd.invoices.findIndex(entry => entry.status === 'sent');\n  if (index < 0) return [{ json: { success: false, error: 'deduplication capacity reached; reconcile unresolved invoices' } }];\n  sd.invoices.splice(index, 1);\n}\nsd.invoices.push({ key, status: 'in_progress' });\nreturn [{ json: { ...input, send: true } }];\n"
+      }
+    },
+    {
+      "id": "c69bb0d0-2a28-5e6d-a781-9b98cf6c5341",
+      "name": "Send Invoice?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        1400,
+        550
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "leftValue": "={{ $json.send === true }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "57e3ebd0-b747-5a1f-9aff-fc60f36d692e",
+      "name": "Wake Gateway",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1700,
+        550
+      ],
+      "parameters": {
+        "url": "={{ $('Configuration (EDIT ME)').first().json.ksefGatewayUrl + '/health' }}",
+        "options": {
+          "timeout": 60000,
+          "response": {
+            "response": {
+              "neverError": true
+            }
+          }
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "id": "ca6f943f-9bcb-5042-b7bf-4049f3c1dd18",
+      "name": "Check Health",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2000,
+        550
+      ],
+      "parameters": {
+        "jsCode": "const ready = $input.first().json.status === 'ok';\nreturn [{ json: { ready, again: !ready && $runIndex < 8 } }];"
+      }
+    },
+    {
+      "id": "631ce424-e716-56d3-ba2f-c0b03cc6a027",
+      "name": "Gateway Ready?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        2300,
+        550
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "leftValue": "={{ $json.ready }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "d38fad73-4e80-5160-8285-1eea6e2c10bb",
+      "name": "Wake Again?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        2300,
+        790
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "leftValue": "={{ $json.again }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "b3d6e1a4-740d-52c0-bb19-647813eee233",
+      "name": "Wait Wake",
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        2000,
+        790
+      ],
+      "parameters": {
+        "resume": "timeInterval",
+        "amount": 30,
+        "unit": "seconds"
+      },
+      "webhookId": "7e6cca2a-5cf2-56e2-925c-5cb565a19906"
+    },
+    {
+      "id": "ae38004b-22cd-58fd-8cc5-7acd07886635",
+      "name": "Wake Failed",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2600,
+        790
+      ],
+      "parameters": {
+        "jsCode": "const sd = $getWorkflowStaticData('global');\nconst entry = sd.invoices.find(e => e.key === $('Reserve Invoice').first().json.eventKey);\nentry.status = 'not_accepted';\nreturn [{ json: { success: false, status: entry.status, error: 'Gateway unavailable; reconcile before manual resend' } }];"
+      }
+    },
+    {
+      "id": "e8903226-9d50-5eff-9601-b3e3d13b2979",
+      "name": "Record Send Result",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2900,
+        550
+      ],
+      "parameters": {
+        "jsCode": "const response = $input.first().json;\nconst reserved = $('Reserve Invoice').first().json;\nconst sd = $getWorkflowStaticData('global');\nconst entry = sd.invoices.find(e => e.key === reserved.eventKey);\nconst attempt = $runIndex;\nconst code = Number(response.statusCode);\nconst body = response.body;\nconst retryAfter = response.headers?.['retry-after'] ?? response.headers?.['Retry-After'];\nlet delay = /^\\d+$/.test(String(retryAfter)) ? Number(retryAfter) : (Date.parse(retryAfter) - Date.now()) / 1000;\n// A gateway JSON 503 may come AFTER starting an invoice: never retry it.\n// Only a recognizable upstream HTML 503 (or an empty 503) is eligible.\nconst upstream503 = code === 503 && (body === '' || (typeof body === 'string' && /^\\s*(<!doctype html|<html)/i.test(body)));\nconst throttled = code === 429 && Number.isFinite(delay) && delay >= 0 && delay <= 300;\nconst safe = upstream503 || throttled;\nif (safe && attempt < 2) {\n  delay = throttled ? Math.max(1, Math.ceil(delay)) : 5 * (2 ** attempt);\n  return [{ json: { retry: true, delay } }];\n}\nconst success = code >= 200 && code < 300 && body?.success === true && !!body?.data?.ksefNumber;\nentry.status = success ? 'sent' : safe ? 'not_accepted' : 'uncertain';\nif (success) entry.ksefNumber = body.data.ksefNumber;\nreturn [{ json: { success, status: entry.status, ksefNumber: entry.ksefNumber || null,\n  error: success ? null : 'Reconcile in KSeF before any manual resend' } }];\n"
+      }
+    },
+    {
+      "id": "7162b13a-c19a-554b-abd3-0796a7053667",
+      "name": "Retry Safe?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        3200,
+        550
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "leftValue": "={{ $json.retry === true }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "841e4950-5c14-565b-860d-aa7aa8ca5652",
+      "name": "Wait Retry",
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        2900,
+        310
+      ],
+      "parameters": {
+        "resume": "timeInterval",
+        "amount": "={{ $json.delay }}",
+        "unit": "seconds"
+      },
+      "webhookId": "7dd9a418-48ac-5503-889d-db7bdfcc37a5"
     }
   ],
   "connections": {
@@ -400,7 +613,7 @@
       "main": [
         [
           {
-            "node": "Send to KSeF Gateway",
+            "node": "Reserve Invoice",
             "type": "main",
             "index": 0
           }
@@ -418,7 +631,156 @@
       "main": [
         [
           {
+            "node": "Record Send Result",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Reserve Invoice": {
+      "main": [
+        [
+          {
+            "node": "Send Invoice?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send Invoice?": {
+      "main": [
+        [
+          {
+            "node": "Wake Gateway",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
             "node": "Respond OK",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wake Gateway": {
+      "main": [
+        [
+          {
+            "node": "Check Health",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Health": {
+      "main": [
+        [
+          {
+            "node": "Gateway Ready?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Gateway Ready?": {
+      "main": [
+        [
+          {
+            "node": "Send to KSeF Gateway",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Wake Again?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wake Again?": {
+      "main": [
+        [
+          {
+            "node": "Wait Wake",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Wake Failed",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wait Wake": {
+      "main": [
+        [
+          {
+            "node": "Wake Gateway",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wake Failed": {
+      "main": [
+        [
+          {
+            "node": "Respond OK",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Record Send Result": {
+      "main": [
+        [
+          {
+            "node": "Retry Safe?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Retry Safe?": {
+      "main": [
+        [
+          {
+            "node": "Wait Retry",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond OK",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wait Retry": {
+      "main": [
+        [
+          {
+            "node": "Send to KSeF Gateway",
             "type": "main",
             "index": 0
           }
@@ -428,7 +790,11 @@
   },
   "pinData": {},
   "settings": {
-    "executionOrder": "v1"
+    "executionOrder": "v1",
+    "saveDataSuccessExecution": "none",
+    "saveDataErrorExecution": "none",
+    "saveManualExecutions": false,
+    "saveExecutionProgress": false
   },
   "staticData": null,
   "tags": [],

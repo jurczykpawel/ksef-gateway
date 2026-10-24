@@ -62,16 +62,14 @@ For finding out what's been issued *to* you - KSeF has no email/webhook notifica
 1. **Import workflow** - n8n → Workflows → Import from File → select `woocommerce-ksef.json` (or the `-PL` variant)
 2. **Edit the "Configuration (EDIT ME)" node** - fill in:
    - `ksefGatewayUrl` - your KSeF Gateway base URL
-   - `gatewayApiKey` - your gateway's `GATEWAY_API_KEY` (sent as `X-Api-Key` - see [Security](../../README.md#security) in the main README)
    - `sellerNip`, `sellerName`, `sellerStreet`, `sellerCity` - your company's invoicing details
-   - `webhookSecret` - the same secret you'll set in WooCommerce's webhook below
-3. **Set `NODE_FUNCTION_ALLOW_BUILTIN=crypto`** in your n8n environment and restart (needed by the **Verify Signature** node - see the red sticky note on the canvas)
+3. **Configure secrets and serialization** as described in **Commercial workflow safety** below, then restart n8n
 4. In WooCommerce, add a custom checkout field storing the buyer's NIP as order meta `_billing_nip` (or `billing_nip`)
 5. **Configure the WooCommerce webhook:**
    - WooCommerce → Settings → Advanced → Webhooks → Add Webhook
    - Topic: `Order completed`
    - Delivery URL: this workflow's Production URL (Webhook node)
-   - Secret: the same value as `webhookSecret` above
+   - Secret: the same value as the n8n `WOO_WEBHOOK_SECRET` environment variable
 6. **Activate the workflow** in n8n
 
 ### NIP detection
@@ -80,8 +78,8 @@ The workflow looks for the buyer's NIP in WooCommerce meta fields `_billing_nip`
 
 ### Customization
 
-- **VAT rate detection** - auto-detects from WooCommerce tax amounts, defaults to 23%
-- **Invoice number format** - defaults to `WOO/{order_number}`, edit in the **Transform to KSeF** node
+- **VAT rate detection** - auto-detects from WooCommerce tax amounts, defaults to 23%; line totals already include discounts, and shipping/fees become additional lines
+- **Invoice number format** - defaults to `WOO/{order.id}` (full immutable order ID), edit in the **Transform to KSeF** node
 - **Payment method mapping** - `cod` → cash, everything else → transfer
 
 ---
@@ -101,17 +99,15 @@ scheduled sync there, so edit them here only.
 3. Builds a KSeF invoice payload from your seller details and the order
 4. Sends `POST /ksef/invoice` to your KSeF Gateway
 5. On success: captures the returned `ksefNumber` (ready to save to your DB)
-6. On failure: captures the error (connect to Slack/email for alerts)
+6. On an ambiguous failure: records `uncertain` and requires manual reconciliation before resending
 
 ### Setup
 
 1. **Import workflow** - n8n → Workflows → Import from File → select `sellf-ksef.json` (or the `-PL` variant)
 2. **Edit the "Configuration (EDIT ME)" node** - fill in:
    - `ksefGatewayUrl` - your KSeF Gateway base URL
-   - `gatewayApiKey` - your gateway's `GATEWAY_API_KEY` (sent as `X-Api-Key` - see [Security](../../README.md#security) in the main README)
    - `sellerNip`, `sellerName`, `sellerStreet`, `sellerCity`, `defaultVatRate` - your company's invoicing details
-   - `webhookSecret` - the signing secret from Sellf → Settings → Webhooks
-3. **Set `NODE_FUNCTION_ALLOW_BUILTIN=crypto`** in your n8n environment and restart (needed by the **Verify Signature** node - see the red sticky note on the canvas)
+3. **Configure secrets and serialization** as described in **Commercial workflow safety** below, then restart n8n
 4. **Configure the Sellf webhook** - Sellf admin → Settings → Webhooks:
    - URL: this workflow's Production URL (Webhook node)
    - Event: `purchase.completed`
@@ -120,8 +116,43 @@ scheduled sync there, so edit them here only.
 ### Customization
 
 - **VAT rate** - set via `defaultVatRate` in Configuration, edit further in **Build KSeF Payload**
-- **Invoice number format** - `FV/YYYY/MM/DD/XXXX` (XXXX = last 4 chars of Sellf's `sessionId`)
-- **Error alerts** - connect **Log Error** to Slack, email, or Supabase
+- **Invoice number format** - `FV/{sessionId}` (full Sellf session ID)
+- **Error alerts** - inspect the final `status` response and add your own alert after **Record Send Result**
+
+## Commercial workflow safety (Sellf and WooCommerce)
+
+Before activation, configure **Header Auth** with name `X-Api-Key` and value equal to `GATEWAY_API_KEY`; select this credential on **Send to KSeF Gateway**. No gateway key belongs in Configuration or exported workflow JSON.
+
+The Code node cannot access Header Auth credentials directly. These templates therefore read the signing secret **only inside Verify Signature**, from `$env.SELLF_WEBHOOK_SECRET` or `$env.WOO_WEBHOOK_SECRET`. They never return it as execution data. This requires self-hosted n8n with environment access permitted (`N8N_BLOCK_ENV_ACCESS_IN_NODE=false` where applicable) and `NODE_FUNCTION_ALLOW_BUILTIN=crypto` on the execution runtime/task runner. Only trusted workflow editors should have this access. Missing/blocked environment access denies the webhook (401). n8n Cloud installations without environment access need a separate supported signature-verification service/custom node; do not copy secrets into Set or `$vars` as a workaround. Successful/error execution saving, manual saving and execution progress saving are disabled in the templates; inspect these settings after import.
+
+Webhook **Raw Body** stays enabled, and Configuration preserves binary data. Verification uses `this.helpers.getBinaryDataBuffer(0, 'data')`, supporting n8n-managed binary storage. Missing raw bytes, invalid JSON, malformed hex/base64, wrong HMAC or an expired Sellf timestamp deny with 401. There is no JSON reserialization fallback. See the [official binary helper documentation](https://docs.n8n.io/code/cookbook/code-node/get-binary-data-buffer/) and [environment variable access reference](https://docs.n8n.io/code/builtin/n8n-metadata/).
+
+### Duplicate deliveries and uncertain outcomes
+
+**Reserve Invoice** stores up to 1,000 order keys and statuses in workflow static data (`global`), before sending. Sellf uses the full session ID; WooCommerce uses the immutable order ID, so different webhook deliveries for the same order cannot create another invoice. A repeat returns HTTP 200 with `duplicate: true`, its status and the KSeF number when known. An unresolved record is never evicted automatically; at capacity, only an old `sent` entry can be evicted. Once evicted, that old order is outside the deduplication window.
+
+Statuses: `in_progress` before POST, `sent` after a confirmed KSeF number, `not_accepted` after exhausted health/safe rejection attempts, and `uncertain` after timeout, transport errors, gateway JSON errors or an unconfirmed response. All these records block another POST. Terminal handled outcomes return HTTP 200 (with `success: false` for failures), allowing n8n to complete normally and persist state; **200 does not imply an invoice was issued**. Monitor these results externally. Sellf no longer acknowledges before processing; provider/proxy timeouts during cold starts are possible.
+
+**Important durability boundary:** n8n persists static data only after successful production executions, not at the line that assigns `in_progress`; manual runs do not persist it. Static data is not an atomic distributed lock. Run these templates with **production concurrency 1 on a single execution instance** (for example a dedicated regular-mode instance with `N8N_CONCURRENCY_PRODUCTION_LIMIT=1`); avoid queue/multiple-worker deployment. See [n8n static data limitations](https://docs.n8n.io/code/cookbook/builtin/get-workflow-static-data/). A process crash, cancelled execution, or workflow failure after POST can lose the reservation even with concurrency 1. These JSON-only templates cannot guarantee exactly-once invoicing across such failures. For unattended crash-safe operation, add a durable external reservation/job store with a unique order key and reconciliation before enabling retries. This is deliberately outside these database-free examples.
+
+For `uncertain`, interrupted executions or `not_accepted`: inspect KSeF and the gateway logs using the full invoice/order identifier, record any existing KSeF number, and only then manually reconcile the static-data entry. Do not delete the entry and rerun blindly. Preserve/backup workflow static data when migrating or reimporting; a fresh workflow has a fresh deduplication window.
+
+### Cold starts and retry policy
+
+The gateway `/health` loop has a 60-second request timeout and waits 30 seconds between attempts (9 probes maximum). Exhaustion ends without any invoice POST. POST has a **120-second timeout**, no n8n automatic retry, and at most **two additional attempts** only for:
+
+- HTTP 429 with a valid `Retry-After` (seconds or HTTP date) between 0 and 300 seconds; wait at least 1 second.
+- An upstream HTTP 503 with an empty or HTML body; wait 5, then 10 seconds. This assumes your reverse proxy produces these responses **before forwarding**. Disable this retry branch if your proxy can return HTML 503 after forwarding a request.
+
+Gateway JSON 503, 502, timeouts and transport failures are **uncertain** and never retried automatically. Waiting does not clear the reservation, and repeated webhook delivery never invokes the retry loop. The optional PDF service is not called by these issuing workflows and is not woken.
+
+### Amounts and supported orders
+
+Sellf `order.amount` is the amount charged **including VAT**, in minor units. When available, `order.netTotal` (also minor units) supplies the net amount; legacy payloads use `gross / (1 + defaultVatRate / 100)`, rounded to cents. Set `defaultVatRate` to the actual rate. This single-product template assumes one VAT rate and a two-decimal currency: baskets with bumps/mixed tax rates, exemptions or other currency minor units require explicit per-line mapping before use.
+
+WooCommerce uses post-discount `line_items[].total` and each line's tax total, includes `shipping_lines` and `fee_lines`, and preserves `total / quantity` precision. Thus 10.00 net across 3 units stays 10.00 after line rounding instead of 9.99. It does not subtract coupons a second time. Supported VAT rates are 23/8/5/0; review unusual tax classes, mixed taxes on one line, refunds and credit notes separately.
+
+Run the offline harness with `node --test examples/n8n/test` (also runs in CI). It checks code with mocked n8n helpers and workflow graph structure; live import/runner and provider timeout validation remain deployment checks.
 
 ## Render keep-alive (stop free services spinning down)
 

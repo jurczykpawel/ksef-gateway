@@ -7,6 +7,16 @@ on:
     branches: [main, dev]
 
 jobs:
+  test-n8n:
+    name: Test n8n templates (Node)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 22
+      - run: node --test examples/n8n/test
+
   build-landing:
     name: Build landing (Node)
     runs-on: ubuntu-latest

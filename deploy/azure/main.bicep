@@ -12,6 +12,8 @@ param gatewayApiKey string
 param ksefToken string = ''
 param ksefNip string
 param ksefEnv string = 'TEST'
+// safe by default; all also exposes token/permission/certificate administration.
+param ksefSdkEndpoints string = 'safe'
 
 // Certificate-based auth (alternative to ksefToken) - PEM content, not a file path,
 // since Container Apps has no convenient way to mount an arbitrary file. Leave all
@@ -119,6 +121,7 @@ resource ksefApi 'Microsoft.App/containerApps@2023-05-01' = {
             { name: 'KSEF_CERT_CONTENT', secretRef: 'ksef-cert-content' }
             { name: 'KSEF_KEY_CONTENT', secretRef: 'ksef-key-content' }
             { name: 'KSEF_KEY_PASSWORD', secretRef: 'ksef-key-password' }
+            { name: 'KSEF_SDK_ENDPOINTS', value: ksefSdkEndpoints }
             { name: 'KSEF_NIP', value: ksefNip }
             { name: 'KSEF_ENV', value: ksefEnv }
             { name: 'PDF_SERVICE_URL', value: 'http://ksef-pdf' }

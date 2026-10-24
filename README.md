@@ -334,21 +334,32 @@ bru run --env local
 
 ### Automatycznie odkryte endpointy SDK (niskopoziomowe)
 
-Wszystkie 60+ metod z oficjalnego `IKSeFClient` są wystawione jako `POST /ksef/{grupa}/{metoda}`:
+Refleksja odkrywa 64 metody SDK 2.9.0 w 14 grupach. Domyślnie wystawiamy 20 metod potrzebnych do fakturowania i odbioru jako `POST /ksef/{grupa}/{metoda}`:
 
-| Grupa | Endpointy | Opis |
-|-------|-----------|-------------|
-| `online-session` | 3 | Interaktywne wysyłanie faktur |
-| `batch-session` | 4 | Wysyłanie wsadowe (pakiety ZIP) |
-| `invoice-download` | 4 | Pobieranie, zapytania, eksport faktur |
-| `session-status` | 9 | Status sesji/faktury, UPO |
-| `authorization` | 5 | Wyzwanie autoryzacji, autoryzacja tokenem |
-| `ksef-token` | 4 | Generowanie, sprawdzanie, unieważnianie tokenów |
-| `certificate` | 7 | Zarządzanie certyfikatami KSeF |
-| `permissions` | 17 | Nadawanie, cofanie, szukanie uprawnień |
-| `lighthouse` | 2 | Status systemu KSeF |
+| Grupa | Endpointy | Domyślnie | Opis |
+|-------|-----------|-----------|------|
+| `online-session` | 3 | Tak | Interaktywne wysyłanie faktur |
+| `batch-session` | 4 | Tak | Wysyłanie wsadowe (pakiety ZIP) |
+| `invoice-download` | 4 | Tak | Pobieranie, zapytania, eksport faktur |
+| `session-status` | 9 | Tak | Status sesji/faktury, UPO |
+| `active-sessions` | 3 | Nie | Przeglądanie i unieważnianie sesji uwierzytelniania |
+| `authorization` | 6 | Nie | Uwierzytelnianie, wydawanie i odświeżanie tokenów |
+| `ksef-token` | 4 | Nie | Generowanie, sprawdzanie, unieważnianie tokenów |
+| `certificate` | 7 | Nie | Zarządzanie certyfikatami KSeF |
+| `grant-permission` | 7 | Nie | Nadawanie uprawnień |
+| `revoke-permission` | 2 | Nie | Cofanie uprawnień |
+| `search-permission` | 8 | Nie | Wyszukiwanie uprawnień |
+| `permission-operation` | 2 | Nie | Status operacji na uprawnieniach |
+| `collective-identifiers` | 4 | Nie | Zbiorcze identyfikatory faktur |
+| `peppol` | 1 | Nie | Wyszukiwanie dostawców Peppol |
 
-Pełna interaktywna dokumentacja pod `/scalar/v1`.
+`KSEF_SDK_ENDPOINTS`: brak, pusta wartość lub `safe` oznacza powyższy zestaw domyślny. `all` włącza wszystkie metody i wypisuje ostrzeżenie przy starcie. Lista po przecinku wybiera dokładnie grupy lub pojedyncze metody, np. `online-session,invoice-download/get-invoice`. Nazwy rozróżniają wielkość liter; spacje wokół wpisów są ignorowane. Nieznana nazwa albo błędna składnia zatrzymuje start z listą dostępnych nazw. `safe` i `all` to samodzielne tryby, nie elementy listy.
+
+**BREAKING (v0.3.0):** jeśli używałeś `ksef-token`, `permissions` (obecnie cztery osobne grupy) lub `certificate`, świadomie ustaw `KSEF_SDK_ENDPOINTS=all` albo wybierz tylko potrzebne grupy/metody. Te operacje mogą tworzyć trwały dostęp do KSeF poza bramką. `lighthouse` nie występuje w refleksji SDK 2.9.0; jeśli pojawi się w nowszym SDK, należy do zestawu `safe`.
+
+Ukryte trasy zwracają 404 po przejściu middleware uwierzytelniania i nie występują w `/openapi/v1.json` ani `/scalar/v1`. Własne endpointy (`/ksef/send`, `/ksef/send/json`, `/ksef/invoice`, `/ksef/invoice/{ksefNumber}` i `/pdf`, `/ksef/invoices/*`, `/ksef/status`, `/ksef/contexts`) oraz uwierzytelnianie wewnętrzne zawsze działają niezależnie od tej zmiennej. `/health` podaje `exposedEndpoints` (wystawione metody SDK) i `discoveredEndpoints` (wszystkie odkryte); obie liczby trafiają też do logu startowego.
+
+Interaktywna dokumentacja wystawionych tras pod `/scalar/v1`.
 
 ---
 
@@ -779,6 +790,7 @@ Kontekst potrzebuje dokładnie jednego z: `token`, `certificatePath` + `privateK
 | `KSEF_KEY_PASSWORD` | Nie | - | Hasło do klucza prywatnego, jeśli jest zaszyfrowany (działa z formą ścieżki albo treści) |
 | `KSEF_NIP` | Tak | - | NIP dla kontekstu autoryzacji |
 | `KSEF_ENV` | Nie | `TEST` | Środowisko API i PDF: `TEST`, `DEMO`, `PRODUCTION` (aliasy: `PRD`, `PROD`). Wielkość liter i skrajne białe znaki są ignorowane; pusta wartość oznacza `TEST`. Nieznana wartość zatrzymuje start bramki. |
+| `KSEF_SDK_ENDPOINTS` | Nie | `safe` | Wystawione trasy SDK: `safe`, `all` lub lista grup / `grupa/metoda`; błędna wartość zatrzymuje start. |
 | `KSEF_API_PORT` | Nie | `8080` | Port API usługi |
 | `KSEF_QR_URL` | Nie | Z `KSEF_ENV` | Bazowy URL weryfikacji QR: TEST → `https://qr-test.ksef.mf.gov.pl`, DEMO → `https://qr-demo.ksef.mf.gov.pl`, PRODUCTION/PRD → `https://qr.ksef.mf.gov.pl`. Jawna wartość w serwisie PDF ma pierwszeństwo; brak/nieznane środowisko → TEST (nieznane: jednorazowe ostrzeżenie). |
 | `GITHUB_PAT` | Build | - | GitHub PAT z `read:packages` dla SDK CIRFMF |

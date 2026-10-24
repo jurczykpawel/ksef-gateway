@@ -12,6 +12,8 @@ services:
       - KSEF_TOKEN=${KSEF_TOKEN}
       - KSEF_NIP=${KSEF_NIP}
       - KSEF_ENV=${KSEF_ENV:-TEST}
+      # safe by default; all also exposes token/permission/certificate administration.
+      - KSEF_SDK_ENDPOINTS=${KSEF_SDK_ENDPOINTS:-safe}
       - PDF_SERVICE_URL=http://ksef-pdf:3000
       - KSEF_CONTEXTS_FILE=/app/contexts.json
       # Certificate-based auth (alternative to KSEF_TOKEN) - see README "Autoryzacja Certyfikatem"

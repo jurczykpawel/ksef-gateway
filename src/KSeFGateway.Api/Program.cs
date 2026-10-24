@@ -22,6 +22,11 @@ builder.Configuration.AddEnvironmentVariables();
 var ksefEnv = KsefEnvironment.Parse(builder.Configuration["KSEF_ENV"]);
 builder.Services.AddSingleton(ksefEnv);
 
+// Validate the public SDK surface before licensing/authentication can contact services.
+var endpoints = SdkReflector.DiscoverEndpoints();
+var sdkSelection = builder.Configuration["KSEF_SDK_ENDPOINTS"];
+var exposedEndpoints = SdkEndpointPolicy.Select(endpoints, sdkSelection);
+
 // Register CIRFMF KSeF SDK
 builder.Services.AddKSeFClient(options =>
 {
@@ -86,18 +91,21 @@ app.MapScalarApiReference(options =>
 });
 
 // Discover and map SDK endpoints
-var endpoints = SdkReflector.DiscoverEndpoints();
-app.MapDiscoveredEndpoints(endpoints);
-app.MapHealthEndpoints(endpoints.Count);
+app.MapDiscoveredEndpoints(exposedEndpoints);
+app.MapHealthEndpoints(endpoints.Count, exposedEndpoints.Count);
 app.MapWorkflowEndpoints();
 app.MapInvoiceDownloadEndpoints();
 
+if (sdkSelection?.Trim() == "all")
+    app.Logger.LogWarning("all SDK endpoints exposed incl. token/permission/certificate administration");
+
 app.Logger.LogInformation(
-    "Discovered {Count} SDK endpoints across {Groups} groups",
+    "Exposed {ExposedCount} of {Count} discovered SDK endpoints across {Groups} discovered groups",
+    exposedEndpoints.Count,
     endpoints.Count,
     endpoints.Select(e => e.GroupName).Distinct().Count());
 
-foreach (var group in endpoints.GroupBy(e => e.GroupName))
+foreach (var group in exposedEndpoints.GroupBy(e => e.GroupName))
 {
     app.Logger.LogInformation(
         "  {Group}: {Methods}",

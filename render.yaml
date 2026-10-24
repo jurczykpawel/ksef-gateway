@@ -33,6 +33,9 @@ services:
         sync: false
       - key: KSEF_ENV
         value: TEST
+      # safe by default; use an explicit list to enable additional SDK routes.
+      - key: KSEF_SDK_ENDPOINTS
+        value: safe
       # PDF rendering: the gateway calls the ksef-pdf service. On PAID Render (private networking)
       # or locally the private hostport below works. On FREE Render, free web services can't RECEIVE
       # private traffic - instead set PDF_SERVICE_URL to ksef-pdf's PUBLIC https URL and set the SAME

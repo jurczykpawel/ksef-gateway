@@ -282,21 +282,32 @@ bru run --env local
 
 ### Auto-discovered SDK Endpoints (low-level)
 
-All 60+ methods from the official `IKSeFClient` are exposed as `POST /ksef/{group}/{method}`:
+Reflection discovers 64 methods in 14 groups in SDK 2.9.0. By default, 20 invoice sending/receiving methods are exposed as `POST /ksef/{group}/{method}`:
 
-| Group | Endpoints | Description |
-|-------|-----------|-------------|
-| `online-session` | 3 | Interactive invoice sending |
-| `batch-session` | 4 | Batch sending (ZIP packages) |
-| `invoice-download` | 4 | Download, query, export invoices |
-| `session-status` | 9 | Session/invoice status, UPO |
-| `authorization` | 5 | Auth challenge, token auth |
-| `ksef-token` | 4 | Generate, query, revoke tokens |
-| `certificate` | 7 | KSeF certificate management |
-| `permissions` | 17 | Grant, revoke, search permissions |
-| `lighthouse` | 2 | KSeF system status |
+| Group | Endpoints | Default | Description |
+|-------|-----------|---------|-------------|
+| `online-session` | 3 | Yes | Interactive invoice sending |
+| `batch-session` | 4 | Yes | Batch sending (ZIP packages) |
+| `invoice-download` | 4 | Yes | Download, query, export invoices |
+| `session-status` | 9 | Yes | Session/invoice status, UPO |
+| `active-sessions` | 3 | No | List and revoke authentication sessions |
+| `authorization` | 6 | No | Authentication, issue and refresh access tokens |
+| `ksef-token` | 4 | No | Generate, query, revoke tokens |
+| `certificate` | 7 | No | KSeF certificate management |
+| `grant-permission` | 7 | No | Grant permissions |
+| `revoke-permission` | 2 | No | Revoke permissions |
+| `search-permission` | 8 | No | Search permissions |
+| `permission-operation` | 2 | No | Permission operation status |
+| `collective-identifiers` | 4 | No | Collective invoice identifiers |
+| `peppol` | 1 | No | Query Peppol providers |
 
-Full interactive docs at `/scalar/v1`.
+`KSEF_SDK_ENDPOINTS`: unset, empty or `safe` selects the defaults above. `all` enables every method and logs a startup warning. A comma-separated list selects exactly the groups or individual methods, e.g. `online-session,invoice-download/get-invoice`. Names are case-sensitive; surrounding whitespace is ignored. Unknown names or invalid syntax stop startup with a list of available names. `safe` and `all` are standalone modes, not list entries.
+
+**BREAKING (v0.3.0):** if you used `ksef-token`, `permissions` (now four separate groups) or `certificate`, explicitly set `KSEF_SDK_ENDPOINTS=all` or select only the required groups/methods. These operations can create persistent KSeF access outside the gateway. `lighthouse` is absent from SDK 2.9.0 reflection; if a newer SDK adds it, it belongs to `safe`.
+
+Hidden routes return 404 after passing authentication middleware and appear in neither `/openapi/v1.json` nor `/scalar/v1`. Gateway-owned endpoints (`/ksef/send`, `/ksef/send/json`, `/ksef/invoice`, `/ksef/invoice/{ksefNumber}` and `/pdf`, `/ksef/invoices/*`, `/ksef/status`, `/ksef/contexts`) and internal authentication always work independently of this setting. `/health` reports `exposedEndpoints` (exposed SDK methods) and `discoveredEndpoints` (all discovered methods); startup logs report both counts too.
+
+Interactive documentation of exposed routes is available at `/scalar/v1`.
 
 ---
 
@@ -720,6 +731,7 @@ A context needs exactly one of: `token`, `certificatePath` + `privateKeyPath`, o
 | `KSEF_KEY_PASSWORD` | No | - | Password for the private key, if it's encrypted (works with either path or content form) |
 | `KSEF_NIP` | Yes | - | NIP for authentication context |
 | `KSEF_ENV` | No | `TEST` | API and PDF environment: `TEST`, `DEMO`, `PRODUCTION` (aliases: `PRD`, `PROD`). Case and surrounding whitespace are ignored; an empty value means `TEST`. An unknown value stops gateway startup. |
+| `KSEF_SDK_ENDPOINTS` | No | `safe` | Exposed SDK routes: `safe`, `all`, or a list of groups / `group/method`; invalid values stop startup. |
 | `KSEF_API_PORT` | No | `8080` | Gateway API port |
 | `KSEF_QR_URL` | No | Derived from `KSEF_ENV` | QR verification base URL: TEST → `https://qr-test.ksef.mf.gov.pl`, DEMO → `https://qr-demo.ksef.mf.gov.pl`, PRODUCTION/PRD → `https://qr.ksef.mf.gov.pl`. An explicit value in the PDF service takes precedence; missing/unknown environment → TEST (unknown: one-time warning). |
 | `GITHUB_PAT` | Build | - | GitHub PAT with `read:packages` for CIRFMF SDK |

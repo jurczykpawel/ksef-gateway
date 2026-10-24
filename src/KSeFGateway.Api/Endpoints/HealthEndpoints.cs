@@ -7,7 +7,7 @@ namespace KSeFGateway.Api.Endpoints;
 
 public static class HealthEndpoints
 {
-    public static void MapHealthEndpoints(this WebApplication app, int discoveredCount)
+    public static void MapHealthEndpoints(this WebApplication app, int discoveredCount, int exposedCount)
     {
         app.MapGet("/health", (
             [FromServices] TokenPool pool,
@@ -18,6 +18,7 @@ public static class HealthEndpoints
             return Results.Json(new HealthResponse(
                 Status: "ok",
                 DiscoveredEndpoints: discoveredCount,
+                ExposedEndpoints: exposedCount,
                 KsefEnvironment: environment.Name,
                 Authenticated: defaultState.IsAuthenticated,
                 TokenExpiresAt: defaultState.AccessTokenExpiresAt

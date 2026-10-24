@@ -49,7 +49,7 @@ public class HealthEndpointsTests
         builder.Services.AddSingleton<ContextProvider>();
         builder.Services.AddSingleton<TokenPool>();
         await using var app = builder.Build();
-        app.MapHealthEndpoints(60);
+        app.MapHealthEndpoints(64, 20);
 
         // Invoke the real mapped delegate without starting the host or background services.
         var endpoint = ((IEndpointRouteBuilder)app).DataSources.SelectMany(s => s.Endpoints)
@@ -65,5 +65,10 @@ public class HealthEndpointsTests
             ? body.RootElement.GetProperty("ksefEnvironment")
             : body.RootElement.GetProperty("data").GetProperty("environment");
         Assert.Equal(expected, environment.GetString());
+        if (path == "/health")
+        {
+            Assert.Equal(64, body.RootElement.GetProperty("discoveredEndpoints").GetInt32());
+            Assert.Equal(20, body.RootElement.GetProperty("exposedEndpoints").GetInt32());
+        }
     }
 }

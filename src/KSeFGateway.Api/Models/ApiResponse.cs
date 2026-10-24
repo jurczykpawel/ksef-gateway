@@ -15,6 +15,7 @@ public record ApiResponse(bool Success, object? Data, string? Error = null)
 public record HealthResponse(
     string Status,
     int DiscoveredEndpoints,
+    int ExposedEndpoints,
     string KsefEnvironment,
     bool Authenticated,
     DateTimeOffset? TokenExpiresAt

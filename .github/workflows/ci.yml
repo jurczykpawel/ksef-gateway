@@ -151,10 +151,7 @@ jobs:
         run: npm audit --omit=dev --audit-level=high
 
       - name: Typecheck
-        run: |
-          OUT=$(npx tsc --noEmit --project tsconfig.json 2>&1 | grep -v "lib/" | grep -v "TS6059")
-          echo "$OUT"
-          ! echo "$OUT" | grep -q "error TS"
+        run: npx tsc --noEmit --project tsconfig.json
 
       - name: Unit tests
         run: npm test

@@ -70,6 +70,22 @@ describe("PDF content from real MF and upstream invoices", () => {
     for (const page of pdf.pages) expect(page.replace(/\d+ z \d+$/, "").trim().length).toBeGreaterThan(50);
   });
 
+  it("shows the line discount and discounted totals in a real PDF", async () => {
+    const xml = fixture("mf-fa3")
+      .replace("<P_13_1>1666.66</P_13_1>", "<P_13_1>99.89</P_13_1>")
+      .replace("<P_14_1>383.33</P_14_1>", "<P_14_1>22.97</P_14_1>")
+      .replace(/<P_13_3>.*?<\/P_13_3>|<P_14_3>.*?<\/P_14_3>/g, "")
+      .replace("<P_15>2051</P_15>", "<P_15>122.86</P_15>")
+      .replace(/<FaWiersz>[\s\S]*<\/FaWiersz>/, `<FaWiersz>
+        <NrWierszaFa>1</NrWierszaFa><P_7>Usługa z rabatem</P_7><P_8A>szt.</P_8A>
+        <P_8B>3</P_8B><P_9A>33.33</P_9A><P_10>0.10</P_10><P_11>99.89</P_11><P_12>23</P_12>
+      </FaWiersz>`);
+    const pdf = await render(xml);
+    expect(pdf.text).toContain("Rabat");
+    for (const value of ["33,33", "0,10", "99,89", "22,97", "122,86"])
+      expect(pdf.compact).toContain(value);
+  });
+
   it("always displays zero P_15 on an identity-only correction", async () => {
     const pdf = await render(fixture("mf-fa3-zero-correction"));
     expect(pdf.compact).toContain("FK2026/04/23");

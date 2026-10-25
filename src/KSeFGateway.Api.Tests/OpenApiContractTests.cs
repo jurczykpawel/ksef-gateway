@@ -48,6 +48,14 @@ public class OpenApiContractTests
         var strings = rateSchema.GetProperty("oneOf").EnumerateArray().Single(p => p.GetProperty("type").GetString() == "string");
         Assert.Contains(strings.GetProperty("enum").EnumerateArray(), p => p.GetString() == "0 WDT");
         Assert.Contains(strings.GetProperty("enum").EnumerateArray(), p => p.GetString() == "0 EX");
+        var item = document.RootElement.GetProperty("components").GetProperty("schemas").GetProperty("InvoiceItem");
+        var discount = item.GetProperty("properties").GetProperty("discount");
+        var numeric = discount.TryGetProperty("anyOf", out var variants)
+            ? variants.EnumerateArray().Single(s => s.TryGetProperty("type", out var type) && type.GetString() == "number")
+            : discount;
+        Assert.Equal("number", numeric.GetProperty("type").GetString());
+        Assert.True((discount.TryGetProperty("nullable", out var nullable) ? nullable : numeric.GetProperty("nullable")).GetBoolean(), discount.GetRawText());
+        Assert.DoesNotContain(item.GetProperty("required").EnumerateArray(), p => p.GetString() == "discount");
         var paths = document.RootElement.GetProperty("paths");
         Assert.Equal(74, paths.EnumerateObject().Count());
         foreach (var route in new[] { "/ksef/invoices/received", "/ksef/invoices/issued" })

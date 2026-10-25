@@ -46,7 +46,9 @@ public static class InvoiceXmlBuilder
 
         var specialErrors = InvoiceRequestValidator.Validate(req).Where(e =>
             e.Field == "buyer" || e.Field.StartsWith("buyer.", StringComparison.Ordinal) ||
-            e.Field is "exemptionBasis" or "correctionReason" or "type" || e.Field.StartsWith("correctedInvoice", StringComparison.Ordinal)).ToList();
+            e.Field.EndsWith(".discount", StringComparison.Ordinal) ||
+            e.Field is "exemptionBasis" or "correctionReason" or "type" ||
+            e.Field.StartsWith("correctedInvoice", StringComparison.Ordinal)).ToList();
         if (specialErrors.Count > 0)
             throw new ArgumentException(string.Join("; ", specialErrors.Select(e => $"{e.Field}: {e.Message}")));
 
@@ -71,7 +73,8 @@ public static class InvoiceXmlBuilder
             item.Quantity,
             item.UnitPrice,
             item.VatRate,
-            NetValue = Math.Round(item.Quantity * item.UnitPrice, 2, MidpointRounding.AwayFromZero)
+            item.Discount,
+            NetValue = Math.Round(item.Quantity * item.UnitPrice - (item.Discount ?? 0m), 2, MidpointRounding.AwayFromZero)
         }).ToList();
 
         // Calculate each VAT summary once; P_15 uses the same rounded amounts as P_13/P_14.
@@ -213,6 +216,8 @@ public static class InvoiceXmlBuilder
             WriteElement(writer, "P_8A", line.Unit);
             WriteElement(writer, "P_8B", FormatDecimal(line.Quantity));
             WriteElement(writer, "P_9A", FormatDecimal(line.UnitPrice));
+            if (line.Discount is > 0)
+                WriteElement(writer, "P_10", FormatDecimal(line.Discount.Value));
             WriteElement(writer, "P_11", FormatDecimal(line.NetValue));
             WriteElement(writer, "P_12", line.VatRate.XmlValue);
             writer.WriteEndElement();

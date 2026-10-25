@@ -110,7 +110,8 @@ public class BoundaryTests
     [InlineData("items.0", null)]
     [InlineData("invoiceNumber", "\"\"")]
     [InlineData("items.0.quantity", "0")] [InlineData("items.0.quantity", "-1")]
-    [InlineData("items.0.unitPrice", "-1")] [InlineData("items.0.vatRate", "22")]
+    [InlineData("items.0.discount", "-0.01")] [InlineData("items.0.discount", "10.01")]
+    [InlineData("items.0.discount", "0.001")] [InlineData("items.0.unitPrice", "-1")] [InlineData("items.0.vatRate", "22")]
     [InlineData("seller.nip", "\"123\"")] [InlineData("buyer.nip", "\"abcdefghij\"")]
     [InlineData("issueDate", "\"2026-02-30\"")] [InlineData("saleDate", "\"tomorrow\"")]
     public async Task InvalidInvoice_Returns400WithoutSdkCall(string field, string? value)

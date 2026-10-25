@@ -96,6 +96,15 @@ public static class InvoiceRequestValidator
             Required(item.Name, field + ".name");
             if (item.Quantity == 0 || (invoice.Type != "KOR" && item.Quantity < 0)) errors.Add(new(field + ".quantity", "Must be nonzero (and positive unless type is KOR)"));
             if (invoice.Type != "KOR" && item.UnitPrice < 0) errors.Add(new(field + ".unitPrice", "Cannot be negative"));
+            if (item.Discount is { } discount)
+            {
+                if (discount < 0) errors.Add(new(field + ".discount", "Cannot be negative"));
+                if (decimal.Round(discount, 2) != discount)
+                    errors.Add(new(field + ".discount", "Expected at most 2 decimal places"));
+                // Zero is equivalent to omitting the discount, including on signed KOR lines.
+                if (discount > 0 && discount > item.Quantity * item.UnitPrice)
+                    errors.Add(new(field + ".discount", "Cannot exceed quantity times unit price"));
+            }
             if (item.VatRate.SummarySuffix is null) errors.Add(new(field + ".vatRate", VatRateJsonConverter.ValidationMessage));
         }
         return errors;

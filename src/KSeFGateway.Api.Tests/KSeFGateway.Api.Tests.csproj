@@ -29,6 +29,7 @@
 
   <ItemGroup>
     <Content Include="Discovery/sdk-contract.approved.json" CopyToOutputDirectory="PreserveNewest" />
+    <None Update="Invoice/Fixtures/*.xml" CopyToOutputDirectory="PreserveNewest" />
     <None Include="Schemas\**\*.xsd" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 

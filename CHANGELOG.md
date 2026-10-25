@@ -2,13 +2,14 @@
 
 ## [Unreleased]
 
-### Added
-
-- Support EU VAT, other tax IDs and unidentified buyers in friendly invoices, plus separate 0% WDT/export summaries, validation and OpenAPI contracts.
-
 ### Changed
 
 - Document production deployment on Render from the signed, digest-pinned GHCR image (no `GITHUB_PAT`, release goes live only on a digest change).
+
+### Added
+
+- Support EU VAT, other tax IDs and unidentified buyers in friendly invoices, plus separate 0% WDT/export summaries, validation and OpenAPI contracts.
+- Support optional net line discounts (`items[].discount`, FA(3) `P_10`) with validation, discounted totals, and PDF coverage.
 
 ## [0.3.0] - 2026-10-24
 

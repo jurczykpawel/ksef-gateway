@@ -3,13 +3,13 @@
 Universal REST API gateway wrapping the official CIRFMF KSeF C# SDK.
 
 ## Stack
-- **ksef-api**: ASP.NET 9 Minimal API + CIRFMF KSeF.Client SDK (NuGet, GitHub Packages)
+- **ksef-api**: ASP.NET 9 Minimal API + CIRFMF KSeF.Client SDK (vendored NuGet packages)
 - **ksef-pdf**: Node.js + tsx + CIRFMF ksef-pdf-generator (git submodule)
 - **Orchestration**: Docker Compose (2 containers, no DB, no Redis)
 
 ## Quick start
 ```bash
-cp .env.example .env  # set GITHUB_PAT and GATEWAY_API_KEY (openssl rand -hex 32)
+cp .env.example .env  # set GATEWAY_API_KEY (openssl rand -hex 32)
 docker compose --profile tools run --rm token-generator  # generates KSEF_TOKEN + KSEF_NIP
 # paste output into .env
 docker compose up --build
@@ -39,7 +39,7 @@ docker compose up --build
 - `tools/InvoiceDemo/` - E2E invoice send demo
 
 ## SDK
-CIRFMF SDK on GitHub Packages (not public nuget.org). Requires GITHUB_PAT with `read:packages`.
+The MIT-licensed CIRFMF SDK 2.9.0 is included in `vendor/nuget`; no GitHub account or token is required.
 `nuget.config` in `src/KSeFGateway.Api/` and `tools/*/` configures the source.
 
 ## Build

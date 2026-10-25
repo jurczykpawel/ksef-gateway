@@ -7,7 +7,6 @@ Thanks for your interest in contributing!
 ### Prerequisites
 
 - Docker & Docker Compose
-- GitHub PAT with `read:packages` (for CIRFMF SDK)
 - Optionally: .NET 10 SDK (for local development without Docker)
 
 ### Running locally
@@ -15,7 +14,7 @@ Thanks for your interest in contributing!
 ```bash
 git submodule update --init --recursive
 cp .env.example .env
-# Set GITHUB_PAT and mandatory GATEWAY_API_KEY in .env (generate: openssl rand -hex 32).
+# Set mandatory GATEWAY_API_KEY in .env (generate: openssl rand -hex 32).
 # Configure a KSeF TEST token + NIP OR a TEST certificate + private key + NIP.
 # Generate disposable TEST credentials if needed:
 docker compose --profile tools run --rm token-generator
@@ -53,7 +52,7 @@ One command for every layer: `./scripts/test-full.sh --all` (Docker, Node 22.23.
 | --- | --- | --- |
 | Fast .NET | `docker compose --env-file .env --profile tools run --rm --build ksef-api-tests`; pre-commit | No KSeF calls. TestServer runs the actual `Program` pipeline with local license HTTP and fake SDK/auth. Includes `DocsTests` validating both README examples and shared fixtures. |
 | Live TEST | `./scripts/test-full.sh`; pre-push; CI `integration` | SDK authentication, XML/JSON sends, downloads and metadata. CI generates a fresh disposable NIP, so it does not share a developer's quota. |
-| Published images | `docker-publish.yml` → `smoke-image` | Runs immutable API/PDF digests, checks health, authenticated TEST status, sends **one** invoice and checks PDF MIME/signature. No metadata queries. Release/branch/latest aliases and release SBOM attachment wait for smoke success. Requires repository secrets `KSEF_TOKEN`, `KSEF_NIP`, `CIRFMF_PAT`. |
+| Published images | `docker-publish.yml` → `smoke-image` | Runs immutable API/PDF digests, checks health, authenticated TEST status, sends **one** invoice and checks PDF MIME/signature. No metadata queries. Release/branch/latest aliases and release SBOM attachment wait for smoke success. Requires repository secrets `KSEF_TOKEN`, `KSEF_NIP`. |
 | n8n | `node --test "examples/n8n/test/*.test.mjs"`; CI `test-n8n` | Offline harness: code nodes, HMAC, deduplication and retry semantics. No deployed n8n instance is called. |
 | PDF | `(cd pdf-service && npm ci && npx vitest run)`; CI `pdf-service` | PDF/QR, XML↔JSON and secret gate. The `--all` typecheck uses the same upstream-diagnostic filtering as CI; unfiltered `npx tsc --noEmit` still reports known submodule/TS6059 errors. |
 | Landing | `(cd landing && npm ci && npm run build)`; CI `build-landing` | Build only; interactive/browser behavior remains a gap. |

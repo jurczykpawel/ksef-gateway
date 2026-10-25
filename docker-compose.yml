@@ -1,10 +1,8 @@
 services:
   ksef-api:
     build:
-      context: ./src
-      dockerfile: KSeFGateway.Api/Dockerfile
-      args:
-        GITHUB_PAT: ${GITHUB_PAT}
+      context: .
+      dockerfile: src/KSeFGateway.Api/Dockerfile
     ports:
       - "${KSEF_API_PORT:-8080}:8080"
     environment:
@@ -62,20 +60,17 @@ services:
       - ./README.en.md:/docs/README.en.md:ro
       - ./examples:/docs/examples:ro
     build:
-      context: ./src
-      dockerfile: KSeFGateway.Api/Dockerfile
+      context: .
+      dockerfile: src/KSeFGateway.Api/Dockerfile
       target: test
-      args:
-        GITHUB_PAT: ${GITHUB_PAT}
     profiles: ["tools"]
 
   # One-off tool: generates KSeF token on TEST environment
   # Usage: docker compose run --rm token-generator
   token-generator:
     build:
-      context: ./tools/TokenGenerator
-      args:
-        GITHUB_PAT: ${GITHUB_PAT}
+      context: .
+      dockerfile: tools/TokenGenerator/Dockerfile
     volumes:
       - ./output:/app/output
     profiles: ["tools"]
@@ -84,9 +79,8 @@ services:
   # Usage: docker compose run --rm cert-generator
   cert-generator:
     build:
-      context: ./tools/CertGenerator
-      args:
-        GITHUB_PAT: ${GITHUB_PAT}
+      context: .
+      dockerfile: tools/CertGenerator/Dockerfile
     volumes:
       - ./output:/app/output
     profiles: ["tools"]
@@ -95,9 +89,8 @@ services:
   # Usage: docker compose run --rm invoice-demo
   invoice-demo:
     build:
-      context: ./tools/InvoiceDemo
-      args:
-        GITHUB_PAT: ${GITHUB_PAT}
+      context: .
+      dockerfile: tools/InvoiceDemo/Dockerfile
     volumes:
       - ./output:/app/output
     profiles: ["tools"]

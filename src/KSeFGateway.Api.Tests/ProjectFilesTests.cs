@@ -1,3 +1,4 @@
+using System.Security.Cryptography;
 using System.Text.RegularExpressions;
 using System.Xml.Linq;
 
@@ -5,6 +6,50 @@ namespace KSeFGateway.Api.Tests;
 
 public class ProjectFilesTests
 {
+    [Fact]
+    public void VendoredSdk_RestoresWithoutPrivateFeedAndMatchesNotices()
+    {
+        var root = Directory.Exists("/repo") ? "/repo" : FindProjectRoot();
+        var files = Directory.GetFiles(root, "*", SearchOption.AllDirectories)
+            .Where(path => !path.Split(Path.DirectorySeparatorChar).Any(part => part is ".git" or "bin" or "obj" or "node_modules"))
+            .ToArray();
+        var configs = files.Where(path => Path.GetFileName(path) == "nuget.config").ToArray();
+        Assert.NotEmpty(configs);
+        var forbidden = new[] { "GITHUB_" + "PAT", "CIRFMF_" + "PAT", "nuget.pkg." + "github.com", "packageSource" + "Credentials" };
+        foreach (var path in files.Where(path => configs.Contains(path)
+                     || Path.GetFileName(path).StartsWith("Dockerfile")
+                     || path.StartsWith(Path.Combine(root, ".github", "workflows") + Path.DirectorySeparatorChar)))
+            foreach (var value in forbidden)
+                Assert.False(File.ReadAllText(path).Contains(value), $"{Path.GetRelativePath(root, path)} contains {value}");
+
+        var notices = File.ReadAllText(Path.Combine(root, "THIRD_PARTY_NOTICES.md"));
+        var packages = new[] { "ksef.client.2.9.0.nupkg", "ksef.client.clientfactory.2.9.0.nupkg", "ksef.client.core.2.9.0.nupkg" };
+        foreach (var package in packages)
+        {
+            var match = Regex.Match(notices, $@"(?m)^([a-f0-9]{{64}})  {Regex.Escape(package)}$");
+            Assert.True(match.Success, $"Missing SHA-256 notice for {package}");
+            var bytes = File.ReadAllBytes(Path.Combine(root, "vendor", "nuget", package));
+            Assert.Equal(match.Groups[1].Value, Convert.ToHexString(SHA256.HashData(bytes)).ToLowerInvariant());
+        }
+        foreach (var config in configs)
+        {
+            var xml = XDocument.Load(config);
+            var sources = xml.Root!.Element("packageSources")!.Elements("add").ToArray();
+            Assert.Equal(2, sources.Length);
+            var local = Assert.Single(sources, source => (string?)source.Attribute("key") == "vendored-sdk");
+            var location = (string)local.Attribute("value")!;
+            Assert.False(Path.IsPathRooted(location));
+            Assert.Equal(Path.Combine(root, "vendor", "nuget"), Path.GetFullPath(Path.Combine(Path.GetDirectoryName(config)!, location)));
+            Assert.Equal("https://api.nuget.org/v3/index.json", (string?)Assert.Single(sources, source => (string?)source.Attribute("key") == "nuget.org").Attribute("value"));
+            var mappings = xml.Root.Element("packageSourceMapping")!.Elements("packageSource").ToArray();
+            Assert.Equal(2, mappings.Length);
+            foreach (var mapping in mappings)
+                Assert.Equal((string?)mapping.Attribute("key") == "vendored-sdk" ? "KSeF.Client*" : "*",
+                    (string?)Assert.Single(mapping.Elements("package")).Attribute("pattern"));
+            Assert.Equal(new[] { "nuget.org", "vendored-sdk" }, mappings.Select(m => (string)m.Attribute("key")!).OrderBy(key => key).ToArray());
+        }
+    }
+
     [Fact]
     public void PackageReferences_UseExactVersions()
     {

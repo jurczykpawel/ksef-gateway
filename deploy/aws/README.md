@@ -7,7 +7,6 @@ Deploy KSeF Gateway as an AWS Lambda function with Function URL.
 - AWS CLI configured
 - AWS SAM CLI (`brew install aws-sam-cli`)
 - Docker (for building the Lambda container image)
-- `GITHUB_PAT` with `read:packages` scope (for CIRFMF SDK)
 
 ## Deploy
 
@@ -15,7 +14,7 @@ Generate and securely store `GATEWAY_API_KEY` before deployment (`openssl rand -
 
 ```bash
 # Build
-sam build --build-arg GITHUB_PAT=<your-pat>
+sam build
 
 # Deploy (guided, first time)
 sam deploy --guided

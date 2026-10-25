@@ -52,6 +52,9 @@ def main():
             body += '\n'
     body += ('Review SDK, schema and PDF changes; update dependencies if needed '
              'and run integration tests against KSeF TEST.\n')
+    body += ('\nJeśli wyszła nowa wersja SDK: wykonaj kroki z vendor/nuget/README.md '
+             '(pobierz nupkg, zweryfikuj, podmień, zaktualizuj sumy SHA-256 w '
+             'THIRD_PARTY_NOTICES.md i zatwierdzony manifest SDK, uruchom testy).\n')
     repo = os.environ['GITHUB_REPOSITORY']
     issues = json.loads(gh('issue', 'list', '--repo', repo, '--label', 'ksef-update',
                            '--state', 'open', '--json', 'number', '--limit', '1'))

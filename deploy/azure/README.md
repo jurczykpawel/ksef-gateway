@@ -81,7 +81,7 @@ If you want to use ACR instead of GHCR:
 az acr create --name ksefgateway --resource-group ksef-gateway --sku Basic
 
 # Build & push
-az acr build --registry ksefgateway --image ksef-api:latest -f src/KSeFGateway.Api/Dockerfile src/
+az acr build --registry ksefgateway --image ksef-api:latest -f src/KSeFGateway.Api/Dockerfile .
 az acr build --registry ksefgateway --image ksef-pdf:latest -f pdf-service/Dockerfile pdf-service/
 
 # Deploy with ACR images

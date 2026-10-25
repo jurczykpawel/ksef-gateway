@@ -65,10 +65,8 @@ Resources:
       FunctionUrlConfig:
         AuthType: NONE
     Metadata:
-      Dockerfile: Dockerfile.lambda
-      DockerContext: ../../src
-      DockerBuildArgs:
-        GITHUB_PAT: ''
+      Dockerfile: deploy/aws/Dockerfile.lambda
+      DockerContext: ../..
 
 Outputs:
   GatewayUrl:

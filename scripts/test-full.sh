@@ -2,7 +2,7 @@
 # Full test suite: unit + integration against a live gateway.
 # Used as pre-push hook (via pre-commit) and for manual runs.
 #
-# Requires: Docker, .env with GITHUB_PAT + KSEF_TOKEN + KSEF_NIP + GATEWAY_API_KEY (TEST env).
+# Requires: Docker, .env with KSEF_TOKEN + KSEF_NIP + GATEWAY_API_KEY (TEST env).
 # Usage: ./scripts/test-full.sh [--all]
 # Skip:  SKIP_INTEGRATION=1 git push
 
@@ -52,12 +52,12 @@ fi
 
 # ── Load credentials ──────────────────────────────────────────────────────────
 
-GITHUB_PAT=$(grep '^GITHUB_PAT=' "$ENV_FILE" | cut -d= -f2-)
-KSEF_NIP=$(grep '^KSEF_NIP=' "$ENV_FILE" | cut -d= -f2-)
-GATEWAY_API_KEY=$(grep '^GATEWAY_API_KEY=' "$ENV_FILE" | cut -d= -f2-)
+KSEF_TOKEN=$(grep '^KSEF_TOKEN=' "$ENV_FILE" | cut -d= -f2- || true)
+KSEF_NIP=$(grep '^KSEF_NIP=' "$ENV_FILE" | cut -d= -f2- || true)
+GATEWAY_API_KEY=$(grep '^GATEWAY_API_KEY=' "$ENV_FILE" | cut -d= -f2- || true)
 
-if [ -z "$GITHUB_PAT" ] || [ -z "$KSEF_NIP" ]; then
-  warn "GITHUB_PAT or KSEF_NIP missing in .env — skipping integration tests"
+if [ -z "$KSEF_TOKEN" ] || [ -z "$KSEF_NIP" ]; then
+  warn "KSEF_TOKEN or KSEF_NIP missing in .env — skipping integration tests"
   if [ "$ALL" = "1" ]; then fail "Full regression requires integration prerequisites"; exit 1; fi
   exit 0
 fi
@@ -122,10 +122,11 @@ if [ "${INCLUDE_NIGHTLY:-0}" = "1" ]; then NIGHTLY_FILTER=""; fi
 
 docker run --rm \
   --add-host=host.docker.internal:host-gateway \
-  -e GITHUB_PAT="$GITHUB_PAT" \
   -e KSEF_NIP="$KSEF_NIP" \
   -e GATEWAY_API_KEY="$GATEWAY_API_KEY" \
   -e GATEWAY_URL="http://host.docker.internal:8080" \
+  -v "$REPO_ROOT:/repo" \
+  -v "$REPO_ROOT/vendor:/vendor:ro" \
   -v "$REPO_ROOT/src:/src" \
   -v "$REPO_ROOT/tools:/src/tools:ro" \
   -v "$REPO_ROOT/CONTRIBUTING.md:/docs/CONTRIBUTING.md:ro" \

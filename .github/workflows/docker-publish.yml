@@ -24,8 +24,6 @@ jobs:
   # A local reusable workflow checks the exact same ref, including v* release tags.
   ci:
     uses: ./.github/workflows/ci.yml
-    secrets:
-      CIRFMF_PAT: ${{ secrets.CIRFMF_PAT }}
 
   build-api:
     needs: ci
@@ -64,16 +62,14 @@ jobs:
         id: build
         uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
         with:
-          context: src/
+          context: .
           file: src/KSeFGateway.Api/Dockerfile
           push: true
-          # mode=min: the attestation never records build arguments (defence in depth; secrets already go via BuildKit secrets)
+          # mode=min: the attestation never records build arguments
           provenance: mode=min
           sbom: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
-          secrets: |
-            GITHUB_PAT=${{ secrets.CIRFMF_PAT }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
@@ -118,7 +114,7 @@ jobs:
           context: pdf-service/
           file: pdf-service/Dockerfile
           push: true
-          # mode=min: the attestation never records build arguments (defence in depth; secrets already go via BuildKit secrets)
+          # mode=min: the attestation never records build arguments
           provenance: mode=min
           sbom: true
           tags: ${{ steps.meta.outputs.tags }}
@@ -164,7 +160,6 @@ jobs:
           exit 1
       - name: Health, authenticated status, one send, PDF signature
         env:
-          GITHUB_PAT: ${{ secrets.CIRFMF_PAT }}
           KSEF_NIP: ${{ secrets.KSEF_NIP }}
           GATEWAY_API_KEY: smoke-key
           GATEWAY_URL: http://localhost:8080

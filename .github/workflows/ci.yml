@@ -7,9 +7,6 @@ on:
         description: Also run the live KSeF TEST scenarios tagged Cadence=Nightly
         type: boolean
         default: false
-    secrets:
-      CIRFMF_PAT:
-        required: true
   push:
     branches: [main, dev]
   pull_request:
@@ -60,13 +57,9 @@ jobs:
           dotnet-version: '10.0.x'
 
       - name: Restore
-        env:
-          GITHUB_PAT: ${{ secrets.CIRFMF_PAT }}
         run: dotnet restore KSeFGateway.Api.Tests/KSeFGateway.Api.Tests.csproj --configfile nuget.config
 
       - name: Reject vulnerable API and tool dependencies
-        env:
-          GITHUB_PAT: ${{ secrets.CIRFMF_PAT }}
         run: |
           for project in KSeFGateway.Api/KSeFGateway.Api.csproj KSeFGateway.Api.Tests/KSeFGateway.Api.Tests.csproj ../tools/*/*.csproj; do
             dotnet restore "$project" --configfile nuget.config
@@ -91,8 +84,6 @@ jobs:
           submodules: recursive
 
       - name: Generate a fresh test token (own NIP - avoids sharing rate-limit history with any other run)
-        env:
-          GITHUB_PAT: ${{ secrets.CIRFMF_PAT }}
         run: |
           # Public repo: token-generator prints the token to stdout, which CI would otherwise
           # log in the clear. Suppress that output and mask the value as defense in depth.
@@ -104,7 +95,6 @@ jobs:
 
       - name: Start gateway
         env:
-          GITHUB_PAT: ${{ secrets.CIRFMF_PAT }}
           GATEWAY_API_KEY: ci-test-key
           KSEF_ENV: TEST
         run: docker compose up -d --build --quiet-pull
@@ -122,8 +112,6 @@ jobs:
           dotnet-version: '10.0.x'
 
       - name: Restore
-        env:
-          GITHUB_PAT: ${{ secrets.CIRFMF_PAT }}
         run: dotnet restore src/KSeFGateway.Api.Tests/KSeFGateway.Api.Tests.csproj --configfile src/nuget.config
 
       - name: All tests (unit + integration)
@@ -176,18 +164,13 @@ jobs:
           submodules: recursive
 
       - name: Build ksef-api image
-        env:
-          GITHUB_PAT: ${{ secrets.CIRFMF_PAT }}
         run: |
           docker build \
-            --secret id=GITHUB_PAT,env=GITHUB_PAT \
             -f src/KSeFGateway.Api/Dockerfile \
             -t ksef-api-cert-test \
-            src/
+            .
 
       - name: Generate + verify a self-signed test certificate
-        env:
-          GITHUB_PAT: ${{ secrets.CIRFMF_PAT }}
         run: docker compose --profile tools run --rm cert-generator
 
       - name: Start gateway authenticated with the certificate
@@ -265,17 +248,12 @@ jobs:
           submodules: recursive
 
       - name: Build ksef-api
-        env:
-          GITHUB_PAT: ${{ secrets.CIRFMF_PAT }}
         run: |
           docker build \
-            --secret id=GITHUB_PAT,env=GITHUB_PAT \
             -f src/KSeFGateway.Api/Dockerfile \
-            src/
+            .
 
       - name: Build tools
-        env:
-          GITHUB_PAT: ${{ secrets.CIRFMF_PAT }}
         run: docker compose --profile tools build token-generator cert-generator invoice-demo
 
       - name: Build ksef-pdf

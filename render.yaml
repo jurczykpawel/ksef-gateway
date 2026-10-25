@@ -3,7 +3,7 @@ services:
     name: ksef-api
     runtime: docker
     dockerfilePath: src/KSeFGateway.Api/Dockerfile
-    dockerContext: src
+    dockerContext: .
     plan: free
     healthCheckPath: /health
     envVars:
@@ -48,13 +48,13 @@ services:
           property: hostport
       - key: PDF_SERVICE_SECRET
         sync: false
-      - key: GITHUB_PAT
-        sync: false
       - key: DOCKER_BUILDKIT
         value: "1"
     buildFilter:
       paths:
         - src/**
+        - vendor/**
+        - .dockerignore
 
   - type: web
     name: ksef-pdf

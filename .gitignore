@@ -44,3 +44,6 @@ output/
 ## OS
 .DS_Store
 Thumbs.db
+
+# Redistributed MIT SDK packages
+!vendor/nuget/*.nupkg

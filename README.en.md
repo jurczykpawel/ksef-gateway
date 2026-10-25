@@ -168,9 +168,8 @@ Or import the [Bruno collection](#testing-with-bruno) and switch to the `demo` e
 
 ### Prerequisites
 - Docker & Docker Compose
-- GitHub PAT with `read:packages` scope ([create here](https://github.com/settings/tokens/new?scopes=read:packages))
 
-> **Why is a GitHub PAT needed?** The official KSeF SDK ([CIRFMF/ksef-client-csharp](https://github.com/CIRFMF/ksef-client-csharp)) is published as NuGet packages on GitHub Packages, not on nuget.org. GitHub Packages requires authentication even for packages from public repositories - this is a [known GitHub limitation](https://github.com/orgs/community/discussions/26634). A PAT with `read:packages` scope is the only way to download them during build. It takes 30 seconds to generate one.
+You do not need a GitHub account or token: the SDK is in `vendor/nuget` (MIT).
 
 ### 1. Clone and configure
 
@@ -178,7 +177,7 @@ Or import the [Bruno collection](#testing-with-bruno) and switch to the `demo` e
 git clone --recurse-submodules https://github.com/jurczykpawel/ksef-gateway.git
 cd ksef-gateway
 cp .env.example .env
-# Edit .env: set GITHUB_PAT and GATEWAY_API_KEY (e.g. `openssl rand -hex 32`)
+# Edit .env: set GATEWAY_API_KEY (e.g. `openssl rand -hex 32`)
 ```
 
 > **Why does `.env` need a `GATEWAY_API_KEY`?** The gateway has no other caller-facing auth - see [Security](#security) below. Every request except `GET /health` needs it back as the `X-Api-Key` header, or the gateway rejects it.
@@ -810,7 +809,6 @@ A context needs exactly one of: `token`, `certificatePath` + `privateKeyPath`, o
 | `KSEF_SDK_ENDPOINTS` | No | `safe` | Exposed SDK routes: `safe`, `all`, or a list of groups / `group/method`; invalid values stop startup. |
 | `KSEF_API_PORT` | No | `8080` | Gateway API port |
 | `KSEF_QR_URL` | No | Derived from `KSEF_ENV` | QR verification base URL: TEST → `https://qr-test.ksef.mf.gov.pl`, DEMO → `https://qr-demo.ksef.mf.gov.pl`, PRODUCTION/PRD → `https://qr.ksef.mf.gov.pl`. An explicit value in the PDF service takes precedence; missing/unknown environment → TEST (unknown: one-time warning). |
-| `GITHUB_PAT` | Build | - | GitHub PAT with `read:packages` for CIRFMF SDK |
 | `KSEF_CONTEXTS_FILE` | No | `/app/contexts.json` | Path to multi-NIP config file |
 | `GATEWAY_LICENSE` | No | - | Multi-NIP license key - only needed for more than 1 NIP, see [Multi-NIP Licensing](#multi-nip-licensing) |
 
@@ -954,9 +952,9 @@ Two containers, no database, no Redis. Auth state in memory (restart = re-auth i
 
 [![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com/deploy?repo=https://github.com/jurczykpawel/ksef-gateway)
 
-Click the button, set `GITHUB_PAT`, `GATEWAY_API_KEY`, `KSEF_TOKEN` and `KSEF_NIP`, done. Both services (API + PDF) deploy automatically from `render.yaml`. Prefer a certificate? Leave `KSEF_TOKEN` blank, upload the cert/key as [Secret Files](https://render.com/docs/configure-environment-variables) in the dashboard, and set `KSEF_CERT_PATH`/`KSEF_KEY_PATH` to `/etc/secrets/<filename>` instead.
+Click the button, set `GATEWAY_API_KEY`, `KSEF_TOKEN` and `KSEF_NIP`, done. Both services (API + PDF) deploy automatically from `render.yaml`. Prefer a certificate? Leave `KSEF_TOKEN` blank, upload the cert/key as [Secret Files](https://render.com/docs/configure-environment-variables) in the dashboard, and set `KSEF_CERT_PATH`/`KSEF_KEY_PATH` to `/etc/secrets/<filename>` instead.
 
-**Production on Render (recommended): deploy the signed image instead of building.** Create each service from [an existing image](https://render.com/docs/deploying-an-image) (`ghcr.io/jurczykpawel/ksef-gateway-api` and `-pdf`, public, `linux/amd64`) pinned to the release digest you verified with `cosign verify` (see [Image verification](#image-verification) below). Nothing is built on Render, so `GITHUB_PAT` is not needed, what runs is exactly the artifact that passed CI and the published-image smoke test, and a new release goes live only when you change the digest (the git-backed one-click flow redeploys on every push to the branch it tracks). Set `healthCheckPath` to `/health` either way.
+**Production on Render (recommended): deploy the signed image instead of building.** Create each service from [an existing image](https://render.com/docs/deploying-an-image) (`ghcr.io/jurczykpawel/ksef-gateway-api` and `-pdf`, public, `linux/amd64`) pinned to the release digest you verified with `cosign verify` (see [Image verification](#image-verification) below). Render runs exactly the artifact that passed CI and the published-image smoke test, and a new release goes live only when you change the digest (the git-backed one-click flow redeploys on every push to the branch it tracks). Set `healthCheckPath` to `/health` either way.
 
 **Multi-NIP with several certificates on Render:** Secret Files aren't limited to one pair - upload as many cert/key files as you have companies (e.g. `company-a.crt`/`company-a.key`, `company-b.crt`/`company-b.key`, ...), *plus* your `contexts.json` itself as another Secret File, with each entry's `certificatePath`/`privateKeyPath` pointing at the matching `/etc/secrets/<filename>`. Then set `KSEF_CONTEXTS_FILE=/etc/secrets/contexts.json` (env var) instead of `KSEF_TOKEN`/`KSEF_CERT_PATH`. Requires a [multi-NIP license](#multi-nip-licensing) for more than one NIP.
 
@@ -985,7 +983,7 @@ Deploy as a serverless Lambda function with Function URL (no API Gateway - avoid
 
 ```bash
 cd deploy/aws
-sam build --build-arg GITHUB_PAT=<your-pat>
+sam build
 sam deploy --guided
 ```
 
@@ -1112,7 +1110,6 @@ API errors use `{"success":false,"data":null,"error":"…","correlationId":"…"
 | `503` | Missing `GATEWAY_API_KEY`, KSeF authentication failure or open circuit breaker: check logs, `/ksef/status` and `Retry-After` when present. `/health` does not prove KSeF/PDF readiness. |
 | PDF/Render timeout or `502` | PDF can wake independently of the API. Check its `/health`, `PDF_SERVICE_URL`, matching `PDF_SERVICE_SECRET` in both services and `PDF_SERVICE_TIMEOUT_SECONDS` (default 60 s). On Render free use the public PDF HTTPS URL; private networking cannot reach that service. |
 | Multi-NIP falls back to 1 NIP | Check the license and HTTPS access to Sellf JWKS/CRL. Cache is in RAM and lost on restart; startup without JWKS uses the free tier. A CRL outage alone does not revoke a valid license. |
-| NuGet restore `401`/`403` | `GITHUB_PAT` needs `read:packages` and access to CIRFMF packages; use the repository's `nuget.config`. Keep PATs out of issues and logs. |
 | Wrong environment or missing SDK route | Match credentials to `KSEF_ENV`: `TEST`, `DEMO`, `PRODUCTION`. Set it in PDF too (QR); optional `KSEF_QR_URL` overrides the QR base. `KSEF_SDK_ENDPOINTS=safe` hides administration; explicitly select needed methods. Invalid configuration stops startup. |
 
 AWS `PdfServiceUrl` maps to `PDF_SERVICE_URL`: supply a reachable HTTP(S) PDF service URL. An empty value **does not disable routes** — conversion/PDF calls fail. Azure's template sets the internal PDF service URL. For a public PDF service, configure `PDF_SERVICE_SECRET` in both API and PDF (on AWS this requires adding environment configuration; the SAM parameters do not expose this secret).

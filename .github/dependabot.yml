@@ -1,14 +1,7 @@
 version: 2
-registries:
-  cirfmf:
-    type: nuget-feed
-    url: https://nuget.pkg.github.com/CIRFMF/index.json
-    username: jurczykpawel
-    password: ${{ secrets.CIRFMF_PAT }}
 updates:
   - package-ecosystem: nuget
     directory: /src/KSeFGateway.Api
-    registries: [cirfmf]
     schedule:
       interval: weekly
     open-pull-requests-limit: 5
@@ -17,7 +10,6 @@ updates:
         update-types: [patch]
   - package-ecosystem: nuget
     directory: /src/KSeFGateway.Api.Tests
-    registries: [cirfmf]
     schedule:
       interval: weekly
     open-pull-requests-limit: 5
@@ -26,7 +18,6 @@ updates:
         update-types: [patch]
   - package-ecosystem: nuget
     directory: /tools/CertGenerator
-    registries: [cirfmf]
     schedule:
       interval: weekly
     open-pull-requests-limit: 5
@@ -35,7 +26,6 @@ updates:
         update-types: [patch]
   - package-ecosystem: nuget
     directory: /tools/InvoiceDemo
-    registries: [cirfmf]
     schedule:
       interval: weekly
     open-pull-requests-limit: 5
@@ -44,7 +34,6 @@ updates:
         update-types: [patch]
   - package-ecosystem: nuget
     directory: /tools/TokenGenerator
-    registries: [cirfmf]
     schedule:
       interval: weekly
     open-pull-requests-limit: 5

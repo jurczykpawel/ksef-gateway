@@ -4,6 +4,8 @@
 
 ### Changed
 
+- Build no longer needs a GitHub token: the MIT-licensed KSeF SDK 2.9.0 is vendored as a local NuGet feed.
+
 - Live KSeF TEST scenarios for foreign buyers and discounts (`Cadence=Nightly`) run in the nightly regression only, so pushes no longer exhaust the hourly session quota.
 
 ## [0.4.0] - 2026-10-25

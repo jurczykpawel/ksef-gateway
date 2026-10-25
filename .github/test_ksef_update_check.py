@@ -51,6 +51,21 @@ class UpdateMonitorTests(unittest.TestCase):
         return [call for call in self.calls if call[:2] in
                 [('issue', 'comment'), ('issue', 'create')]]
 
+    def test_sdk_update_notification_explains_vendored_package_update(self):
+        for issues in ([], [{'number': 12}]):
+            with self.subTest(existing_issue=bool(issues)):
+                self.state.write_bytes(self.original)
+                self.calls.clear()
+                self.issues = issues
+                self.upstream['sdk_version'] = '3.0.0'
+                monitor.main()
+                body = self.notifications()[0][-1]
+                for instruction in ('Jeśli wyszła nowa wersja SDK', 'vendor/nuget/README.md',
+                                    'pobierz nupkg', 'zweryfikuj', 'podmień',
+                                    'SHA-256 w THIRD_PARTY_NOTICES.md',
+                                    'zatwierdzony manifest SDK', 'uruchom testy'):
+                    self.assertIn(instruction, body)
+
     def test_empty_docs_sha_preserves_good_state(self):
         self.upstream['docs_sha'] = ''
         with self.assertRaisesRegex(ValueError, 'Invalid docs SHA'):

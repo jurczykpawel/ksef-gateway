@@ -2,6 +2,10 @@
 
 ## [Unreleased]
 
+### Fixed
+
+- The `latest` image tag now follows release tags only; `main` keeps its own tag (previously `latest` also moved on every push to `main`, i.e. to unreleased code).
+
 ### Changed
 
 - Build no longer needs a GitHub token: the MIT-licensed KSeF SDK 2.9.0 is vendored as a local NuGet feed.

@@ -67,6 +67,23 @@ public class BoundaryTests
     }
 
     [Theory]
+    [InlineData("\"noId\":false", "PL", "buyer")]
+    [InlineData("\"noId\":true,\"taxId\":\"123\"", "US", "buyer")]
+    [InlineData("\"euVatNumber\":\"GB123\"", "GB", "buyer.euVatNumber")]
+    [InlineData("\"taxId\":\"123\"", "ZZ", "buyer.address.country")]
+    public async Task ForeignBuyer_InvalidIdentity_Returns400BeforeSdk(string identity, string country, string field)
+    {
+        var sdk = new Mock<IKSeFClient>(MockBehavior.Strict);
+        await using var app = App(sdk);
+        var json = Invoice.ForeignBuyerTests.Input(identity, country);
+        var ctx = await Invoke(app, "/ksef/invoice", json.ToJsonString());
+        Assert.Equal(400, ctx.Response.StatusCode);
+        using var body = await JsonDocument.ParseAsync(ctx.Response.Body);
+        Assert.Contains(body.RootElement.GetProperty("errors").EnumerateArray(), e => e.GetProperty("field").GetString() == field);
+        sdk.VerifyNoOtherCalls();
+    }
+
+    [Theory]
     [InlineData("rate")] [InlineData("exemption")] [InlineData("correction")]
     public async Task SpecialInvoice_InvalidData_Returns400BeforeSdk(string scenario)
     {

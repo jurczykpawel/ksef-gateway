@@ -1,4 +1,6 @@
 using Microsoft.OpenApi;
+using System.Text.Json.Nodes;
+using KSeFGateway.Api.Invoice;
 
 namespace KSeFGateway.Api.Discovery;
 
@@ -20,6 +22,18 @@ public static class OpenApiConfiguration
                     schema.AnyOf = null;
                     schema.Pattern = null;
                 }
+                if (type == typeof(VatRate))
+                {
+                    schema.Type = null;
+                    schema.Properties = null;
+                    schema.Required = null;
+                    schema.OneOf = [
+                        new OpenApiSchema { Type = JsonSchemaType.Integer, Enum = new List<JsonNode> { JsonValue.Create(0)!, JsonValue.Create(5)!, JsonValue.Create(8)!, JsonValue.Create(23)! } },
+                        new OpenApiSchema { Type = JsonSchemaType.String, Enum = new[] { "0 WDT", "0 EX", "zw", "np", "np I", "np II" }.Select(s => (JsonNode)JsonValue.Create(s)!).ToList() }
+                    ];
+                }
+                if (type == typeof(BuyerData))
+                    schema.Description = "Provide exactly one of nip, euVatNumber (including country prefix), taxId (country from address.country), or noId=true. 0 WDT requires euVatNumber.";
                 return Task.CompletedTask;
             });
         });

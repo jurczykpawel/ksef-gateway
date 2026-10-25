@@ -33,8 +33,6 @@ public static class InvoiceXmlBuilder
             throw new ArgumentException("Seller NIP is required.", nameof(req.Seller));
         if (string.IsNullOrWhiteSpace(req.Seller.Name))
             throw new ArgumentException("Seller name is required.", nameof(req.Seller));
-        if (string.IsNullOrWhiteSpace(req.Buyer.Nip))
-            throw new ArgumentException("Buyer NIP is required.", nameof(req.Buyer));
         if (string.IsNullOrWhiteSpace(req.Buyer.Name))
             throw new ArgumentException("Buyer name is required.", nameof(req.Buyer));
         if (string.IsNullOrWhiteSpace(req.InvoiceNumber))
@@ -47,6 +45,7 @@ public static class InvoiceXmlBuilder
             throw new ArgumentException("At least one invoice item is required.", nameof(req.Items));
 
         var specialErrors = InvoiceRequestValidator.Validate(req).Where(e =>
+            e.Field == "buyer" || e.Field.StartsWith("buyer.", StringComparison.Ordinal) ||
             e.Field is "exemptionBasis" or "correctionReason" or "type" || e.Field.StartsWith("correctedInvoice", StringComparison.Ordinal)).ToList();
         if (specialErrors.Count > 0)
             throw new ArgumentException(string.Join("; ", specialErrors.Select(e => $"{e.Field}: {e.Message}")));
@@ -60,7 +59,7 @@ public static class InvoiceXmlBuilder
             if (req.Type != "KOR" && item.UnitPrice < 0)
                 throw new ArgumentException($"Item '{item.Name}': unit price cannot be negative.", nameof(req.Items));
             if (item.VatRate.SummarySuffix == null)
-                throw new ArgumentException($"Item '{item.Name}': unsupported VAT rate {item.VatRate}. Supported: 0, 5, 8, 23, zw, np, np I, np II.", nameof(req.Items));
+                throw new ArgumentException($"Item '{item.Name}': unsupported VAT rate {item.VatRate}. Supported: 0, 5, 8, 23, 0 WDT, 0 EX, zw, np, np I, np II.", nameof(req.Items));
         }
 
         // Calculate totals per VAT rate
@@ -119,7 +118,21 @@ public static class InvoiceXmlBuilder
 
         // Podmiot2 (Buyer)
         writer.WriteStartElement("Podmiot2");
-        WriteDaneIdentyfikacyjne(writer, req.Buyer.Nip, req.Buyer.Name);
+        writer.WriteStartElement("DaneIdentyfikacyjne");
+        if (req.Buyer.Nip is { } buyerNip) WriteElement(writer, "NIP", buyerNip);
+        else if (req.Buyer.EuVatNumber is { } euVatNumber)
+        {
+            WriteElement(writer, "KodUE", euVatNumber[..2]);
+            WriteElement(writer, "NrVatUE", euVatNumber[2..]);
+        }
+        else if (req.Buyer.TaxId is { } taxId)
+        {
+            WriteElement(writer, "KodKraju", req.Buyer.Address.Country);
+            WriteElement(writer, "NrID", taxId);
+        }
+        else WriteElement(writer, "BrakID", "1");
+        WriteElement(writer, "Nazwa", req.Buyer.Name);
+        writer.WriteEndElement();
         WriteAdres(writer, req.Buyer.Address);
         if (req.Buyer.Email != null || req.Buyer.Phone != null)
             WriteDaneKontaktowe(writer, req.Buyer.Email, req.Buyer.Phone);

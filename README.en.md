@@ -348,17 +348,33 @@ Simple JSON with human-readable fields. Gateway builds FA(3) XML and calculates 
 
 Each line's net amount is rounded to 2 decimal places using commercial rounding (midpoints away from zero). For each VAT rate, these net amounts are summed (`P_13_x`), then VAT is calculated from that sum and rounded the same way (`P_14_x`). The gross total (`P_15`) sums those same net and VAT summary amounts; e.g. two lines at PLN 0.03 net with 23% VAT produce PLN 0.06 net + PLN 0.01 VAT = PLN 0.07 gross.
 
-`vatRate: 0` means domestic 0% sales only, excluding intra-community supplies (WDT) and exports (`P_13_6_1`, no `P_14_6`; line `P_12 = 0 KR`). WDT and exports at 0% require raw XML via `POST /ksef/send`; the friendly format does not support them.
+`vatRate: 0` means domestic 0% sales only, excluding intra-community supplies (WDT) and exports (`P_13_6_1`, no `P_14_6`; line `P_12 = 0 KR`). Use `"0 WDT"` for intra-community supplies or `"0 EX"` for exports in the friendly format.
 
 The friendly format accepts numeric `vatRate: 23/8/5/0` and these strings:
 
 | `vatRate` | Meaning / XML summary |
 |---|---|
+| `"0 WDT"` | Intra-community supplies; `P_13_6_2`, requires `buyer.euVatNumber` |
+| `"0 EX"` | Exports of goods; `P_13_6_3` |
 | `"zw"` | Exempt sales, `P_13_7`; requires `exemptionBasis` (Polish statutory basis, `Zwolnienie/P_19=1`, `P_19A`) |
 | `"np"` or `"np I"` | Outside-territory supplies excluding Article 100(1)(4) and OSS; `P_12=np I`, `P_13_8` |
 | `"np II"` | Services under Article 100(1)(4) of the Polish VAT Act; `P_13_9` |
 
-No `P_14` fields are emitted for `zw`/`np`; `P_15` still sums the same rounded net and VAT summaries. `np` is an alias of `np I`, not intra-community supplies (WDT). `P_13_10` covers domestic reverse charge and does not map to `np`. Other annotations/procedures, including reverse charge and foreign buyer identifiers, require raw XML.
+No `P_14` fields are emitted for all 0% rates and `zw`/`np`; `P_15` still sums the same rounded net and VAT summaries. `np` is an alias of `np I`, not intra-community supplies (WDT). `P_13_10` covers domestic reverse charge and does not map to `np`. Other annotations/procedures, including reverse charge, require raw XML.
+
+#### Buyer identification
+
+`buyer` requires exactly one of: `nip` (10 ASCII digits, existing validation), `euVatNumber` (an FA(3) prefix followed by 1–12 uppercase letters, digits, `+` or `*`), `taxId` (1–50 characters), or `noId: true`. Missing or multiple identities return HTTP 400 with a field name. `noId: false` does not select an identity. `name` and `address` remain required; `address.country` defaults to `PL` and must belong to the FA(3) `KodyKrajow` dictionary.
+
+`euVatNumber: "DE123456789"` emits `KodUE=DE` and `NrVatUE=123456789`; Greece uses the VAT prefix `EL` (address `GR`), Northern Ireland uses `XI` (e.g. address `GB`). The XSD list also includes `PL`. `taxId` emits `KodKraju` from `address.country` and `NrID`; `noId: true` emits `BrakID=1`. The XSD does not require an address outside Poland for any variant or matching VAT and address country codes; the gateway adds no such restrictions. `JST` and `GV` remain `2`.
+
+Example buyer:
+
+```json
+{"euVatNumber":"DE123456789","name":"TEST Beispiel GmbH","address":{"street":"Teststrasse 1","city":"10115 Berlin","country":"DE"}}
+```
+
+Complete test fixtures: [EU buyer with np II](examples/invoice-foreign-buyer.json), [WDT](examples/invoice-wdt.json). Submit the file to `POST /ksef/invoice` as with the other examples. Identifiers are illustrative. `0 WDT` requires `euVatNumber`; the issuer is legally responsible for the remaining conditions governing rates and procedures. Schema validation does not confirm eligibility for a rate or an active EU VAT registration. A buyer without NIP does not change context selection or authorization — these check the seller NIP.
 
 Corrections require `type: "KOR"`, a nonempty `correctionReason`, and `correctedInvoice`: `issueDate` (YYYY-MM-DD), `invoiceNumber`, and exactly one of `ksefNumber` or `outsideKsef: true`. Items express **differences**, rather than full corrected values: `quantity × unitPrice` is the net change. KOR quantities may be negative (but not zero), and prices may be negative; ordinary invoices still require positive quantities and nonnegative prices. For example, quantity 1 and price -10 at 23% means -10 net, -2.30 VAT, -12.30 gross. A rate change can use a negative line at the old rate and a positive line at the new rate. The builder omits `StanPrzed` because it uses the difference representation explicitly permitted by the FA(3) `FaWiersz` documentation. Discounts and advances have no dedicated model.
 
@@ -1077,7 +1093,7 @@ If you modify KSeF Gateway and offer it as a service, AGPL-3.0 requires you to m
 
 API errors use `{"success":false,"data":null,"error":"…","correlationId":"…"}`. The identifier matches the response header `X-Correlation-Id` and the identifier in logs. The gateway assigns it per request; 500 responses only expose `Internal server error`, with the full exception logged. KSeF status codes and `Retry-After` remain intact. Invalid JSON returns 400.
 
-`POST /ksef/invoice` validates before KSeF authentication or SDK calls: required parties, addresses, items, invoice number, valid `YYYY-MM-DD` dates, NIPs (10 ASCII digits), quantity > 0, price >= 0 and VAT 0/5/8/23. A 400 response includes `error: "Validation failed"` and `errors: [{"field":"items.0.quantity","message":"Must be greater than zero"}]`. Missing strings and objects identify the specific field. JSON syntax/type errors or missing required numeric properties detected during deserialization identify `body` as the field.
+`POST /ksef/invoice` validates before KSeF authentication or SDK calls: required parties, addresses, items, invoice number, valid `YYYY-MM-DD` dates, seller NIP (10 ASCII digits), exactly one buyer identity, quantity > 0 and price >= 0 (with KOR exceptions), and the supported VAT rates listed above. A 400 response includes `error: "Validation failed"` and `errors: [{"field":"items.0.quantity","message":"Must be greater than zero"}]`. Missing strings and objects identify the specific field. JSON syntax/type errors or missing required numeric properties detected during deserialization identify `body` as the field.
 
 `PDF_SERVICE_TIMEOUT_SECONDS` bounds sending and reading PDF responses (default 60 s, timeout → 504). Client disconnects cancel both KSeF invoice retrieval and the PDF request. The PDF service permits `PDF_MAX_CONCURRENT_RENDERS` concurrent renders (default 2); excess requests receive 503 with `Retry-After: 1`. Slots are released after rendering settles, including errors; disconnects cannot interrupt synchronous generator work.
 

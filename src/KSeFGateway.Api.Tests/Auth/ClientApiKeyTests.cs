@@ -136,6 +136,27 @@ public class ClientApiKeyTests
     }
 
     [Theory]
+    [InlineData("\"euVatNumber\":\"DE123456789\"", false)]
+    [InlineData("\"taxId\":\"123456\"", false)]
+    [InlineData("\"noId\":true", false)]
+    [InlineData("\"euVatNumber\":\"DE123456789\"", true)]
+    [InlineData("\"taxId\":\"123456\"", true)]
+    [InlineData("\"noId\":true", true)]
+    public async Task ForeignBuyer_ClientAuthorizationStillChecksSeller(string identity, bool otherSeller)
+    {
+        await using var host = await Host.Create();
+        var invoice = KSeFGateway.Api.Tests.Invoice.ForeignBuyerTests.Input(identity);
+        invoice["seller"]!["nip"] = otherSeller ? B : A;
+        var response = await host.Send("client-a", "/ksef/invoice", A, invoice.ToJsonString());
+        if (otherSeller) await Forbidden(response, B);
+        else
+        {
+            Assert.Equal(HttpStatusCode.ServiceUnavailable, response.StatusCode);
+            Assert.Contains($"Not authenticated with KSeF for NIP {A}", await response.Content.ReadAsStringAsync());
+        }
+    }
+
+    [Theory]
     [InlineData("<Faktura xmlns:f='urn:test'><f:Podmiot1><f:DaneIdentyfikacyjne><f:NIP>0987654321</f:NIP></f:DaneIdentyfikacyjne></f:Podmiot1></Faktura>", "application/xml", "/ksef/send")]
     [InlineData("{\"seller\":{\"n\\u0069p\":\"0987654321\"}}", "application/json", "/ksef/send/json")]
     [InlineData("{\"seller\":{\"nip\":\"1234567890\"},\"seller\":{\"nip\":\"0987654321\"}}", "application/json", "/ksef/send/json")]

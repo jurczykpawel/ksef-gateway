@@ -241,7 +241,7 @@ public class InvoiceXmlBuilderTests
     {
         var req = MinimalInvoice() with { Buyer = MinimalInvoice().Buyer with { Nip = nip } };
         var ex = Assert.Throws<ArgumentException>(() => InvoiceXmlBuilder.Build(req));
-        Assert.Contains("Buyer NIP", ex.Message);
+        Assert.Contains("buyer.nip", ex.Message);
     }
 
     [Fact]

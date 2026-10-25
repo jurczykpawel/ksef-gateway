@@ -1,5 +1,6 @@
 using KSeF.Client.Core.Models.Invoices;
 using KSeFGateway.Api.Invoice;
+using System.Xml.Linq;
 
 namespace KSeFGateway.Api.Tests.Invoice;
 
@@ -34,6 +35,29 @@ public class IssuedInvoiceMapperTests
         IsSelfInvoicing = false,
         HasAttachment = false,
     };
+
+    [Theory]
+    [InlineData("<KodUE>DE</KodUE><NrVatUE>123456789</NrVatUE>", "VatUe", "DE123456789")]
+    [InlineData("<KodKraju>US</KodKraju><NrID>US-123456</NrID>", "Other", "US-123456")]
+    [InlineData("<BrakID>1</BrakID>", "None", null)]
+    public void ForeignIdentity_MetadataMappersPreserveSdkIdentity(string identity, string type, string? value)
+    {
+        // Mappers consume SDK query/metadata, not invoice XML. These FA(3) fragments
+        // document the matching source identity; the SDK supplies type/value separately.
+        var buyerXml = XElement.Parse($"<Podmiot2><DaneIdentyfikacyjne>{identity}<Nazwa>Foreign buyer</Nazwa></DaneIdentyfikacyjne><JST>2</JST><GV>2</GV></Podmiot2>");
+        Assert.Null(buyerXml.Descendants("NIP").SingleOrDefault());
+        var invoice = MakeInvoice("1234567890-20260701-3BE6FF400000-63", DateTimeOffset.Parse("2026-07-01T06:31:10Z"));
+        invoice.Buyer.Identifier = new BuyerIdentifier { Type = Enum.Parse<BuyerIdentifierType>(type), Value = value! };
+        invoice.Buyer.Name = buyerXml.Descendants("Nazwa").Single().Value;
+        var issued = IssuedInvoiceMapper.ToSummary(invoice);
+        Assert.Equal(type, issued.BuyerIdentifierType);
+        Assert.Equal(value, issued.BuyerIdentifierValue);
+        Assert.Equal("Foreign buyer", issued.BuyerName);
+        Assert.Equal(123m, issued.GrossAmount);
+        var received = ReceivedInvoiceMapper.ToSummary(invoice);
+        Assert.Equal("1234567890", received.SellerNip);
+        Assert.Equal(123m, received.GrossAmount);
+    }
 
     [Fact]
     public void ToSummary_MapsAllFields()

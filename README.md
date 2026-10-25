@@ -400,17 +400,33 @@ Prosty JSON z czytelnymi polami. Usługa buduje XML FA(3) i automatycznie liczy 
 
 Netto każdej pozycji jest zaokrąglane do 2 miejsc po przecinku metodą kupiecką (połowy od zera). Dla każdej stawki sumujemy te kwoty netto (`P_13_x`) i od tej sumy liczymy VAT, również zaokrąglany kupiecko (`P_14_x`). Kwota brutto (`P_15`) to suma tych samych kwot netto i VAT z podsumowania stawek; np. dwie pozycje po 0,03 PLN netto przy 23% dają 0,06 PLN netto + 0,01 PLN VAT = 0,07 PLN brutto.
 
-`vatRate: 0` oznacza wyłącznie krajową sprzedaż 0% z wyłączeniem WDT i eksportu (`P_13_6_1`, bez `P_14_6`; w pozycji `P_12 = 0 KR`). WDT i eksport ze stawką 0% wymagają surowego XML przez `POST /ksef/send`; format przyjazny ich nie obsługuje.
+`vatRate: 0` oznacza wyłącznie krajową sprzedaż 0% z wyłączeniem WDT i eksportu (`P_13_6_1`, bez `P_14_6`; w pozycji `P_12 = 0 KR`). W formacie przyjaznym użyj `"0 WDT"` dla WDT lub `"0 EX"` dla eksportu.
 
 Format przyjazny akceptuje liczbowe `vatRate: 23/8/5/0` oraz napisy:
 
 | `vatRate` | Znaczenie / podsumowanie XML |
 |---|---|
+| `"0 WDT"` | WDT; `P_13_6_2`, wymagane `buyer.euVatNumber` |
+| `"0 EX"` | Eksport towarów; `P_13_6_3` |
 | `"zw"` | Sprzedaż zwolniona, `P_13_7`; wymagane `exemptionBasis` (podstawa w polskiej ustawie, `Zwolnienie/P_19=1`, `P_19A`) |
 | `"np"` lub `"np I"` | Poza terytorium kraju z wyłączeniem art. 100 ust. 1 pkt 4 i OSS; `P_12=np I`, `P_13_8` |
 | `"np II"` | Usługi z art. 100 ust. 1 pkt 4 ustawy; `P_13_9` |
 
-Dla `zw`/`np` nie powstają pola `P_14`; `P_15` nadal sumuje te same zaokrąglone podsumowania netto i VAT. `np` jest aliasem `np I`, nie oznacza WDT. `P_13_10` dotyczy krajowego odwrotnego obciążenia i nie jest mapowaniem `np`. Inne adnotacje/procedury, w tym odwrotne obciążenie i identyfikatory zagranicznego nabywcy, wymagają surowego XML.
+Dla wszystkich stawek 0% oraz `zw`/`np` nie powstają pola `P_14`; `P_15` nadal sumuje te same zaokrąglone podsumowania netto i VAT. `np` jest aliasem `np I`, nie oznacza WDT. `P_13_10` dotyczy krajowego odwrotnego obciążenia i nie jest mapowaniem `np`. Inne adnotacje/procedury, w tym odwrotne obciążenie, wymagają surowego XML.
+
+#### Identyfikacja nabywcy
+
+`buyer` wymaga dokładnie jednego wariantu: `nip` (10 cyfr ASCII, dotychczasowa walidacja), `euVatNumber` (prefiks z FA(3) i 1–12 wielkich liter, cyfr, `+` lub `*`), `taxId` (1–50 znaków) albo `noId: true`. Brak lub kilka wariantów zwraca HTTP 400 z nazwą pola. `noId: false` nie wybiera wariantu. `name` i `address` nadal są wymagane; `address.country` domyślnie wynosi `PL` i musi należeć do słownika `KodyKrajow` FA(3).
+
+`euVatNumber: "DE123456789"` emituje `KodUE=DE` i `NrVatUE=123456789`; dla Grecji prefiks VAT to `EL` (adres `GR`), dla Irlandii Północnej `XI` (np. adres `GB`). Lista XSD zawiera też `PL`. `taxId` emituje `KodKraju` z `address.country` oraz `NrID`, a `noId: true` — `BrakID=1`. XSD nie wymaga adresu poza Polską dla żadnego z tych wariantów ani zgodności prefiksu VAT z krajem adresu; brama nie dodaje takich ograniczeń. `JST` i `GV` pozostają równe `2`.
+
+Przykład nabywcy:
+
+```json
+{"euVatNumber":"DE123456789","name":"TEST Beispiel GmbH","address":{"street":"Teststrasse 1","city":"10115 Berlin","country":"DE"}}
+```
+
+Pełne dane testowe: [nabywca UE i np II](examples/invoice-foreign-buyer.json), [WDT](examples/invoice-wdt.json). Wyślij plik do `POST /ksef/invoice` tak jak pozostałe przykłady. Dane identyfikacyjne są demonstracyjne. `0 WDT` wymaga `euVatNumber`; pozostałe warunki prawne doboru stawki i procedury leżą po stronie wystawcy. Walidacja schematu nie potwierdza uprawnienia do stawki ani aktywnego numeru VAT UE. Nabywca bez NIP nie zmienia wyboru ani uprawnień kontekstu — kontrolowany jest NIP sprzedawcy.
 
 Korekta wymaga `type: "KOR"`, niepustego `correctionReason` oraz `correctedInvoice`: `issueDate` (YYYY-MM-DD), `invoiceNumber` i dokładnie jednego wariantu: `ksefNumber` albo `outsideKsef: true`. Pozycje zawierają **różnice**, nie pełne wartości po korekcie: `quantity × unitPrice` to zmiana netto. W KOR ilość może być ujemna (lecz nie zerowa), a cena ujemna; dla zwykłych faktur ilość pozostaje dodatnia i cena nieujemna. Np. ilość 1 i cena -10 przy 23% oznacza -10 netto, -2,30 VAT, -12,30 brutto. Zmianę stawki można zapisać jako ujemną pozycję starej stawki i dodatnią nowej. Builder nie emituje `StanPrzed`, bo korzysta z wariantu różnicowego dopuszczonego w dokumentacji `FaWiersz` schematu FA(3). Rabaty i zaliczki nie mają osobnego modelu.
 
@@ -1143,7 +1159,7 @@ Jeśli modyfikujesz KSeF Gateway i oferujesz go jako usługę, AGPL-3.0 wymaga, 
 
 Błędy API mają kopertę `{"success":false,"data":null,"error":"…","correlationId":"…"}`. Identyfikator jest taki sam jak nagłówek odpowiedzi `X-Correlation-Id` i identyfikator w logu. Gateway nadaje go dla każdego żądania; błędy 500 zwracają wyłącznie `Internal server error`, a pełny wyjątek trafia do logu. Kody KSeF oraz `Retry-After` pozostają zachowane. Niepoprawny JSON zwraca 400.
 
-`POST /ksef/invoice` waliduje dane przed uwierzytelnieniem w KSeF i wywołaniem SDK: wymagane strony, adresy, pozycje, numer, daty `YYYY-MM-DD`, NIP (10 cyfr ASCII), ilość > 0, cena >= 0 i VAT 0/5/8/23. Odpowiedź 400 zawiera `error: "Validation failed"` i `errors: [{"field":"items.0.quantity","message":"Must be greater than zero"}]`. Brakujące pola tekstowe i obiekty wskazują konkretne pole. Błędy składni JSON, typów lub brak wymaganych pól liczbowych podczas deserializacji wskazują pole `body`.
+`POST /ksef/invoice` waliduje dane przed uwierzytelnieniem w KSeF i wywołaniem SDK: wymagane strony, adresy, pozycje, numer, daty `YYYY-MM-DD`, NIP sprzedawcy (10 cyfr ASCII), dokładnie jeden identyfikator nabywcy, ilość > 0 i cena >= 0 (z wyjątkami dla KOR) oraz obsługiwane stawki VAT z tabeli powyżej. Odpowiedź 400 zawiera `error: "Validation failed"` i `errors: [{"field":"items.0.quantity","message":"Must be greater than zero"}]`. Brakujące pola tekstowe i obiekty wskazują konkretne pole. Błędy składni JSON, typów lub brak wymaganych pól liczbowych podczas deserializacji wskazują pole `body`.
 
 `PDF_SERVICE_TIMEOUT_SECONDS` ogranicza wysłanie i odczyt odpowiedzi PDF (domyślnie 60 s, timeout → 504). Rozłączenie klienta anuluje pobieranie faktury z KSeF i żądanie PDF. Serwis PDF dopuszcza `PDF_MAX_CONCURRENT_RENDERS` równoczesnych renderów (domyślnie 2); nadmiar zwraca 503 z `Retry-After: 1`. Slot zwalnia się po zakończeniu renderowania, również po błędzie; rozłączenie nie przerywa synchronicznej pracy generatora.
 

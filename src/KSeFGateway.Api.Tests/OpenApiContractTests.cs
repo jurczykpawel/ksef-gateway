@@ -39,6 +39,15 @@ public class OpenApiContractTests
         context.Response.Body.Position = 0;
         using var document = await JsonDocument.ParseAsync(context.Response.Body);
         Assert.Equal("3.0.4", document.RootElement.GetProperty("openapi").GetString());
+        var schemas = document.RootElement.GetProperty("components").GetProperty("schemas");
+        var buyer = schemas.GetProperty("BuyerData");
+        Assert.DoesNotContain(buyer.GetProperty("required").EnumerateArray(), p => p.GetString() == "nip");
+        foreach (var name in new[] { "nip", "euVatNumber", "taxId", "noId" })
+            Assert.True(buyer.GetProperty("properties").TryGetProperty(name, out _));
+        var rateSchema = schemas.GetProperty("VatRate");
+        var strings = rateSchema.GetProperty("oneOf").EnumerateArray().Single(p => p.GetProperty("type").GetString() == "string");
+        Assert.Contains(strings.GetProperty("enum").EnumerateArray(), p => p.GetString() == "0 WDT");
+        Assert.Contains(strings.GetProperty("enum").EnumerateArray(), p => p.GetString() == "0 EX");
         var paths = document.RootElement.GetProperty("paths");
         Assert.Equal(74, paths.EnumerateObject().Count());
         foreach (var route in new[] { "/ksef/invoices/received", "/ksef/invoices/issued" })

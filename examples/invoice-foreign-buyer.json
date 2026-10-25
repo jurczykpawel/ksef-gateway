@@ -1,0 +1,42 @@
+{
+  "invoiceNumber": "FV/TEST/FOREIGN-BUYER/2026",
+  "issueDate": "2026-03-24",
+  "issuePlace": "Warszawa",
+  "saleDate": "2026-03-24",
+  "currency": "PLN",
+  "type": "VAT",
+  "seller": {
+    "nip": "3202004132",
+    "name": "Przykładowa Firma sp. z o.o.",
+    "address": {
+      "street": "ul. Sprzedawcy 10",
+      "city": "00-001 Warszawa",
+      "country": "PL"
+    },
+    "email": "firma@example.com",
+    "phone": "123456789"
+  },
+  "buyer": {
+    "euVatNumber": "DE123456789",
+    "name": "TEST Beispiel GmbH",
+    "address": {
+      "street": "Teststrasse 1",
+      "city": "10115 Berlin",
+      "country": "DE"
+    }
+  },
+  "items": [
+    {
+      "name": "Test service",
+      "unit": "szt.",
+      "quantity": 2,
+      "unitPrice": 100,
+      "vatRate": "np II"
+    }
+  ],
+  "payment": {
+    "paid": true,
+    "date": "2026-03-24",
+    "method": "transfer"
+  }
+}

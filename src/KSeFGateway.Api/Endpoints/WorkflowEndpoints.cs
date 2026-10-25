@@ -206,7 +206,8 @@ public static class WorkflowEndpoints
             }, logger, $"Invoice send failed for NIP {nip}");
         })
         .WithTags("Workflows")
-        .WithName("send_invoice_friendly");
+        .WithName("send_invoice_friendly")
+        .Accepts<InvoiceRequest>("application/json");
 
         // GET /ksef/contexts - list configured contexts and their auth status
         app.MapGet("/ksef/contexts", (

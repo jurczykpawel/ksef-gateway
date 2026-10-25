@@ -28,7 +28,10 @@ public record SellerData
 
 public record BuyerData
 {
-    public required string Nip { get; init; }
+    public string? Nip { get; init; }
+    public string? EuVatNumber { get; init; }
+    public string? TaxId { get; init; }
+    public bool NoId { get; init; }
     public required string Name { get; init; }
     public required AddressData Address { get; init; }
     public string? Email { get; init; }
@@ -48,7 +51,7 @@ public record InvoiceItem
     public string Unit { get; init; } = "szt.";
     public required decimal Quantity { get; init; }
     public required decimal UnitPrice { get; init; }
-    public required VatRate VatRate { get; init; }           // 23, 8, 5, 0 (domestic), zw, np (= np I), np I, np II
+    public required VatRate VatRate { get; init; }           // 23, 8, 5, 0 (domestic), 0 WDT, 0 EX, zw, np (= np I), np I, np II
 }
 
 public record PaymentData

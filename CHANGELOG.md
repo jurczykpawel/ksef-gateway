@@ -2,6 +2,10 @@
 
 ## [Unreleased]
 
+### Changed
+
+- Document production deployment on Render from the signed, digest-pinned GHCR image (no `GITHUB_PAT`, release goes live only on a digest change).
+
 ## [0.3.0] - 2026-10-24
 
 ### Added

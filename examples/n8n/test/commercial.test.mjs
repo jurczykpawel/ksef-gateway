@@ -8,7 +8,7 @@ const AsyncFunction = Object.getPrototypeOf(async function(){}).constructor;
 const files = ['sellf-ksef', 'sellf-ksef-PL', 'woocommerce-ksef', 'woocommerce-ksef-PL'];
 const load = f => JSON.parse(readFileSync(new URL(`../${f}.json`, import.meta.url)));
 const config = {webhookSecret:'secret', defaultVatRate:23, sellerNip:'123', sellerCity:'Warszawa'};
-const woo = {id:123, number:'custom', currency:'PLN', meta_data:[{key:'billing_nip',value:'123'}], billing:{}, line_items:[{name:'Discounted item',quantity:3,subtotal:'15.00',total:'10.00',total_tax:'2.30'}], shipping_lines:[{method_title:'Shipping',total:'5.00',total_tax:'1.15'}], fee_lines:[{name:'Fee',total:'2.00',total_tax:'0.46'}]};
+const woo = {id:123, number:'custom', currency:'PLN', meta_data:[{key:'billing_nip',value:'5260250995'}], billing:{}, line_items:[{name:'Discounted item',quantity:3,subtotal:'15.00',total:'10.00',total_tax:'2.30'}], shipping_lines:[{method_title:'Shipping',total:'5.00',total_tax:'1.15'}], fee_lines:[{name:'Fee',total:'2.00',total_tax:'0.46'}]};
 async function run(d,name,json,{sd={},raw,refs={},env={},configuration=config,logs=[],runIndex=0}={}) {
  const n=d.nodes.find(n=>n.name===name);
  assert.ok(n, `node ${name} exists`);
@@ -366,6 +366,102 @@ for (const f of ['sellf-ksef','sellf-ksef-PL']) {
    const result=await run(d,'Build KSeF Payload',{...sellfPurchase,invoiceCountry:country==='EL'?'GR':country,invoiceNip:country+'123456789'});
    assert.equal(result.invoice.buyer.euVatNumber,country+'123456789');
    assert.equal(result.invoice.items[0].vatRate,'np II');
+  }
+ });
+}
+
+const wooDomesticSnapshot = "{\"skip\":false,\"eventKey\":\"woo:123\",\"invoice\":{\"invoiceNumber\":\"WOO/123\",\"issueDate\":\"2026-01-01\",\"saleDate\":\"2026-01-01\",\"issuePlace\":\"Warszawa\",\"currency\":\"PLN\",\"type\":\"VAT\",\"seller\":{\"nip\":\"123\",\"address\":{\"city\":\"Warszawa\"}},\"buyer\":{\"nip\":\"5260250995\",\"name\":\"undefined undefined\",\"address\":{\"street\":\"\",\"city\":\" \"}},\"items\":[{\"name\":\"Discounted item\",\"quantity\":3,\"unitPrice\":3.3333333333333335,\"vatRate\":23},{\"name\":\"Shipping\",\"quantity\":1,\"unitPrice\":5,\"vatRate\":23},{\"name\":\"Fee\",\"quantity\":1,\"unitPrice\":2,\"vatRate\":23}],\"payment\":{\"paid\":false,\"date\":\"2026-01-01\",\"method\":\"transfer\"}}}";
+const buyerIdMetaKeys = ['_billing_nip','billing_nip','_billing_vat_number','_billing_eu_vat_number','_vat_number','vat_number'];
+for(const f of ['woocommerce-ksef','woocommerce-ksef-PL']) {
+ const d=load(f);
+ const transform=(country,id,configuration=config,key='billing_nip')=>run(d,'Transform to KSeF',{
+  body:{...woo,billing:{country},meta_data:[{key,value:id}]}
+ },{configuration});
+ for(const [country,id,field,expected,rate] of [
+  ['PL','5260250995','nip','5260250995',23],
+  [undefined,' pl 526-025-09-95 ','nip','5260250995',23],
+  [' de ','de 123-456-789','euVatNumber','DE123456789','0 WDT'],
+  ['FR','12345678901','euVatNumber','FR12345678901','0 WDT'],
+  ['GR','EL123456789','euVatNumber','EL123456789','0 WDT'],
+  ['XI','123456789','euVatNumber','XI123456789','0 WDT'],
+  ['US','12-3456789','taxId','12-3456789','0 EX'],
+  ['GB','GB123456789','taxId','GB123456789','0 EX'],
+ ]) test(`${f}: classified buyer ${country} / ${id} serializes gateway contract`,async()=>{
+  const result=JSON.parse(JSON.stringify(await transform(country,id)));
+  assert.equal(result.invoice.buyer[field],expected);
+  assert.deepEqual(['nip','euVatNumber','taxId','noId'].filter(k=>k in result.invoice.buyer),[field]);
+  if(field!=='nip') assert.equal(result.invoice.buyer.address.country,country.trim().toUpperCase());
+  assert.deepEqual(result.invoice.items.map(i=>i.vatRate),[rate,rate,rate]);
+  assert.deepEqual(result.invoice.items.map(i=>i.unitPrice),[10/3,5,2]);
+  if(field==='nip') assert.match(expected,/^[0-9]{10}$/);
+  if(field==='euVatNumber') assert.match(expected,/^[A-Z]{2}[A-Z0-9+*]{1,12}$/);
+  if(field==='taxId') assert.ok(expected.length>0 && expected.length<=50);
+ });
+ test(`${f}: meta keys, configured order and first nonempty value`,async()=>{
+  for(const key of [...buyerIdMetaKeys,'custom_vat']) {
+   const configuration=key==='custom_vat'?{...config,buyerIdMetaKeys:['custom_vat']}:config;
+   assert.equal((await transform('PL','PL526-025-09-95',configuration,key)).invoice.buyer.nip,'5260250995');
+  }
+  const result=await run(d,'Transform to KSeF',{body:{...woo,meta_data:[
+   {key:'billing_nip',value:'1234567890'}, {key:'_billing_nip',value:'   '},
+   {key:'_billing_nip',value:'5260250995'}
+  ]}});
+  assert.equal(result.invoice.buyer.nip,'5260250995');
+ });
+ test(`${f}: domestic payload byte identical and tax detection unchanged`,async()=>{
+  assert.equal(JSON.stringify(await run(d,'Transform to KSeF',{body:woo})),wooDomesticSnapshot);
+  for(const [total,tax,expected] of [['10','2.3',23],['10','.8',8],['10','.5',5],['10','0',0],['10','1.7',23],['0','0',23]]) {
+   const result=await run(d,'Transform to KSeF',{body:{...woo,line_items:[{name:'Item',quantity:1,total,total_tax:tax}],shipping_lines:[],fee_lines:[]}});
+   assert.equal(result.invoice.items[0].vatRate,expected);
+  }
+ });
+ test(`${f}: configured goods/services rates preserve net and exemption contract`,async()=>{
+  for(const [country,id,key,rates] of [['DE','DE123456789','euB2bVatRate',['0 WDT','np II']],['US','12-3456789','exportVatRate',['0 EX','np I','zw']]]) {
+   for(const rate of rates) {
+    const result=await transform(country,id,{...config,[key]:rate,exemptionBasis:'Art. 43'});
+    assert.deepEqual(result.invoice.items.map(i=>i.vatRate),[rate,rate,rate]);
+    assert.deepEqual(result.invoice.items.map(i=>i.unitPrice),[10/3,5,2]);
+    if(rate==='zw') assert.equal(result.invoice.exemptionBasis,'Art. 43');
+   }
+  }
+ });
+ test(`${f}: invalid buyers/config skip through graph without reservation or HTTP`,async()=>{
+  for(const [country,id,configuration] of [
+   ['DE',null],['PL',''],['PL','123'],['PL',123],['DE','FR123456789'],['DE','DE'],
+   ['DE','DE!123'],['DE','DE'+'1'.repeat(13)],['US','!'],['US','X'.repeat(51)],['ZZ','123'],['US',null],
+   ['DE','DE123',{...config,euB2bVatRate:'bad'}],['US','123',{...config,exportVatRate:'0 WDT'}],
+   ['US','123',{...config,exportVatRate:'zw'}],['PL','5260250995',{...config,buyerIdMetaKeys:'bad'}],
+  ]) {
+   let json={body:{...woo,billing:{country},meta_data:[{key:'billing_nip',value:id}]}},name='Transform to KSeF',ended=false;
+   const sd={},logs=[];
+   for(let step=0;step<5;step++) {
+    const node=d.nodes.find(n=>n.name===name);assert.ok(node,name);let port=0;
+    const evaluate=s=>new Function('$json',`return (${s.slice(3,-2).trim()})`)(json);
+    if(node.type.endsWith('.code')) json=await run(d,name,json,{configuration:configuration||config,sd,logs});
+    else if(node.type.endsWith('.if')) port=node.parameters.conditions.conditions.every(c=>c.operator.operation==='false'?evaluate(c.leftValue)===false:evaluate(c.leftValue)===true)?0:1;
+    else if(node.type.endsWith('.respondToWebhook')) {
+     const response=JSON.parse(evaluate(node.parameters.responseBody));
+     assert.equal(response.skipped,true);assert.match(response.reason,/^pominięto: .+/);
+     assert.equal(response.invoice,undefined);assert.deepEqual(sd,{});assert.deepEqual(logs,[]);ended=true;break;
+    } else assert.fail(`Invalid invoice reached ${name}`);
+    name=d.connections[name]?.main[port]?.[0]?.node;
+    assert.notEqual(name,'Reserve Invoice');
+   }
+   assert.equal(ended,true);
+  }
+ });
+ test(`${f}: shipped configuration defaults and entire EU dictionary`,async()=>{
+  const assignments=d.nodes.find(n=>n.name==='Configuration (EDIT ME)').parameters.assignments.assignments;
+  const configuration=Object.fromEntries(assignments.map(a=>[a.name,a.value]));
+  assert.equal(configuration.euB2bVatRate,'0 WDT');assert.equal(configuration.exportVatRate,'0 EX');
+  assert.deepEqual(configuration.buyerIdMetaKeys,buyerIdMetaKeys);
+  const xsd=readFileSync(new URL('../../../src/KSeFGateway.Api.Tests/Schemas/schemat_FA(3)_v1-0E.xsd',import.meta.url),'utf8');
+  const type=xsd.match(/<xsd:simpleType name="TKodyKrajowUE">([\s\S]*?)<\/xsd:simpleType>/)[1];
+  for(const [,country] of type.matchAll(/<xsd:enumeration value="([A-Z]{2})"/g)) {
+   if(country==='PL') continue;
+   const result=await transform(country,country+'123456789',configuration);
+   assert.equal(result.invoice.buyer.euVatNumber,country+'123456789');
+   assert.equal(result.invoice.items[0].vatRate,'0 WDT');
   }
  });
 }

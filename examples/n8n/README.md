@@ -52,8 +52,8 @@ For finding out what's been issued *to* you - KSeF has no email/webhook notifica
 ### What it does
 
 1. Receives a signed WooCommerce order webhook and verifies its `X-WC-Webhook-Signature` header
-2. Checks if the buyer has a NIP (Polish tax ID) in order meta data - consumers without a NIP are skipped (KSeF is only required for B2B)
-3. Transforms the WooCommerce order into KSeF invoice format, auto-detecting the VAT rate per line item from WooCommerce's tax totals
+2. Classifies the buyer identifier from order meta data by billing country; missing or inconsistent identifiers are skipped before reservation or HTTP
+3. Builds the invoice using per-line tax totals for PL and configured goods rates for foreign business buyers
 4. Sends `POST /ksef/invoice` to your KSeF Gateway
 5. Returns the KSeF number (or a skip/error reason) in the webhook response
 
@@ -64,7 +64,7 @@ For finding out what's been issued *to* you - KSeF has no email/webhook notifica
    - `ksefGatewayUrl` - your KSeF Gateway base URL
    - `sellerNip`, `sellerName`, `sellerStreet`, `sellerCity` - your company's invoicing details
 3. **Configure secrets and serialization** as described in **Commercial workflow safety** below (restart n8n only when changing environment settings)
-4. In WooCommerce, add a custom checkout field storing the buyer's NIP as order meta `_billing_nip` (or `billing_nip`)
+4. In WooCommerce, configure your NIP/VAT-UE checkout plugin to store the business identifier in order meta. Match `buyerIdMetaKeys` to the actual keys emitted in the webhook; plugin field names differ.
 5. **Configure the WooCommerce webhook:**
    - WooCommerce → Settings → Advanced → Webhooks → Add Webhook
    - Topic: `Order completed`
@@ -72,13 +72,26 @@ For finding out what's been issued *to* you - KSeF has no email/webhook notifica
    - Secret: the same value as `WOO_WEBHOOK_SECRET` or the Configuration `webhookSecret` fallback
 6. **Activate the workflow** in n8n
 
-### NIP detection
+### WooCommerce buyer country and identifier → fields and rate
 
-The workflow looks for the buyer's NIP in WooCommerce meta fields `_billing_nip` (most Polish WooCommerce plugins use this) or `billing_nip`. If no NIP is found, the order is treated as a consumer purchase and skipped - KSeF isn't required for B2C.
+Country comes from `order.billing.country` (trimmed, uppercase; defaults to `PL`). Configuration `buyerIdMetaKeys` is an ordered array, defaulting to `['_billing_nip', 'billing_nip', '_billing_vat_number', '_billing_eu_vat_number', '_vat_number', 'vat_number']`. The first nonempty matching order meta value wins, regardless of the order of `meta_data`. Check your NIP/VAT-UE plugin's webhook output and edit this array when it uses different keys. An invalid first identifier is skipped rather than replaced with another identifier.
+
+| Country / identifier | Gateway buyer fields | VAT rate |
+|---|---|---|
+| `PL` or missing country, 10-digit NIP | `buyer.nip` (spaces, hyphens and `PL` prefix removed) | Per-line tax ratio, rounded to 23/8/5/0; otherwise 23 |
+| EU other than PL, VAT ID with or without country prefix | `buyer.euVatNumber`, `buyer.address.country` | `euB2bVatRate` (default `"0 WDT"`) |
+| Non-EU, including US/GB, with tax ID | `buyer.taxId`, `buyer.address.country` | `exportVatRate` (default `"0 EX"`) |
+| Missing/invalid ID or country, inconsistent EU prefix or invalid configuration | No reservation or gateway POST; HTTP 200 with `skipped: true` and `reason: "pominięto: <powód>"` | No invoice |
+
+WooCommerce defaults target **goods**, unlike Sellf's digital-product defaults. For services/digital content, change `euB2bVatRate` to `"np II"` and `exportVatRate` to `"np I"`. Both fields accept numbers `23`, `8`, `5`, `0` or strings `"np II"`, `"np I"`, `"0 WDT"`, `"0 EX"`, `"zw"`. `0 WDT` requires an EU VAT ID; `zw` requires a nonempty Configuration `exemptionBasis`, forwarded to the invoice. Invalid configuration skips the order.
+
+Normalization follows Sellf: Greece uses address `GR` and VAT prefix `EL`; Northern Ireland uses `XI`, while `GB` follows the non-EU path. EU VAT IDs use 1–12 letters/digits/`+`/`*` after the prefix and contain a digit; conflicting EU prefixes are skipped. NIP validation checks 10 ASCII digits. Foreign tax IDs retain their spelling, trimmed, up to 50 characters. There is no VIES or tax eligibility lookup.
+
+**Foreign B2C/OSS is outside scope**; missing identifiers are skipped, never sent as `noId`. Net prices always use post-discount `total / quantity`, without adding or deducting VAT, including shipping and fees. Valid domestic payloads keep their existing shape (no explicit address country; the gateway defaults to PL) and tax detection.
 
 ### Customization
 
-- **VAT rate detection** - auto-detects from WooCommerce tax amounts, defaults to 23%; line totals already include discounts, and shipping/fees become additional lines
+- **VAT rates** - PL uses WooCommerce line tax amounts (fallback 23%); foreign business buyers use `euB2bVatRate` / `exportVatRate` above. Line totals already include discounts, and shipping/fees become additional lines
 - **Invoice number format** - defaults to `WOO/{order.id}` (full immutable order ID), edit in the **Transform to KSeF** node
 - **Payment method mapping** - `cod` → cash, everything else → transfer
 
@@ -175,7 +188,7 @@ Gateway JSON 503, 502, timeouts and transport failures are **uncertain** and nev
 
 Sellf `order.amount` is the amount charged, in minor units. When available, `order.netTotal` (also minor units) supplies the net amount, including zero. Otherwise numeric rates use `gross / (1 + selectedRate / 100)`, rounded to cents; `"np I"` / `"np II"` use `netAmount ?? amount` without VAT addition or deduction (the other nonnumeric rates also have zero VAT). Domestic numeric-rate behavior is unchanged. Set the three rate fields to the actual rates for your sales. This single-product template assumes one VAT rate and a two-decimal currency: baskets with bumps/mixed tax rates or other currency minor units require explicit per-line mapping before use.
 
-WooCommerce uses post-discount `line_items[].total` and each line's tax total, includes `shipping_lines` and `fee_lines`, and preserves `total / quantity` precision. Thus 10.00 net across 3 units stays 10.00 after line rounding instead of 9.99. It does not subtract coupons a second time. Supported VAT rates are 23/8/5/0; review unusual tax classes, mixed taxes on one line, refunds and credit notes separately.
+WooCommerce uses post-discount `line_items[].total` and each line's tax total, includes `shipping_lines` and `fee_lines`, and preserves `total / quantity` precision. Thus 10.00 net across 3 units stays 10.00 after line rounding instead of 9.99. It does not subtract coupons a second time. Domestic detected VAT rates are 23/8/5/0; foreign business rates follow Configuration above. Review unusual tax classes, mixed taxes on one line, refunds and credit notes separately.
 
 Run the offline harness with `node --test "examples/n8n/test/*.test.mjs"` (also runs in CI). It checks code with mocked n8n helpers and workflow graph structure; live import/runner and provider timeout validation remain deployment checks.
 

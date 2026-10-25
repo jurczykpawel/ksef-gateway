@@ -64,6 +64,8 @@ The class fixture shares one self-invoice between XML/PDF and seller/buyer list 
 
 ### Foreign buyers and line discounts (live TEST)
 
+These four scenarios are tagged `Cadence=Nightly`: they share KSeF TEST's small hourly session quota, so `git push`, CI and `scripts/test-full.sh` skip them and the nightly workflow (`regression-nightly.yml`, 02:17 UTC, also runnable via *Run workflow*) runs them. Run them locally with `INCLUDE_NIGHTLY=1 scripts/test-full.sh` or the command below.
+
 Each scenario below sends exactly one invoice/session and downloads its XML by KSeF number; none queries metadata or uses the shared self-invoice. The gateway must report `TEST` before sending. Send responses (including business rejection bodies) are preserved verbatim in xUnit output. Sends are never retried; HTTP 429 fails immediately with the unblock time or an explicit missing `Retry-After` diagnostic. Run only these scenarios with:
 
 ```bash

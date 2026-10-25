@@ -2,6 +2,11 @@ name: CI
 
 on:
   workflow_call:
+    inputs:
+      nightly:
+        description: Also run the live KSeF TEST scenarios tagged Cadence=Nightly
+        type: boolean
+        default: false
     secrets:
       CIRFMF_PAT:
         required: true
@@ -125,7 +130,12 @@ jobs:
         env:
           GATEWAY_URL: http://localhost:8080
           GATEWAY_API_KEY: ci-test-key
-        run: dotnet test src/KSeFGateway.Api.Tests/KSeFGateway.Api.Tests.csproj -c Release --no-restore --verbosity normal
+          # Live KSeF TEST sends tagged Cadence=Nightly share a small hourly session quota; they run in the nightly workflow only.
+          NIGHTLY: ${{ inputs.nightly && '1' || '0' }}
+        run: |
+          FILTER=()
+          if [ "$NIGHTLY" != "1" ]; then FILTER=(--filter "Cadence!=Nightly"); fi
+          dotnet test src/KSeFGateway.Api.Tests/KSeFGateway.Api.Tests.csproj -c Release --no-restore --verbosity normal "${FILTER[@]}"
 
   pdf-service:
     name: Build & Test PDF service (Node)

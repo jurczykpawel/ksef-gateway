@@ -116,6 +116,10 @@ find "$REPO_ROOT/src" -name "obj" -type d -exec rm -rf {} + 2>/dev/null || true
 
 log "Running full test suite (unit + integration)..."
 
+# Live KSeF TEST sends tagged Cadence=Nightly share a small hourly session quota: skipped unless INCLUDE_NIGHTLY=1.
+NIGHTLY_FILTER="--filter Cadence!=Nightly"
+if [ "${INCLUDE_NIGHTLY:-0}" = "1" ]; then NIGHTLY_FILTER=""; fi
+
 docker run --rm \
   --add-host=host.docker.internal:host-gateway \
   -e GITHUB_PAT="$GITHUB_PAT" \
@@ -133,7 +137,7 @@ docker run --rm \
     set -euo pipefail
     cd /src
     dotnet restore KSeFGateway.Api.Tests/KSeFGateway.Api.Tests.csproj --configfile nuget.config -q
-    dotnet test KSeFGateway.Api.Tests/KSeFGateway.Api.Tests.csproj -c Release --no-restore --verbosity normal
+    dotnet test KSeFGateway.Api.Tests/KSeFGateway.Api.Tests.csproj -c Release --no-restore --verbosity normal $NIGHTLY_FILTER
   "
 
 ok "All tests passed ✓"

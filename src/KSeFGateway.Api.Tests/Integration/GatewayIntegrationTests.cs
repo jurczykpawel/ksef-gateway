@@ -173,6 +173,7 @@ public class GatewayIntegrationTests(GatewayIntegrationTests.SharedInvoiceFixtur
     }
 
     [Fact]
+    [Trait("Cadence", "Nightly")]
     public async Task SendFriendlyJson_EuBuyerNpII_DownloadsEuIdentityAndTotals()
     {
         var invoice = SampleInvoice(UniqueNumber("FV/INT/EU")) with
@@ -191,6 +192,7 @@ public class GatewayIntegrationTests(GatewayIntegrationTests.SharedInvoiceFixtur
     }
 
     [Fact]
+    [Trait("Cadence", "Nightly")]
     public async Task SendFriendlyJson_NonEuBuyerNpI_DownloadsTaxIdentityAndTotals()
     {
         var invoice = SampleInvoice(UniqueNumber("FV/INT/US")) with
@@ -209,6 +211,7 @@ public class GatewayIntegrationTests(GatewayIntegrationTests.SharedInvoiceFixtur
     }
 
     [Fact]
+    [Trait("Cadence", "Nightly")]
     public async Task SendFriendlyJson_LineDiscount_DownloadsDiscountedLineAndTotals()
     {
         var invoice = SampleInvoice(UniqueNumber("FV/INT/DISCOUNT")) with
@@ -229,6 +232,7 @@ public class GatewayIntegrationTests(GatewayIntegrationTests.SharedInvoiceFixtur
     }
 
     [Fact]
+    [Trait("Cadence", "Nightly")]
     public async Task SendFriendlyJson_EuBuyerWdt_DownloadsWdtSummary()
     {
         var invoice = SampleInvoice(UniqueNumber("FV/INT/WDT")) with

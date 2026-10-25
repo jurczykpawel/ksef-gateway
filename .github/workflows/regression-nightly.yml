@@ -16,5 +16,7 @@ concurrency:
 jobs:
   regression:
     uses: ./.github/workflows/ci.yml
+    with:
+      nightly: true
     secrets:
       CIRFMF_PAT: ${{ secrets.CIRFMF_PAT }}

@@ -2,6 +2,10 @@
 
 ## [Unreleased]
 
+### Changed
+
+- Live KSeF TEST scenarios for foreign buyers and discounts (`Cadence=Nightly`) run in the nightly regression only, so pushes no longer exhaust the hourly session quota.
+
 ## [0.4.0] - 2026-10-25
 
 ### Changed

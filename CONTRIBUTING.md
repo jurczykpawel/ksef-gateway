@@ -62,6 +62,23 @@ One command for every layer: `./scripts/test-full.sh --all` (Docker, Node 22.23.
 
 The class fixture shares one self-invoice between XML/PDF and seller/buyer list tests, independent of test order. It waits once for indexing before issuing one successful metadata query per role; it does not poll an empty successful list. With `/received/new`, a normal run spends **3 metadata calls** (previously 3–13 with polling). This assumes the small TEST fixture fits one metadata page; the polling endpoint may paginate real data. A short `Retry-After` can add rejected attempts, with at most 15 seconds total waiting and 3 attempts; exhausted quota fails with `limit KSeF TEST wyczerpany, spróbuj po HH:MM UTC`. A missing header is explicitly reported. Indexing taking longer than 20 seconds causes a visible assertion failure instead of consuming more query quota.
 
+### Foreign buyers and line discounts (live TEST)
+
+Each scenario below sends exactly one invoice/session and downloads its XML by KSeF number; none queries metadata or uses the shared self-invoice. The gateway must report `TEST` before sending. Send responses (including business rejection bodies) are preserved verbatim in xUnit output. Sends are never retried; HTTP 429 fails immediately with the unblock time or an explicit missing `Retry-After` diagnostic. Run only these scenarios with:
+
+```bash
+dotnet test --filter 'FullyQualifiedName~SendFriendlyJson_EuBuyerNpII|FullyQualifiedName~SendFriendlyJson_NonEuBuyerNpI|FullyQualifiedName~SendFriendlyJson_LineDiscount|FullyQualifiedName~SendFriendlyJson_EuBuyerWdt' --logger 'console;verbosity=detailed'
+```
+
+| Scenario | Integration test | Download assertions |
+| --- | --- | --- |
+| EU buyer, `euVatNumber`, service `np II` | `SendFriendlyJson_EuBuyerNpII_DownloadsEuIdentityAndTotals` | `KodUE`, `NrVatUE`, `P_13_9`, `P_15`, `P_12` |
+| Non-EU buyer, US `taxId`, service `np I` | `SendFriendlyJson_NonEuBuyerNpI_DownloadsTaxIdentityAndTotals` | `KodKraju`, `NrID`, `P_13_8`, `P_15`, `P_12` |
+| 23% line with `discount` | `SendFriendlyJson_LineDiscount_DownloadsDiscountedLineAndTotals` | `P_10`, discounted `P_11`, `P_13_1`, `P_14_1`, `P_15`; independent local arithmetic |
+| EU buyer, goods `0 WDT` | `SendFriendlyJson_EuBuyerWdt_DownloadsWdtSummary` | `P_13_6_2`, `P_15`, `P_12`; a business rejection remains a visible failure with the exact response |
+
+These are live scenarios, not evidence of MF acceptance until run against TEST. Offline `InvoiceSubmissionDiagnosticsTests` cover quota diagnostics and preservation of business rejection responses without external calls.
+
 ### Macierz endpointów
 
 Names below are real test method names in `src/KSeFGateway.Api.Tests` (found from the source). **LUKA** means there is no dedicated test for that route/scenario; it is not a claim that behavior is broken. `—` means not applicable (no upstream operation or no business input). Coverage of a shared helper is labelled separately and does not imply that each SDK operation has been exercised end to end.

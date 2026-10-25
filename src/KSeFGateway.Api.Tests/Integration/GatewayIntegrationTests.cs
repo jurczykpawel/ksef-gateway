@@ -5,6 +5,7 @@ using System.Text.Json;
 using System.Text.Json.Nodes;
 using System.Xml.Linq;
 using KSeFGateway.Api.Invoice;
+using Xunit.Abstractions;
 
 namespace KSeFGateway.Api.Tests.Integration;
 
@@ -18,7 +19,7 @@ namespace KSeFGateway.Api.Tests.Integration;
 /// Run in the CI integration job with a generated KSeF TEST token.
 /// </summary>
 [Trait("Category", "Integration")]
-public class GatewayIntegrationTests(GatewayIntegrationTests.SharedInvoiceFixture fixture)
+public class GatewayIntegrationTests(GatewayIntegrationTests.SharedInvoiceFixture fixture, ITestOutputHelper output)
     : IClassFixture<GatewayIntegrationTests.SharedInvoiceFixture>
 {
     private static readonly string BaseUrl =
@@ -37,9 +38,18 @@ public class GatewayIntegrationTests(GatewayIntegrationTests.SharedInvoiceFixtur
     }
 
     /// <summary>Asserts HTTP 200 and, on failure, shows the response body (KSeF rejections explain themselves there).</summary>
-    private static async Task AssertOkAsync(HttpResponseMessage resp)
+    internal static async Task AssertOkAsync(HttpResponseMessage resp, Func<DateTimeOffset>? utcNow = null)
     {
         if (resp.StatusCode == HttpStatusCode.OK) return;
+        if (resp.StatusCode == HttpStatusCode.TooManyRequests)
+        {
+            var unblock = resp.Headers.RetryAfter?.Date
+                ?? (resp.Headers.RetryAfter?.Delta is { } delta ? (utcNow ?? (() => DateTimeOffset.UtcNow))() + delta : (DateTimeOffset?)null);
+            var diagnostic = unblock is { } time
+                ? $"limit KSeF TEST wyczerpany, spróbuj po {time:HH:mm} UTC"
+                : "limit KSeF TEST wyczerpany, brak Retry-After; sprawdź status przed ponowieniem";
+            Assert.Fail($"{diagnostic}; HTTP 429: {await resp.Content.ReadAsStringAsync()}");
+        }
         Assert.Fail($"Expected 200 OK but got {(int)resp.StatusCode} {resp.StatusCode}: {await resp.Content.ReadAsStringAsync()}");
     }
 
@@ -160,6 +170,112 @@ public class GatewayIntegrationTests(GatewayIntegrationTests.SharedInvoiceFixtur
         var body = await response.Content.ReadFromJsonAsync<JsonElement>();
         Assert.Equal("accepted", body.GetProperty("data").GetProperty("status").GetString());
         Assert.False(string.IsNullOrEmpty(body.GetProperty("data").GetProperty("ksefNumber").GetString()));
+    }
+
+    [Fact]
+    public async Task SendFriendlyJson_EuBuyerNpII_DownloadsEuIdentityAndTotals()
+    {
+        var invoice = SampleInvoice(UniqueNumber("FV/INT/EU")) with
+        {
+            Buyer = ForeignBuyer("DE", euVatNumber: "DE123456789"),
+            Items = [new InvoiceItem { Name = "EU service", Quantity = 1, UnitPrice = 100m, VatRate = "np II" }]
+        };
+        var xml = await SendFeatureInvoiceAsync(invoice);
+        var identity = xml.Root!.Element(InvoiceNs + "Podmiot2")!.Element(InvoiceNs + "DaneIdentyfikacyjne")!;
+        Assert.Equal("DE", identity.Element(InvoiceNs + "KodUE")?.Value);
+        Assert.Equal("123456789", identity.Element(InvoiceNs + "NrVatUE")?.Value);
+        var fa = xml.Root.Element(InvoiceNs + "Fa")!;
+        Assert.Equal(100m, (decimal)fa.Element(InvoiceNs + "P_13_9")!);
+        Assert.Equal(100m, (decimal)fa.Element(InvoiceNs + "P_15")!);
+        Assert.Equal("np II", fa.Element(InvoiceNs + "FaWiersz")!.Element(InvoiceNs + "P_12")?.Value);
+    }
+
+    [Fact]
+    public async Task SendFriendlyJson_NonEuBuyerNpI_DownloadsTaxIdentityAndTotals()
+    {
+        var invoice = SampleInvoice(UniqueNumber("FV/INT/US")) with
+        {
+            Buyer = ForeignBuyer("US", taxId: "123456789"),
+            Items = [new InvoiceItem { Name = "US service", Quantity = 1, UnitPrice = 100m, VatRate = "np I" }]
+        };
+        var xml = await SendFeatureInvoiceAsync(invoice);
+        var identity = xml.Root!.Element(InvoiceNs + "Podmiot2")!.Element(InvoiceNs + "DaneIdentyfikacyjne")!;
+        Assert.Equal("US", identity.Element(InvoiceNs + "KodKraju")?.Value);
+        Assert.Equal("123456789", identity.Element(InvoiceNs + "NrID")?.Value);
+        var fa = xml.Root.Element(InvoiceNs + "Fa")!;
+        Assert.Equal(100m, (decimal)fa.Element(InvoiceNs + "P_13_8")!);
+        Assert.Equal(100m, (decimal)fa.Element(InvoiceNs + "P_15")!);
+        Assert.Equal("np I", fa.Element(InvoiceNs + "FaWiersz")!.Element(InvoiceNs + "P_12")?.Value);
+    }
+
+    [Fact]
+    public async Task SendFriendlyJson_LineDiscount_DownloadsDiscountedLineAndTotals()
+    {
+        var invoice = SampleInvoice(UniqueNumber("FV/INT/DISCOUNT")) with
+        {
+            Items = [new InvoiceItem { Name = "Discounted service", Quantity = 3, UnitPrice = 33.33m, Discount = 0.10m, VatRate = 23 }]
+        };
+        var xml = await SendFeatureInvoiceAsync(invoice);
+        var fa = xml.Root!.Element(InvoiceNs + "Fa")!;
+        var line = fa.Element(InvoiceNs + "FaWiersz")!;
+        // Independent arithmetic, without InvoiceCalculator/InvoiceXmlBuilder as the oracle.
+        var net = decimal.Round(3m * 33.33m - 0.10m, 2, MidpointRounding.AwayFromZero);
+        var vat = decimal.Round(net * 0.23m, 2, MidpointRounding.AwayFromZero);
+        Assert.Equal(0.10m, (decimal)line.Element(InvoiceNs + "P_10")!);
+        Assert.Equal(net, (decimal)line.Element(InvoiceNs + "P_11")!);
+        Assert.Equal(net, (decimal)fa.Element(InvoiceNs + "P_13_1")!);
+        Assert.Equal(vat, (decimal)fa.Element(InvoiceNs + "P_14_1")!);
+        Assert.Equal(net + vat, (decimal)fa.Element(InvoiceNs + "P_15")!);
+    }
+
+    [Fact]
+    public async Task SendFriendlyJson_EuBuyerWdt_DownloadsWdtSummary()
+    {
+        var invoice = SampleInvoice(UniqueNumber("FV/INT/WDT")) with
+        {
+            Buyer = ForeignBuyer("DE", euVatNumber: "DE123456789"),
+            Items = [new InvoiceItem { Name = "Goods delivered to Germany", Quantity = 1, UnitPrice = 100m, VatRate = "0 WDT" }]
+        };
+        var xml = await SendFeatureInvoiceAsync(invoice);
+        var fa = xml.Root!.Element(InvoiceNs + "Fa")!;
+        Assert.Equal(100m, (decimal)fa.Element(InvoiceNs + "P_13_6_2")!);
+        Assert.Equal(100m, (decimal)fa.Element(InvoiceNs + "P_15")!);
+        Assert.Equal("0 WDT", fa.Element(InvoiceNs + "FaWiersz")!.Element(InvoiceNs + "P_12")?.Value);
+    }
+
+    private static readonly XNamespace InvoiceNs = "http://crd.gov.pl/wzor/2025/06/25/13775/";
+
+    private static BuyerData ForeignBuyer(string country, string? euVatNumber = null, string? taxId = null) => new()
+    {
+        EuVatNumber = euVatNumber, TaxId = taxId, Name = "Integration foreign buyer",
+        Address = new AddressData { Country = country, Street = "Test Street 1", City = "Test City" }
+    };
+
+    private async Task<XDocument> SendFeatureInvoiceAsync(InvoiceRequest invoice)
+    {
+        // Refuse live sends unless the gateway explicitly confirms the TEST environment.
+        using var status = await Http.GetAsync($"{BaseUrl}/ksef/status");
+        await AssertOkAsync(status);
+        var system = await status.Content.ReadFromJsonAsync<JsonElement>();
+        Assert.Equal("TEST", system.GetProperty("data").GetProperty("environment").GetString());
+
+        // Exactly one POST/session per scenario; never retry a send, including on 429.
+        using var response = await Http.PostAsJsonAsync($"{BaseUrl}/ksef/invoice", invoice);
+        var text = await response.Content.ReadAsStringAsync();
+        output.WriteLine($"{invoice.InvoiceNumber}: HTTP {(int)response.StatusCode}\n{text}");
+        await AssertOkAsync(response);
+        var body = JsonSerializer.Deserialize<JsonElement>(text);
+        Assert.True(body.GetProperty("success").GetBoolean(), text);
+        Assert.Equal("accepted", body.GetProperty("data").GetProperty("status").GetString());
+        var number = body.GetProperty("data").GetProperty("ksefNumber").GetString();
+        Assert.False(string.IsNullOrWhiteSpace(number), text);
+
+        // Only retry lookup's 404 indexing lag; do not poll errors or metadata.
+        using var download = await RetryUntilAsync(
+            () => Http.GetAsync($"{BaseUrl}/ksef/invoice/{number}"),
+            r => r.StatusCode != HttpStatusCode.NotFound);
+        await AssertOkAsync(download);
+        return XDocument.Parse(await download.Content.ReadAsStringAsync());
     }
 
     [Fact]

@@ -35,7 +35,7 @@
     },
     {
       "parameters": {
-        "content": "## Filter & Extract\nFilters for completed purchases that requested an invoice with a NIP. Acknowledgement follows processing.",
+        "content": "## Filter purchase\nSelects paid purchases requesting an invoice. Missing/invalid business IDs return skipped: true with a reason, without reservation or sending.",
         "height": 350,
         "width": 820,
         "color": 7
@@ -51,9 +51,9 @@
     },
     {
       "parameters": {
-        "content": "## Build the Invoice\nAssembles a KSeF-ready invoice payload from your seller details and the order.",
-        "height": 350,
-        "width": 520,
+        "content": "## Build invoice\nPL (also missing country): NIP → defaultVatRate. EU: EU VAT ID → euB2bVatRate (default np II). Outside EU: taxId → exportVatRate (default np I). Greece: GR/EL; Northern Ireland: XI. GB is outside the EU.\nRates: numbers 23/8/5/0 or strings np II, np I, 0 WDT, 0 EX, zw. For zw add exemptionBasis to Configuration; 0 WDT requires EU VAT ID. For np I/np II: net = netAmount ?? amount.\nForeign B2C/OSS is outside scope. Missing/unusable ID or inconsistent data → skipped with a reason, no POST. Classification does not verify VAT registration or tax eligibility; configure rates for your sales.",
+        "height": 650,
+        "width": 620,
         "color": 7
       },
       "id": "sticky-section-c",
@@ -162,6 +162,18 @@
               "id": "webhook-secret",
               "name": "webhookSecret",
               "value": "your-webhook-secret",
+              "type": "string"
+            },
+            {
+              "id": "eu-b2b-vat-rate",
+              "name": "euB2bVatRate",
+              "value": "np II",
+              "type": "string"
+            },
+            {
+              "id": "export-vat-rate",
+              "name": "exportVatRate",
+              "value": "np I",
               "type": "string"
             }
           ]
@@ -336,14 +348,6 @@
                       "type": "boolean",
                       "operation": "true"
                     }
-                  },
-                  {
-                    "leftValue": "={{ $json.invoiceNip }}",
-                    "rightValue": "",
-                    "operator": {
-                      "type": "string",
-                      "operation": "notEquals"
-                    }
                   }
                 ]
               },
@@ -368,7 +372,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const d = $input.first().json;\nconst config = $('Configuration (EDIT ME)').first().json;\nconst today = new Date().toISOString().split('T')[0];\n\nif (!d.sessionId) throw new Error('Missing sessionId');\nconst invoiceNumber = `FV/${d.sessionId}`;\n\nconst buyerCity = d.invoicePostalCode\n  ? `${d.invoicePostalCode} ${d.invoiceCity}`\n  : d.invoiceCity || '-';\n\nconst seller = {\n  nip: config.sellerNip,\n  name: config.sellerName,\n  address: {\n    street: config.sellerStreet,\n    city: config.sellerCity\n  }\n};\n\nreturn [{\n  json: { eventKey: `sellf:${d.sessionId}`, invoice: {\n    invoiceNumber,\n    issueDate: today,\n    saleDate: today,\n    issuePlace: seller.address.city.split(' ').slice(1).join(' ') || 'Warszawa',\n    currency: d.currency || 'PLN',\n    type: 'VAT',\n    seller,\n    buyer: {\n      nip: d.invoiceNip,\n      name: d.invoiceCompany || d.email,\n      address: {\n        street: d.invoiceAddress || '-',\n        city: buyerCity,\n        country: d.invoiceCountry || 'PL'\n      }\n    },\n    items: [\n      {\n        name: d.productName,\n        unit: 'szt.',\n        quantity: 1,\n        unitPrice: Math.round((d.netAmount ?? d.amount / (1 + Number(config.defaultVatRate) / 100)) * 100) / 100,\n        vatRate: config.defaultVatRate\n      }\n    ],\n    payment: {\n      paid: true,\n      date: today,\n      method: 'transfer'\n    },\n    // Pass-through for error logging\n    _meta: {\n      sessionId: d.sessionId,\n      paymentIntentId: d.paymentIntentId,\n      buyerEmail: d.email\n    }\n  } }\n}];"
+        "jsCode": "const d = $input.first().json;\nconst config = $('Configuration (EDIT ME)').first().json;\n// Pure classification: FA(3) EU VAT prefixes (EL = Greece, XI = Northern Ireland).\nfunction classifyBuyer(country, rawId, config) {\n  const euCodes = 'AT BE BG CY CZ DK EE FI FR DE EL HR HU IE IT LV LT LU MT NL PL PT RO SK SI ES SE XI'.split(' ');\n  const countryCodes = 'AF AX AL DZ AD AO AI AQ AG AN SA AR AM AW AU AT AZ BS BH BD BB BE BZ BJ BM BT BY BO BQ BA BW BR BN IO BG BF BI XC CL CN HR CW CY TD ME DK DM DO DJ EG EC ER EE ET FK FJ PH FI FR TF GA GM GH GI GR GD GL GE GU GG GY GF GP GT GN GQ GW HT ES HN HK IN ID IQ IR IE IS IL JM JP YE JE JO KY KH CM CA QA KZ KE KG KI CO KM CG CD KP XK CR CU KW LA LS LB LR LY LI LT LV LU MK MG YT MO MW MV MY ML MT MP MA MQ MR MU MX XL FM UM MD MC MN MS MZ MM NA NR NP NL DE NE NG NI NU NF NO NC NZ PS OM PK PW PA PG PY PE PN PF PL GS PT PR CF CZ KR ZA RE RU RO RW EH BL KN LC MF VC SV WS AS SM SN RS SC SL SG SK SI SO LK PM US SZ SD SS SR SJ SH SY CH SE TJ TH TW TZ TG TK TO TT TN TR TM TV UG UA UY UZ VU WF VA HU VE GB VN IT TL CI BV CX IM SX CK VI VG HM CC MH FO SB ST TC ZM CV ZW AE XI'.split(' ');\n  country = typeof country === 'string' ? country.trim().toUpperCase() : '';\n  country = country || 'PL';\n  if (country === 'EL') country = 'GR';\n  if (!countryCodes.includes(country)) return { reason: 'nieprawidłowy kraj nabywcy' };\n  const rates = { defaultVatRate: config.defaultVatRate, euB2bVatRate: config.euB2bVatRate ?? 'np II', exportVatRate: config.exportVatRate ?? 'np I' };\n  const allowedRates = [23, 8, 5, 0, 'zw', 'np II', 'np I', '0 WDT', '0 EX'];\n  for (const [key, rate] of Object.entries(rates)) {\n    if (!allowedRates.includes(rate)) return { reason: `nieprawidłowa stawka ${key}` };\n  }\n  if (typeof rawId !== 'string' || !rawId.trim()) return { reason: 'brak identyfikatora firmy; B2C/OSS poza zakresem' };\n  let identity, vatRate;\n  const id = rawId.trim().toUpperCase();\n  const compact = id.replace(/[\\s-]/g, '');\n  const prefix = country === 'GR' ? 'EL' : country;\n  if (country === 'PL') {\n    const nip = compact.replace(/^PL/, '');\n    if (!/^[0-9]{10}$/.test(nip)) return { reason: 'nieprawidłowy NIP (wymagane 10 cyfr)' };\n    identity = { nip };\n    vatRate = rates.defaultVatRate;\n  } else if (euCodes.includes(prefix)) {\n    const suppliedPrefix = compact.slice(0, 2);\n    if (euCodes.includes(suppliedPrefix) && suppliedPrefix !== prefix) return { reason: 'prefiks VAT UE niezgodny z krajem' };\n    const number = compact.startsWith(prefix) ? compact.slice(2) : compact;\n    if (!/^[A-Z0-9+*]{1,12}$/.test(number) || !/[0-9]/.test(number)) return { reason: 'nieprawidłowy numer VAT UE' };\n    identity = { euVatNumber: prefix + number };\n    vatRate = rates.euB2bVatRate;\n  } else {\n    if (id.length > 50 || !/[A-Z0-9]/.test(id) || /[\\x00-\\x1f\\x7f]/.test(id)) return { reason: 'nieprawidłowy zagraniczny identyfikator podatkowy' };\n    identity = { taxId: rawId.trim() };\n    vatRate = rates.exportVatRate;\n  }\n  if (vatRate === '0 WDT' && !identity.euVatNumber) return { reason: 'stawka 0 WDT wymaga numeru VAT UE' };\n  if (vatRate === 'zw' && (typeof config.exemptionBasis !== 'string' || !config.exemptionBasis.trim())) return { reason: 'stawka zw wymaga exemptionBasis' };\n  return { country, identity, vatRate };\n}\nconst buyer = classifyBuyer(d.invoiceCountry, d.invoiceNip, config);\nif (d.needsInvoice === false || buyer.reason) {\n  return [{ json: { success: true, skipped: true, reason: `pominięto: ${d.needsInvoice === false ? 'nie zamówiono faktury' : buyer.reason}` } }];\n}\n\nconst today = new Date().toISOString().split('T')[0];\n\nif (!d.sessionId) throw new Error('Missing sessionId');\nconst invoiceNumber = `FV/${d.sessionId}`;\n\nconst buyerCity = d.invoicePostalCode\n  ? `${d.invoicePostalCode} ${d.invoiceCity}`\n  : d.invoiceCity || '-';\n\nconst seller = {\n  nip: config.sellerNip,\n  name: config.sellerName,\n  address: {\n    street: config.sellerStreet,\n    city: config.sellerCity\n  }\n};\n\nreturn [{\n  json: { eventKey: `sellf:${d.sessionId}`, invoice: {\n    invoiceNumber,\n    issueDate: today,\n    saleDate: today,\n    issuePlace: seller.address.city.split(' ').slice(1).join(' ') || 'Warszawa',\n    currency: d.currency || 'PLN',\n    type: 'VAT',\n    seller,\n    buyer: {\n      ...buyer.identity,\n      name: d.invoiceCompany || d.email,\n      address: {\n        street: d.invoiceAddress || '-',\n        city: buyerCity,\n        country: buyer.country\n      }\n    },\n    items: [\n      {\n        name: d.productName,\n        unit: 'szt.',\n        quantity: 1,\n        unitPrice: Math.round((d.netAmount ?? d.amount / (1 + (typeof buyer.vatRate === 'number' ? buyer.vatRate : 0) / 100)) * 100) / 100,\n        vatRate: buyer.vatRate\n      }\n    ],\n    ...(buyer.vatRate === 'zw' ? { exemptionBasis: config.exemptionBasis } : {}),\n    payment: {\n      paid: true,\n      date: today,\n      method: 'transfer'\n    },\n    // Pass-through for error logging\n    _meta: {\n      sessionId: d.sessionId,\n      paymentIntentId: d.paymentIntentId,\n      buyerEmail: d.email\n    }\n  } }\n}];"
       },
       "id": "code-2",
       "name": "Build KSeF Payload",
@@ -416,11 +420,11 @@
       "typeVersion": 1.1,
       "position": [
         2400,
-        700
+        1150
       ],
       "parameters": {
         "respondWith": "json",
-        "responseBody": "{\"success\":true,\"skipped\":true}",
+        "responseBody": "={{ JSON.stringify({ success: true, skipped: true, reason: $json.reason || 'pominięto: nie zamówiono faktury' }) }}",
         "options": {
           "responseCode": 200
         }
@@ -647,6 +651,35 @@
         "unit": "seconds"
       },
       "webhookId": "ec0f3f16-cbbb-5d69-8b7b-65a9de3c53e0"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "leftValue": "={{ $json.skipped !== true }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "invoice-valid",
+      "name": "Invoice Valid?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        1830,
+        950
+      ]
     }
   ],
   "connections": {
@@ -752,7 +785,7 @@
       "main": [
         [
           {
-            "node": "Reserve Invoice",
+            "node": "Invoice Valid?",
             "type": "main",
             "index": 0
           }
@@ -913,6 +946,24 @@
         [
           {
             "node": "Send to KSeF Gateway",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Invoice Valid?": {
+      "main": [
+        [
+          {
+            "node": "Reserve Invoice",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond Skipped",
             "type": "main",
             "index": 0
           }

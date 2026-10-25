@@ -693,7 +693,7 @@ Większość platform wysyła webhooki we własnym formacie, nie w formacie KSeF
 Zero zmian kodu w Twojej platformie e-commerce. Skonfiguruj URL webhooka w ustawieniach platformy, resztą zajmie się n8n.
 
 Gotowe do zaimportowania workflow w [`examples/n8n/`](examples/n8n/):
-- **Sellf → KSeF** (`sellf-ksef.json`) - produkty cyfrowe, sprawdzanie NIP, dane sprzedawcy ze zmiennych n8n
+- **Sellf → KSeF** (`sellf-ksef.json`) - produkty cyfrowe, identyfikator i stawka według kraju nabywcy: PL → NIP i `defaultVatRate`, UE → VAT UE i `euB2bVatRate` (`np II`), poza UE → taxId i `exportVatRate` (`np I`). Brak lub błędny identyfikator kończy się pominięciem z powodem, bez wysyłki. Zagraniczny B2C/OSS jest poza zakresem; [szczegóły konfiguracji](examples/n8n/README.md#sellf-buyer-country-and-identifier--fields-and-rate).
 - **WooCommerce → KSeF** (`woocommerce-ksef.json`) - zamówienia WooCommerce, automatyczne wykrywanie stawki VAT, pomijanie konsumentów
 - **Odbieranie i Pobieranie Faktur** (`receive-invoices.json`) - odpytuje o faktury wystawione *na Ciebie* co 20 minut, pobiera PDF-y, z checkpointem, żeby nic nie zostało pominięte ani zeskanowane ponownie - patrz [Odbieranie Faktur](#odbieranie-faktur)
 

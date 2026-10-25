@@ -632,7 +632,7 @@ Most platforms send webhooks in their own format, not KSeF format. Use [n8n](htt
 Zero code changes in your e-commerce platform. Configure the webhook URL in your platform's settings and n8n handles the rest.
 
 Ready-to-import workflows in [`examples/n8n/`](examples/n8n/):
-- **Sellf → KSeF** (`sellf-ksef.json`) - digital products, NIP check, seller data from n8n variables
+- **Sellf → KSeF** (`sellf-ksef.json`) - digital products, buyer ID and rate by country: PL → NIP and `defaultVatRate`, EU → EU VAT and `euB2bVatRate` (`np II`), outside EU → taxId and `exportVatRate` (`np I`). Missing or invalid IDs skip with a reason, without sending. Foreign B2C/OSS is outside scope; see [configuration details](examples/n8n/README.md#sellf-buyer-country-and-identifier--fields-and-rate).
 - **WooCommerce → KSeF** (`woocommerce-ksef.json`) - WooCommerce orders, VAT rate auto-detection, consumer skipping
 - **Receive & Download Invoices** (`receive-invoices.json`) - polls for invoices issued *to* you every 20 minutes, downloads PDFs, checkpointed so nothing gets skipped or re-scanned - see [Receiving Invoices](#receiving-invoices)
 

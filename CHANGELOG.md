@@ -4,6 +4,8 @@
 
 ### Changed
 
+- Select Sellf buyer identity and VAT rate by country (PL/EU/non-EU), normalize business IDs, and skip invalid buyers/configuration before sending; keep EN/PL templates synchronized.
+
 - Document production deployment on Render from the signed, digest-pinned GHCR image (no `GITHUB_PAT`, release goes live only on a digest change).
 
 ### Added

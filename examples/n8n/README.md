@@ -95,7 +95,7 @@ scheduled sync there, so edit them here only.
 ### What it does
 
 1. Receives a signed Sellf `purchase.completed` webhook and verifies its `X-Sellf-Signature` header
-2. Checks if the buyer requested an invoice (`needsInvoice`) and provided a NIP
+2. Checks `needsInvoice`, then classifies the business identifier and VAT rate using the invoice country
 3. Builds a KSeF invoice payload from your seller details and the order
 4. Sends `POST /ksef/invoice` to your KSeF Gateway
 5. On success: captures the returned `ksefNumber` (ready to save to your DB)
@@ -107,6 +107,7 @@ scheduled sync there, so edit them here only.
 2. **Edit the "Configuration (EDIT ME)" node** - fill in:
    - `ksefGatewayUrl` - your KSeF Gateway base URL
    - `sellerNip`, `sellerName`, `sellerStreet`, `sellerCity`, `defaultVatRate` - your company's invoicing details
+   - `euB2bVatRate` (default `"np II"`) and `exportVatRate` (default `"np I"`) - rates for EU and non-EU business buyers
 3. **Configure secrets and serialization** as described in **Commercial workflow safety** below (restart n8n only when changing environment settings)
 4. **Configure the Sellf webhook** - Sellf admin → Settings → Webhooks:
    - URL: this workflow's Production URL (Webhook node)
@@ -115,9 +116,26 @@ scheduled sync there, so edit them here only.
 
 ### Customization
 
-- **VAT rate** - set via `defaultVatRate` in Configuration, edit further in **Build KSeF Payload**
+- **VAT rates** - set `defaultVatRate`, `euB2bVatRate` and `exportVatRate` in Configuration; see the buyer classification below
 - **Invoice number format** - `FV/{sessionId}` (full Sellf session ID)
 - **Error alerts** - inspect the final `status` response and add your own alert after **Record Send Result**
+
+### Sellf buyer country and identifier → fields and rate
+
+The template reads `invoice.country` and `invoice.nip` from the signed Sellf payload (extracted as `invoiceCountry` and `invoiceNip`). All business identifiers, including foreign ones, use Sellf's `invoice.nip` field.
+
+| Country / identifier | Gateway buyer field | Configuration rate (shipped default) |
+|---|---|---|
+| `PL` or missing country, 10-digit NIP | `buyer.nip` (spaces, hyphens and `PL` prefix removed) | `defaultVatRate` (`23`) |
+| EU other than PL, VAT ID with or without its country prefix | `buyer.euVatNumber` (uppercase, prefix added if missing) | `euB2bVatRate` (`"np II"`) |
+| Non-EU, including `US` / `GB`, with a tax ID | `buyer.taxId` and `buyer.address.country` | `exportVatRate` (`"np I"`) |
+| Missing/unusable ID, invalid NIP/country, or inconsistent EU prefix | No invoice or reservation; HTTP 200 with `skipped: true`, `reason: "pominięto: <powód>"` | No gateway POST |
+
+Country codes are normalized to uppercase. The EU VAT prefix list matches FA(3) `TKodyKrajowUE`: Greece uses address `GR` and VAT prefix `EL` (`EL` input country is normalized to `GR`); Northern Ireland uses `XI`. A `GB` address follows the non-EU path; use `XI` in Sellf to select Northern Ireland's EU VAT path. EU IDs must have 1–12 letters/digits/`+`/`*` after the prefix and contain a digit; no VIES or tax eligibility lookup is performed. Conflicting EU prefixes are skipped. NIP validation checks 10 ASCII digits, without a checksum lookup.
+
+All three rate fields are validated: numbers `23`, `8`, `5`, `0`, or strings `"np II"`, `"np I"`, `"0 WDT"`, `"0 EX"`, `"zw"`. Invalid configuration skips the invoice with a reason. The gateway additionally requires an EU VAT ID for `"0 WDT"`; for `"zw"`, add a nonempty `exemptionBasis` string to Configuration, which is forwarded to the invoice. Without these required fields the template skips the invoice.
+
+Defaults target services/digital content sold to businesses. **Foreign B2C/OSS is outside this template's scope**; missing identifiers are skipped, never sent as `noId`. Configure rates for your transaction type; structural validation does not establish legal eligibility. Skip reasons contain no customer details; avoid logging full customer payloads in custom alert nodes.
 
 ## Commercial workflow safety (Sellf and WooCommerce)
 
@@ -155,7 +173,7 @@ Gateway JSON 503, 502, timeouts and transport failures are **uncertain** and nev
 
 ### Amounts and supported orders
 
-Sellf `order.amount` is the amount charged **including VAT**, in minor units. When available, `order.netTotal` (also minor units) supplies the net amount; legacy payloads use `gross / (1 + defaultVatRate / 100)`, rounded to cents. Set `defaultVatRate` to the actual rate. This single-product template assumes one VAT rate and a two-decimal currency: baskets with bumps/mixed tax rates, exemptions or other currency minor units require explicit per-line mapping before use.
+Sellf `order.amount` is the amount charged, in minor units. When available, `order.netTotal` (also minor units) supplies the net amount, including zero. Otherwise numeric rates use `gross / (1 + selectedRate / 100)`, rounded to cents; `"np I"` / `"np II"` use `netAmount ?? amount` without VAT addition or deduction (the other nonnumeric rates also have zero VAT). Domestic numeric-rate behavior is unchanged. Set the three rate fields to the actual rates for your sales. This single-product template assumes one VAT rate and a two-decimal currency: baskets with bumps/mixed tax rates or other currency minor units require explicit per-line mapping before use.
 
 WooCommerce uses post-discount `line_items[].total` and each line's tax total, includes `shipping_lines` and `fee_lines`, and preserves `total / quantity` precision. Thus 10.00 net across 3 units stays 10.00 after line rounding instead of 9.99. It does not subtract coupons a second time. Supported VAT rates are 23/8/5/0; review unusual tax classes, mixed taxes on one line, refunds and credit notes separately.
 

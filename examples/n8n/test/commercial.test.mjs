@@ -51,7 +51,7 @@ for(const f of files){
  });
  test(`${f}: amounts and full identifiers`,async()=>{
   if(sellf){
-   const p=await run(d,'Build KSeF Payload',{sessionId:'cs_full_1234',amount:123,productName:'Product',invoiceNip:'123'});
+   const p=await run(d,'Build KSeF Payload',{sessionId:'cs_full_1234',amount:123,productName:'Product',invoiceNip:'5260250995'});
    const invoice=p.invoice || p;
    assert.equal(invoice.items[0].unitPrice,100);assert.ok(invoice.invoiceNumber.includes('cs_full_1234'));
   }else{
@@ -226,7 +226,7 @@ for(const f of files) {
   // Exclude only that output; execute actual downstream code and expressions with HTTP stubs.
   for(const env of [null,{[envName]:'env-secret'}]) for(const badSignature of [false,true]) {
    const configuration={...config,ksefGatewayUrl:'https://gateway.example',webhookSecret:'configuration-secret'};
-   const body=sellf?{event:'purchase.completed',data:{customer:{email:'test@example.com'},product:{name:'Product'},order:{amount:12300,currency:'pln',sessionId:'session-123'},invoice:{needsInvoice:true,nip:'123'}}}:woo;
+   const body=sellf?{event:'purchase.completed',data:{customer:{email:'test@example.com'},product:{name:'Product'},order:{amount:12300,currency:'pln',sessionId:'session-123'},invoice:{needsInvoice:true,nip:'5260250995'}}}:woo;
    const {raw,headers}=signed(badSignature?'wrong-secret':env?'env-secret':'configuration-secret',body);
    const refs={},outputs=[],requests=[],sd={};let name='Verify Signature',json={...configuration,headers,body},posts=0;
    const lookup=name=>({first:()=>({json:name==='Configuration (EDIT ME)'?configuration:refs[name]})});
@@ -263,6 +263,109 @@ for(const f of files) {
    assert.equal(ended,true);assert.equal(posts,badSignature?0:1);
    const serialized=JSON.stringify({outputs,requests,sd});
    for(const secret of ['configuration-secret','env-secret']) assert.ok(!serialized.includes(secret),secret);
+  }
+ });
+}
+
+// Sellf classification: execute the shipped Code nodes, without provider/network access.
+const sellfPurchase = {sessionId:'session-123',paymentIntentId:'pi-123',amount:123,
+ productName:'Product',email:'buyer@example.com',invoiceCompany:'Buyer',needsInvoice:true,
+ invoiceNip:'5260250995',invoiceAddress:'Street 1',invoiceCity:'Warszawa',invoiceCountry:'PL'};
+for (const f of ['sellf-ksef','sellf-ksef-PL']) {
+ const d=load(f);
+ for (const [country,id,field,expected,rate] of [
+  ['PL','5260250995','nip','5260250995',23],
+  ['PL',' pl 526-025-09-95 ','nip','5260250995',23],
+  [undefined,'526-025-09-95','nip','5260250995',23],
+  ['DE','de 123-456-789','euVatNumber','DE123456789','np II'],
+  ['FR','12345678901','euVatNumber','FR12345678901','np II'],
+  ['GR','EL123456789','euVatNumber','EL123456789','np II'],
+  ['XI','123456789','euVatNumber','XI123456789','np II'],
+  ['US','12-3456789','taxId','12-3456789','np I'],
+  ['GB','GB123456789','taxId','GB123456789','np I'],
+ ]) test(`${f}: buyer ${country || 'missing country'} / ${id}`,async()=>{
+  const result=JSON.parse(JSON.stringify(await run(d,'Build KSeF Payload',{
+   ...sellfPurchase,invoiceCountry:country,invoiceNip:id
+  })));
+  assert.equal(result.invoice.buyer[field],expected);
+  assert.equal(['nip','euVatNumber','taxId','noId'].filter(k=>k in result.invoice.buyer).length,1);
+  assert.equal(result.invoice.buyer.address.country,country || 'PL');
+  assert.equal(result.invoice.items[0].vatRate,rate);
+  assert.equal(result.invoice.items[0].unitPrice,rate===23?100:123);
+  // Gateway field contract: exactly one identity; EU 1–12 ASCII symbols; tax ID <=50.
+  if(field==='nip') assert.match(expected,/^[0-9]{10}$/);
+  if(field==='euVatNumber') assert.match(expected,/^[A-Z]{2}[A-Z0-9+*]{1,12}$/);
+  if(field==='taxId') assert.ok(expected.trim().length>0 && expected.length<=50);
+ });
+ test(`${f}: domestic payload remains byte identical`,async()=>{
+  const result=await run(d,'Build KSeF Payload',sellfPurchase);
+  assert.equal(JSON.stringify(result),'\u007b"eventKey":"sellf:session-123","invoice":{"invoiceNumber":"FV/session-123","issueDate":"2026-01-01","saleDate":"2026-01-01","issuePlace":"Warszawa","currency":"PLN","type":"VAT","seller":{"nip":"123","address":{"city":"Warszawa"}},"buyer":{"nip":"5260250995","name":"Buyer","address":{"street":"Street 1","city":"Warszawa","country":"PL"}},"items":[{"name":"Product","unit":"szt.","quantity":1,"unitPrice":100,"vatRate":23}],"payment":{"paid":true,"date":"2026-01-01","method":"transfer"},"_meta":{"sessionId":"session-123","paymentIntentId":"pi-123","buyerEmail":"buyer@example.com"}}}');
+ });
+ test(`${f}: unsafe buyer/config skips through actual graph without HTTP or reservation`,async()=>{
+  for (const input of [
+   {invoiceCountry:'DE',invoiceNip:null}, {invoiceCountry:'FR',invoiceNip:'   '},
+   {invoiceNip:'garbage'}, {invoiceNip:'123'}, {invoiceNip:123},
+   {invoiceCountry:'DE',invoiceNip:'FR123456789'}, {invoiceCountry:'DE',invoiceNip:'DE'},
+   {invoiceCountry:'DE',invoiceNip:'DE!123'}, {invoiceCountry:'DE',invoiceNip:'DE'+'1'.repeat(13)},
+   {invoiceCountry:'US',invoiceNip:'!'}, {invoiceCountry:'US',invoiceNip:'X'.repeat(51)},
+   {invoiceCountry:'ZZ'}, {invoiceCountry:'US',invoiceNip:null}, {needsInvoice:false},
+   {configuration:{...config,defaultVatRate:22}},
+   {configuration:{...config,euB2bVatRate:'invalid'}},
+   {configuration:{...config,exportVatRate:'invalid'}},
+   {configuration:{...config,defaultVatRate:'zw'}},
+   {configuration:{...config,defaultVatRate:'0 WDT'}},
+  ]) {
+   const purchase={...sellfPurchase,...input};delete purchase.configuration;
+   const configuration=input.configuration || config,sd={},refs={},logs=[];
+   let name='Extract Purchase Data',json={body:{data:{customer:{email:purchase.email},
+    product:{name:purchase.productName},order:{amount:12300,currency:'pln',sessionId:purchase.sessionId},
+    invoice:{needsInvoice:purchase.needsInvoice,nip:purchase.invoiceNip,country:purchase.invoiceCountry}}}};
+   for(let step=0;step<10;step++) {
+    const node=d.nodes.find(n=>n.name===name);assert.ok(node,name);let port=0;
+    const evaluate=s=>s.startsWith('={{')?new Function('$json',`return (${s.slice(3,-2).trim()})`)(json):s;
+    if(node.type.endsWith('.code')) json=await run(d,name,json,{configuration,sd,refs,logs});
+    else if(node.type.endsWith('.if') || node.type.endsWith('.switch')) {
+     const conditions=node.parameters.conditions?.conditions || node.parameters.rules.values[0].conditions.conditions;
+     port=conditions.every(c=>c.operator.operation==='true'?evaluate(c.leftValue)===true:evaluate(c.leftValue)!==c.rightValue)?0:1;
+    } else if(node.type.endsWith('.respondToWebhook')) {
+     const response=JSON.parse(evaluate(node.parameters.responseBody));
+     assert.equal(response.skipped,true,JSON.stringify(input));
+     assert.match(response.reason,/^pominięto: .+/);assert.equal(response.invoice,undefined);
+     assert.deepEqual(sd,{});assert.deepEqual(logs,[]);break;
+    } else assert.fail(`Unsafe purchase reached ${name}: ${JSON.stringify(input)}`);
+    assert.notEqual(name,'Reserve Invoice','invalid purchase cannot reserve');
+    refs[name]=json;name=d.connections[name]?.main[port]?.[0]?.node;
+    assert.ok(step<9,'skip graph terminates');
+   }
+  }
+ });
+ test(`${f}: configured rates preserve net amounts and gateway rate types`,async()=>{
+  for(const rate of ['np II','np I','0 WDT','0 EX',23,8,5,0,'zw']) {
+   const configuration={...config,euB2bVatRate:rate,exportVatRate:'np I',exemptionBasis:'Art. 43'};
+   for(const netAmount of [null,0,90.12]) {
+    const result=await run(d,'Build KSeF Payload',{...sellfPurchase,invoiceCountry:'DE',invoiceNip:'DE123456789',netAmount},{configuration});
+    assert.equal(result.invoice.items[0].vatRate,rate);
+    const percentage=typeof rate==='number'?rate:0;
+    assert.equal(result.invoice.items[0].unitPrice,Math.round((netAmount ?? 123/(1+percentage/100))*100)/100);
+    if(rate==='zw') assert.equal(result.invoice.exemptionBasis,'Art. 43');
+   }
+  }
+  const result=await run(d,'Build KSeF Payload',{...sellfPurchase,invoiceCountry:'US',invoiceNip:'12-3456789'},
+   {configuration:{...config,exportVatRate:8}});
+  assert.equal(result.invoice.items[0].vatRate,8);assert.equal(result.invoice.items[0].unitPrice,113.89);
+ });
+ test(`${f}: configuration and XSD EU country dictionary`,async()=>{
+  const assignments=d.nodes.find(n=>n.name==='Configuration (EDIT ME)').parameters.assignments.assignments;
+  assert.equal(assignments.find(a=>a.name==='euB2bVatRate')?.value,'np II');
+  assert.equal(assignments.find(a=>a.name==='exportVatRate')?.value,'np I');
+  const xsd=readFileSync(new URL('../../../src/KSeFGateway.Api.Tests/Schemas/schemat_FA(3)_v1-0E.xsd',import.meta.url),'utf8');
+  const type=xsd.match(/<xsd:simpleType name="TKodyKrajowUE">([\s\S]*?)<\/xsd:simpleType>/)[1];
+  const countries=[...type.matchAll(/<xsd:enumeration value="([A-Z]{2})"/g)].map(m=>m[1]);
+  assert.ok(countries.includes('EL') && countries.includes('XI'));
+  for(const country of countries.filter(c=>c!=='PL')) {
+   const result=await run(d,'Build KSeF Payload',{...sellfPurchase,invoiceCountry:country==='EL'?'GR':country,invoiceNip:country+'123456789'});
+   assert.equal(result.invoice.buyer.euVatNumber,country+'123456789');
+   assert.equal(result.invoice.items[0].vatRate,'np II');
   }
  });
 }

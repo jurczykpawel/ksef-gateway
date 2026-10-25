@@ -2,8 +2,9 @@
 
 ## [Unreleased]
 
-### Changed
+## [0.4.0] - 2026-10-25
 
+### Changed
 - Extend live TEST invoice coverage to foreign buyers, WDT and line discounts; report send quota unblock times without retrying submissions.
 
 - Select Sellf buyer identity and VAT rate by country (PL/EU/non-EU), normalize business IDs, and skip invalid buyers/configuration before sending; keep EN/PL templates synchronized.
@@ -11,7 +12,6 @@
 - Document production deployment on Render from the signed, digest-pinned GHCR image (no `GITHUB_PAT`, release goes live only on a digest change).
 
 ### Added
-
 - Support EU VAT, other tax IDs and unidentified buyers in friendly invoices, plus separate 0% WDT/export summaries, validation and OpenAPI contracts.
 - Support optional net line discounts (`items[].discount`, FA(3) `P_10`) with validation, discounted totals, and PDF coverage.
 

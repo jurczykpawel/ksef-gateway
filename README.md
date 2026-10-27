@@ -240,42 +240,40 @@ cp .env.example .env
 docker compose --profile tools run --rm token-generator
 ```
 
-Skopiuj wynik (`KSEF_TOKEN`, `KSEF_NIP`, `KSEF_ENV`) do pliku `.env`.
+Skopiuj wynik (`KSEF_TOKEN`, `KSEF_NIP`, `KSEF_ENV`) do pliku `.env`. Wartości zapisują się też w `output/test-token.txt` (token) i `output/test-token.nip` (NIP), skąd można je wczytać bez przepisywania. Token może zawierać znaki specjalne - nie wklejaj go przez `sed`, edytuj plik w edytorze.
 
 > **Co to robi?** Patrz [Jak Działa Generator Tokenów](#jak-działa-generator-tokenów) niżej. Wolisz przetestować [ścieżkę autoryzacji certyfikatem](#autoryzacja-certyfikatem-alternatywa-dla-tokenów)? `docker compose --profile tools run --rm cert-generator` robi to samo dla certyfikatów - patrz [Jak Działa Generator Certyfikatów](#jak-działa-generator-certyfikatów).
 
 ### 3. Uruchom usługę
 
 ```bash
-docker compose up --build
+docker compose up --build -d   # -d zostawia usługi w tle; pierwszy build trwa 1-2 minuty
+curl http://localhost:8080/health
 ```
 
 API: `http://localhost:8080` | Dokumentacja: `http://localhost:8080/scalar/v1`
 
 ### 4. Wyślij pierwszą fakturę
 
+Generator losuje własny NIP testowy, więc przykładowe faktury trzeba wysłać z **tym** NIP-em jako sprzedawcą (inaczej KSeF zwróci `502 Nieprawidłowy zakres uprawnień`). Ustaw zmienne w powłoce (plik `.env` ich nie eksportuje):
+
 ```bash
-curl -X POST http://localhost:8080/ksef/invoice \
-  -H "Content-Type: application/json" \
-  -H "X-Api-Key: $GATEWAY_API_KEY" \
-  -d '{
-  "invoiceNumber": "FV/EXAMPLE/001/2026",
-  "issueDate": "2026-03-24",
-  "issuePlace": "Warszawa",
-  "saleDate": "2026-03-24",
-  "currency": "PLN",
-  "type": "VAT",
-  "seller": {"nip": "3202004132", "name": "Przykładowa Firma sp. z o.o.", "address": {"street": "ul. Sprzedawcy 10", "city": "00-001 Warszawa", "country": "PL"}, "email": "firma@example.com", "phone": "123456789"},
-  "buyer": {"nip": "3202004132", "name": "Klient Testowy sp. z o.o.", "address": {"street": "ul. Kupiecka 5", "city": "30-001 Kraków", "country": "PL"}},
-  "items": [{"name": "Usługa konsultingowa IT", "unit": "godz.", "quantity": 10, "unitPrice": 80.0, "vatRate": 23}, {"name": "Konfiguracja serwera", "unit": "szt.", "quantity": 1, "unitPrice": 200.0, "vatRate": 23}],
-  "payment": {"paid": true, "date": "2026-03-24", "method": "transfer"}
-}'
+export GATEWAY_API_KEY=...                  # ta sama wartość co w .env
+export KSEF_NIP=$(cat output/test-token.nip)  # NIP z generatora tokenu
+
+jq --arg nip "$KSEF_NIP" --arg nr "FV/$(date +%s)" \
+   '.seller.nip=$nip | .buyer.nip=$nip | .invoiceNumber=$nr' examples/invoice-simple.json |
+curl -s -X POST http://localhost:8080/ksef/invoice \
+  -H "Content-Type: application/json" -H "X-Api-Key: $GATEWAY_API_KEY" -d @- | tee wynik.json
 
 # Odpowiedź: {"success":true,"data":{"ksefNumber":"1234567890-20260326-..."}}
 
 # Pobierz PDF z kodem QR
+export KSEF_NUMBER=$(jq -r .data.ksefNumber wynik.json)
 curl -H "X-Api-Key: $GATEWAY_API_KEY" -o faktura.pdf "http://localhost:8080/ksef/invoice/$KSEF_NUMBER/pdf"
 ```
+
+Pełna treść faktury jest w [`examples/invoice-simple.json`](examples/invoice-simple.json). Każda wysyłka wymaga nowego numeru faktury (stąd `date +%s`). Bez `jq` zmień ręcznie `seller.nip`, `buyer.nip` i `invoiceNumber` w pliku.
 
 > **Wspiera też surowy XML** (`POST /ksef/send`) i format JSON xml-js (`POST /ksef/send/json`) - patrz [Wysyłanie Faktur](#wysyłanie-faktur) niżej.
 
@@ -433,12 +431,17 @@ Opcjonalne `items[].discount` to nieujemna **kwota netto rabatu całej pozycji**
 
 Przykład: `{"name":"Usługa z rabatem","quantity":3,"unitPrice":33.33,"discount":0.10,"vatRate":23}` daje `P_10=0.10`, netto 99,89, VAT 22,97 i brutto 122,86 PLN. Pełny plik: [faktura z rabatem](examples/invoice-discount.json). PDF pokazuje kolumnę „Rabat”.
 
-Pełne przykłady: [zw](examples/invoice-exempt.json) i [korekta](examples/invoice-correction.json). Przykłady używają NIP demo środowiska TEST (`3202004132`); zastąp go własnym NIP-em przed wysłaniem:
+Pełne przykłady: [zw](examples/invoice-exempt.json), [rabat](examples/invoice-discount.json), [nabywca zagraniczny](examples/invoice-foreign-buyer.json), [WDT](examples/invoice-wdt.json) i [korekta](examples/invoice-correction.json). Przykłady używają NIP demo środowiska TEST (`3202004132`); zastąp go własnym NIP-em (`$KSEF_NIP`, patrz [Szybki Start](#4-wyślij-pierwszą-fakturę)) przed wysłaniem. Pomocnik dla pierwszych czterech:
 
 ```bash
-curl -X POST http://localhost:8080/ksef/invoice \
-  -H "X-Api-Key: $GATEWAY_API_KEY" -H "Content-Type: application/json" \
-  -d @examples/invoice-exempt.json
+send() { jq --arg nip "$KSEF_NIP" --arg nr "FV/$(date +%s)" '.seller.nip=$nip | .invoiceNumber=$nr' "$1" |
+  curl -s -X POST http://localhost:8080/ksef/invoice -H "X-Api-Key: $GATEWAY_API_KEY" -H "Content-Type: application/json" -d @-; }
+send examples/invoice-discount.json
+send examples/invoice-foreign-buyer.json
+send examples/invoice-wdt.json
+send examples/invoice-exempt.json
+
+# korekta wymaga numeru KSeF faktury korygowanej - wpisz go w pliku
 curl -X POST http://localhost:8080/ksef/invoice \
   -H "X-Api-Key: $GATEWAY_API_KEY" -H "Content-Type: application/json" \
   -d @examples/invoice-correction.json

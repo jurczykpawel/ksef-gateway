@@ -13,7 +13,7 @@ Import whichever file matches your preference (n8n → Workflows → Import from
 
 **Files:** `receive-invoices.json` / `receive-invoices-PL.json`
 
-For finding out what's been issued *to* you - KSeF has no email/webhook notifications, so this polls instead. See [Receiving Invoices](../../README.md#receiving-invoices) in the main README for the underlying endpoints.
+For finding out what's been issued *to* you - KSeF has no email/webhook notifications, so this polls instead. See [Receiving Invoices](../../README.en.md#receiving-invoices) ([PL](../../README.md#odbieranie-faktur)) in the main README for the underlying endpoints.
 
 ### What it does
 
@@ -29,7 +29,7 @@ For finding out what's been issued *to* you - KSeF has no email/webhook notifica
 ### Setup
 
 1. **Import workflow** - n8n → Workflows → Import from File → select `receive-invoices.json` (or the `-PL` variant)
-2. **Create a credential** - *Header Auth*, name `X-Api-Key`, value = your gateway's `GATEWAY_API_KEY` (see [Security](../../README.md#security) in the main README). Select it on the three HTTP Request nodes (`Get New Invoices`, `Download Invoice PDF`; the `Wake` nodes need no key). The key is deliberately **not** stored in the workflow JSON
+2. **Create a credential** - *Header Auth*, name `X-Api-Key`, value = your gateway's `GATEWAY_API_KEY` (see [Security](../../README.en.md#security) in the main README). Select it on the two HTTP Request nodes (`Get New Invoices`, `Download Invoice PDF`; the `Wake` nodes need no key). The key is deliberately **not** stored in the workflow JSON
 3. **Edit the "Configuration (EDIT ME)" node**:
    - `ksefGatewayUrl` - your KSeF Gateway base URL
    - `ksefNip` - the NIP whose inbox to poll (sent as `X-KSeF-NIP`)
@@ -233,10 +233,18 @@ For a demo that must feel instant 24/7, free tier can't do it for two services n
 1. In n8n, choose **Import from File**, import either file and save the workflow.
 2. Open **Configuration (EDIT ME)** and replace `alertEmailFrom` and `alertEmailTo` (`@example.com` placeholders). Set `n8nBaseUrl` to your n8n editor's HTTP(S) base URL, including any subpath, if you want execution links. Empty means **no link**, even when the trigger supplies one.
 3. On **Send Email**, create/select your **SMTP credential**. The JSON intentionally contains empty `credentials`; SMTP passwords belong in n8n credentials, never in Configuration or exports.
-4. In **each** workflow you want to monitor, open **Settings → Error Workflow**, select this saved alert workflow and save. Do this for `receive-invoices` and the Sellf/WooCommerce templates as well. The error workflow itself does not need activation. See [n8n Error Trigger documentation](https://docs.n8n.io/integrations/builtin/core-nodes/n8n-nodes-base.errortrigger/).
+4. In **each** workflow you want to monitor, open **Settings → Error Workflow**, select this saved alert workflow and save. Do this for `receive-invoices` and the Sellf/WooCommerce templates as well. **Activate the alert workflow too**: on n8n 2.45.4 an inactive error workflow was not executed (`Workflow … is not active and cannot be executed`). See [n8n Error Trigger documentation](https://docs.n8n.io/integrations/builtin/core-nodes/n8n-nodes-base.errortrigger/).
 
 The chain is **Error Trigger → Configuration (EDIT ME) → Build Alert → Send Email**. Mail is plain text: workflow name, failed node name, error name/message (at most 500 characters combined), alert time in UTC, execution ID when available, and an optional execution link. Missing fields use readable fallbacks; trigger failures may have no execution ID/URL or `lastNodeExecuted`. A supplied execution URL is used only under the configured base with a recognized execution path; otherwise an available ID builds `<n8nBaseUrl>/executions/<id>`.
 
 No node input/output data, headers, stack traces, error context or attachments are included. `X-Api-Key: …` / `X-Api-Key=…` and `Bearer …` patterns are replaced with `[REDACTED]` **before** truncation. This is a limited filter, not a guarantee that arbitrary error messages contain no personal data or secrets: keep upstream error text minimal. Execution saving is disabled in this template to reduce retention of the original trigger payload.
 
 Error Trigger responds to **failed automatic executions**, not manual test runs or errors handled by the source workflow. In `receive-invoices`, polling failure alerts arrive only once its failure budget makes the workflow fail. Sellf/WooCommerce handled outcomes such as `uncertain`, `not_accepted`, skipped orders or `success: false` need separate result monitoring; this template does not turn them into failures. To check delivery after import, use a separate automatically triggered test workflow that deliberately fails. An SMTP outage can prevent the alert from being delivered; this example adds no retries, external monitoring or escalation.
+
+## Running n8n next to the gateway (Docker) and testing by hand
+
+- A containerized n8n reaches a gateway on the same machine at `http://host.docker.internal:8080` (on Linux add `--add-host=host.docker.internal:host-gateway`). Put that in `ksefGatewayUrl`.
+- Minimal n8n for PDF saving: `docker run -d -p 5678:5678 -v n8n_data:/home/node/.n8n -e N8N_RESTRICT_FILE_ACCESS_TO=/home/node/.n8n-files n8nio/n8n`, then create the PDF folder inside the container (`/home/node/.n8n-files/ksef-invoices`).
+- `n8n import:workflow --input=<file>` imports the workflow only. Credentials (Header Auth, SMTP) are not created or attached by it: create them in the UI and select them in the nodes, or script it with `n8n import:credentials` plus a workflow JSON that references the credential ids.
+- A workflow with a Schedule Trigger can't be run from the CLI (`n8n execute` fails with "Missing node to start execution"); start it from the editor with *Execute workflow*, or temporarily add a Manual Trigger.
+- On a fresh TEST account `received/new` returns nothing until an invoice is addressed to your NIP. For a quick test send yourself a self-invoice (buyer NIP = seller NIP; see the [Quick Start](../../README.en.md#4-send-your-first-invoice)).

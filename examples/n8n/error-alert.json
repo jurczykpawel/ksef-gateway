@@ -1,0 +1,147 @@
+{
+  "name": "Workflow error alert (email)",
+  "nodes": [
+    {
+      "id": "overview",
+      "name": "Overview",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        0,
+        -350
+      ],
+      "parameters": {
+        "content": "## Workflow error alert (email)\n\n1. Import and save this workflow.\n2. In **Configuration (EDIT ME)** replace alertEmailFrom / alertEmailTo. Optionally set n8nBaseUrl (for example https://n8n.example.com); empty means no execution link.\n3. Select your **SMTP credential** in **Send Email**. Credentials are not included in this export.\n4. In each monitored workflow, open **Settings → Error Workflow**, select this workflow and save (receive-invoices, Sellf, WooCommerce, or any other workflow). This error workflow does not need activation.\n\nEmail contains only workflow/node names, error name/message (up to 500 characters), alert time (UTC), execution ID and optional link. Trigger errors may have no execution ID or node name. X-Api-Key and Bearer patterns are redacted before truncation; arbitrary sensitive text is not guaranteed to be detected.\n\nNo node inputs/outputs, headers, stack traces, context or attachments are forwarded. Execution saving is disabled. Error Trigger runs for automatic failures, not manual tests or handled errors; SMTP failures need separate monitoring.",
+        "height": 600,
+        "width": 850
+      }
+    },
+    {
+      "id": "error-trigger",
+      "name": "Error Trigger",
+      "type": "n8n-nodes-base.errorTrigger",
+      "typeVersion": 1,
+      "position": [
+        0,
+        100
+      ],
+      "parameters": {}
+    },
+    {
+      "id": "configuration",
+      "name": "Configuration (EDIT ME)",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        250,
+        100
+      ],
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "alertEmailFrom",
+              "name": "alertEmailFrom",
+              "value": "alerts@example.com",
+              "type": "string"
+            },
+            {
+              "id": "alertEmailTo",
+              "name": "alertEmailTo",
+              "value": "owner@example.com",
+              "type": "string"
+            },
+            {
+              "id": "n8nBaseUrl",
+              "name": "n8nBaseUrl",
+              "value": "",
+              "type": "string"
+            }
+          ]
+        },
+        "includeOtherFields": true,
+        "options": {}
+      }
+    },
+    {
+      "id": "build-alert",
+      "name": "Build Alert",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        500,
+        100
+      ],
+      "parameters": {
+        "jsCode": "const data = $input.first().json ?? {};\nconst config = $('Configuration (EDIT ME)').first().json;\nconst execution = data.execution ?? {};\nconst error = execution.error ?? data.trigger?.error ?? {};\nconst string = value => typeof value === 'string' ? value : '';\n// Redact before truncating so even a token crossing the limit is removed.\nconst clean = (value, limit = 200) => string(value)\n  .replace(/\\bX-Api-Key\\s*[:=]\\s*(?:\"[^\"\\r\\n]*\"|'[^'\\r\\n]*'|[^\\s,;]+)/gi, 'X-Api-Key: [REDACTED]')\n  .replace(/\\bBearer\\s+[^\\s,;\"']+/gi, 'Bearer [REDACTED]')\n  .replace(/[\\r\\n\\t]+/g, ' ').slice(0, limit);\nconst workflow = clean(data.workflow?.name) || 'Unknown workflow';\nconst node = clean(execution.lastNodeExecuted || error.node?.name) || 'Unknown node';\nconst message = clean([string(error.name), string(error.message) || string(error.cause?.message)]\n  .filter(Boolean).join(': '), 500) || 'Unknown error';\nconst id = typeof execution.id === 'number' ? String(execution.id) : string(execution.id);\nconst safeId = /^[A-Za-z0-9_-]{1,80}$/.test(id) ? id : '';\nconst base = string(config.n8nBaseUrl).trim().replace(/\\/+$/, '');\nlet link = '';\n// Only a configured HTTP(S) base and execution paths; never mail URL credentials/query strings.\nif (/^https?:\\/\\/(?:[a-z0-9.-]+|\\[[0-9a-f:]+\\])(?::\\d{1,5})?(?:\\/[a-z0-9_~./%-]*)?$/i.test(base)) {\n  const url = string(execution.url);\n  const path = url.startsWith(base + '/') ? url.slice(base.length) : '';\n  if (/^\\/(?:workflow\\/[A-Za-z0-9_-]+\\/)?executions?\\/[A-Za-z0-9_-]+$/.test(path)) link = url;\n  else if (safeId) link = `${base}/executions/${safeId}`;\n}\nconst lines = [\n  `Workflow: ${workflow}`, `Node: ${node}`, `Error: ${message}`,\n  `Time (UTC): ${new Date().toISOString()}`,\n];\nif (safeId) lines.push(`Execution ID: ${safeId}`);\nif (link) lines.push(`Execution: ${link}`);\n// Explicit allowlist: no input/output data, headers, stack traces or error context.\nreturn [{ json: {\n  fromEmail: config.alertEmailFrom, toEmail: config.alertEmailTo,\n  subject: `[n8n error] ${workflow}`, text: lines.join('\\n'),\n} }];\n"
+      }
+    },
+    {
+      "id": "send-email",
+      "name": "Send Email",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2.1,
+      "position": [
+        750,
+        100
+      ],
+      "parameters": {
+        "resource": "email",
+        "operation": "send",
+        "fromEmail": "={{ $json.fromEmail }}",
+        "toEmail": "={{ $json.toEmail }}",
+        "subject": "={{ $json.subject }}",
+        "emailFormat": "text",
+        "text": "={{ $json.text }}",
+        "options": {
+          "appendAttribution": false
+        }
+      },
+      "credentials": {}
+    }
+  ],
+  "connections": {
+    "Error Trigger": {
+      "main": [
+        [
+          {
+            "node": "Configuration (EDIT ME)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Configuration (EDIT ME)": {
+      "main": [
+        [
+          {
+            "node": "Build Alert",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Alert": {
+      "main": [
+        [
+          {
+            "node": "Send Email",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "saveDataSuccessExecution": "none",
+    "saveDataErrorExecution": "none",
+    "saveManualExecutions": false,
+    "saveExecutionProgress": false
+  },
+  "pinData": {}
+}

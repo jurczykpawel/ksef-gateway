@@ -216,3 +216,19 @@ For a demo that must feel instant 24/7, free tier can't do it for two services n
 2. **Edit the "Configuration (EDIT ME)" node** - set your gateway's public `…onrender.com/health` URL (and uncomment the PDF service line if you render PDFs)
 3. **Adjust the schedule** if needed - the trigger uses a cron expression (`*/10 7-19 * * 1-5`) in your n8n's timezone
 4. **Activate the workflow** in n8n
+
+
+## Error alert (e-mail)
+
+**Files:** [`error-alert.json`](error-alert.json) / [`error-alert-PL.json`](error-alert-PL.json) — identical logic; only sticky notes are translated.
+
+1. In n8n, choose **Import from File**, import either file and save the workflow.
+2. Open **Configuration (EDIT ME)** and replace `alertEmailFrom` and `alertEmailTo` (`@example.com` placeholders). Set `n8nBaseUrl` to your n8n editor's HTTP(S) base URL, including any subpath, if you want execution links. Empty means **no link**, even when the trigger supplies one.
+3. On **Send Email**, create/select your **SMTP credential**. The JSON intentionally contains empty `credentials`; SMTP passwords belong in n8n credentials, never in Configuration or exports.
+4. In **each** workflow you want to monitor, open **Settings → Error Workflow**, select this saved alert workflow and save. Do this for `receive-invoices` and the Sellf/WooCommerce templates as well. The error workflow itself does not need activation. See [n8n Error Trigger documentation](https://docs.n8n.io/integrations/builtin/core-nodes/n8n-nodes-base.errortrigger/).
+
+The chain is **Error Trigger → Configuration (EDIT ME) → Build Alert → Send Email**. Mail is plain text: workflow name, failed node name, error name/message (at most 500 characters combined), alert time in UTC, execution ID when available, and an optional execution link. Missing fields use readable fallbacks; trigger failures may have no execution ID/URL or `lastNodeExecuted`. A supplied execution URL is used only under the configured base with a recognized execution path; otherwise an available ID builds `<n8nBaseUrl>/executions/<id>`.
+
+No node input/output data, headers, stack traces, error context or attachments are included. `X-Api-Key: …` / `X-Api-Key=…` and `Bearer …` patterns are replaced with `[REDACTED]` **before** truncation. This is a limited filter, not a guarantee that arbitrary error messages contain no personal data or secrets: keep upstream error text minimal. Execution saving is disabled in this template to reduce retention of the original trigger payload.
+
+Error Trigger responds to **failed automatic executions**, not manual test runs or errors handled by the source workflow. In `receive-invoices`, polling failure alerts arrive only once its failure budget makes the workflow fail. Sellf/WooCommerce handled outcomes such as `uncertain`, `not_accepted`, skipped orders or `success: false` need separate result monitoring; this template does not turn them into failures. To check delivery after import, use a separate automatically triggered test workflow that deliberately fails. An SMTP outage can prevent the alert from being delivered; this example adds no retries, external monitoring or escalation.

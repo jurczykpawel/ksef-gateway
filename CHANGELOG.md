@@ -2,6 +2,9 @@
 
 ## [Unreleased]
 
+### Added
+- Add EN/PL n8n error-alert SMTP templates with bounded, redacted error summaries and setup instructions.
+
 ## [0.4.1] - 2026-10-26
 
 ### Fixed

@@ -607,7 +607,7 @@ Limiter nalicza każdą rzeczywistą próbę HTTP klienta SDK: każdą stronę p
 
 Liczniki są przechowywane **w pamięci jednej repliki**, zerują się po restarcie i nie synchronizują z innymi instancjami ani klientami korzystającymi z tego samego NIP-u/IP. Stosowane są domyślne limity produkcyjne MF (w tym osobne limity zamknięcia sesji z API 2.8.0); indywidualnie zmieniony profil KSeF może mieć inne wartości. Przyszły globalny limit per IP jest według changeloga MF 2.8.0 wyłączony. Przy odmowie w środku workflow wcześniejsze operacje mogły już zostać wykonane; przed ponowną wysyłką sprawdź stan sesji/faktury.
 
-**Gotowy do zaimportowania przykład n8n:** [`examples/n8n/receive-invoices.json`](examples/n8n/receive-invoices.json) ([wersja polska](examples/n8n/receive-invoices-PL.json)) - odpytuje `/ksef/invoices/received/new` co 20 minut, trzyma checkpoint we własnych danych statycznych workflow, pobiera PDF każdej nowej faktury na dysk i zostawia węzeł `Notify (TODO)` do podłączenia Slacka/e-maila/Discorda.
+**Gotowy do zaimportowania przykład n8n:** [`examples/n8n/receive-invoices.json`](examples/n8n/receive-invoices.json) ([wersja polska](examples/n8n/receive-invoices-PL.json)) - odpytuje `/ksef/invoices/received/new` co 20 minut, trzyma checkpoint we własnych danych statycznych workflow, pobiera PDF każdej nowej faktury na dysk i wysyła jeden mail SMTP na fakturę z PDF-em w załączniku. Ustaw `notifyEmailFrom`/`notifyEmailTo` i wybierz credential SMTP w `Send Email`; checkpoint zapisuje się dopiero po udanej wysyłce całej partii, a ponowienie po błędzie może powtórzyć maile.
 
 ---
 

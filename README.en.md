@@ -546,7 +546,7 @@ The limiter counts every actual SDK HTTP attempt: each polling page, session ope
 
 Counters live **in memory in a single replica**, reset on restart and are not synchronized with other instances or clients using the same NIP/IP. The gateway uses MF's default production limits (including separate session-close limits introduced in API 2.8.0); customized KSeF profiles can differ. The future global per-IP limit is disabled according to MF's 2.8.0 changelog. If a workflow is denied midway, earlier operations may already have completed; check session/invoice status before sending again.
 
-**Ready-to-import n8n example:** [`examples/n8n/receive-invoices.json`](examples/n8n/receive-invoices.json) ([polska wersja](examples/n8n/receive-invoices-PL.json)) - polls `/ksef/invoices/received/new` every 20 minutes, keeps the checkpoint in the workflow's own static data, downloads each new invoice's PDF to disk, and leaves a `Notify (TODO)` node to wire up Slack/email/Discord.
+**Ready-to-import n8n example:** [`examples/n8n/receive-invoices.json`](examples/n8n/receive-invoices.json) ([polska wersja](examples/n8n/receive-invoices-PL.json)) - polls `/ksef/invoices/received/new` every 20 minutes, keeps the checkpoint in the workflow's own static data, downloads each new invoice's PDF to disk, and sends one SMTP email per invoice with the PDF attached. Set `notifyEmailFrom`/`notifyEmailTo` and select an SMTP credential on `Send Email`; the checkpoint is committed only after the entire batch is emailed successfully, and retries after a failure can repeat emails.
 
 ---
 

@@ -1,9 +1,9 @@
 {
-  "name": "KSeF: sprawdzanie i pobieranie otrzymanych faktur",
+  "name": "KSeF: Poll & Download Received Invoices",
   "nodes": [
     {
       "parameters": {
-        "content": "## Sprawdzaj KSeF i pobieraj PDF-y nowych otrzymanych faktur\n\n### Jak to działa\nKSeF nie wysyła powiadomień mailem ani webhookiem, więc ten workflow co 20 minut odpytuje Twój self-hostowany [KSeF Gateway](https://github.com/jurczykpawel/ksef-gateway) o faktury wystawione na Ciebie, korzystając z bezstanowego kursora `/ksef/invoices/received/new`. Punkt kontrolny (`nextSince`) żyje we własnych danych statycznych tego workflowa (zakres `global`), więc sama bramka nie potrzebuje bazy danych. Punkt kontrolny przesuwa się dopiero po pobraniu i zapisaniu wszystkich PDF-ów z partii; jeśli przebieg padnie w połowie, całe okno jest ponawiane (co najmniej raz: powiadomienie może się powtórzyć, faktura nigdy nie zostanie pominięta). Node `Notify (TODO)` oznacza miejsce, gdzie podłączysz Slacka, mail albo Discorda.\n\n### Konfiguracja\n1. Wdróż instancję KSeF Gateway z certyfikatem mającym uprawnienie `InvoiceRead` (tokeny KSeF będą wycofywane - certyfikaty to docelowa ścieżka). Nowy w KSeF albo potrzebujesz certyfikatu? Zobacz [główny README](https://github.com/jurczykpawel/ksef-gateway#certificate-based-auth-alternative-to-tokens).\n2. Otwórz **Configuration (EDIT ME)** i uzupełnij adres bramki, NIP, folder na PDF-y oraz - na darmowym Renderze - adres serwisu PDF. Potem wybierz credential **Header Auth** (nazwa `X-Api-Key`, wartość = Twój `GATEWAY_API_KEY`) w trzech węzłach HTTP Request.\n3. **Aktywuj** workflow. Dane statyczne zapisują się tylko w uruchomieniach produkcyjnych, więc ręczny test nie przesuwa punktu kontrolnego. Pierwsze uruchomienie sięga 30 dni wstecz; kolejne pobierają tylko nowe.\n\n### Wskazówki\nKSeF ogranicza ten endpoint do 20 zapytań/godz. - nie planuj częściej niż co 15 minut. Zamień **Save PDF To Disk** na Google Drive, S3 albo Dropbox, jeśli wolisz inne miejsce. Ustaw **Error Workflow** w ustawieniach workflowa, żeby dostać alert, gdy bramka ciągle zawodzi.",
+        "content": "## Sprawdzaj KSeF i pobieraj PDF-y nowych otrzymanych faktur\n\n### Jak to działa\nKSeF nie wysyła powiadomień mailem ani webhookiem, więc ten workflow co 20 minut odpytuje Twój self-hostowany [KSeF Gateway](https://github.com/jurczykpawel/ksef-gateway) o faktury wystawione na Ciebie, korzystając z bezstanowego kursora `/ksef/invoices/received/new`. Punkt kontrolny (`nextSince`) żyje we własnych danych statycznych tego workflowa (zakres `global`), więc sama bramka nie potrzebuje bazy danych. Punkt kontrolny przesuwa się dopiero po pobraniu, zapisaniu i wysłaniu mailem wszystkich PDF-ów z partii; jeśli przebieg padnie w połowie, całe okno jest ponawiane (co najmniej raz: powiadomienie może się powtórzyć, faktura nigdy nie zostanie pominięta). Węzeł **Send Email** wysyła jeden mail SMTP na fakturę z PDF-em w załączniku.\n\n### Konfiguracja\n1. Wdróż instancję KSeF Gateway z certyfikatem mającym uprawnienie `InvoiceRead` (tokeny KSeF będą wycofywane - certyfikaty to docelowa ścieżka). Nowy w KSeF albo potrzebujesz certyfikatu? Zobacz [główny README](https://github.com/jurczykpawel/ksef-gateway#certificate-based-auth-alternative-to-tokens).\n2. Otwórz **Configuration (EDIT ME)** i uzupełnij adres bramki, NIP, folder na PDF-y oraz - na darmowym Renderze - adres serwisu PDF. Potem wybierz credential **Header Auth** (nazwa `X-Api-Key`, wartość = Twój `GATEWAY_API_KEY`) w trzech węzłach HTTP Request.\n3. Zmień `notifyEmailFrom` i `notifyEmailTo` (zaślepki `faktury@example.com`) w **Configuration (EDIT ME)** na prawdziwe adresy. Wybierz credential **SMTP** w **Send Email**; haseł SMTP nie wpisuj do JSON-a workflowa. Błąd maila zatrzymuje przebieg przed zapisem punktu kontrolnego; ponowienia mogą powtórzyć maile.\n4. **Aktywuj** workflow. Dane statyczne zapisują się tylko w uruchomieniach produkcyjnych, więc ręczny test nie przesuwa punktu kontrolnego. Pierwsze uruchomienie sięga 30 dni wstecz; kolejne pobierają tylko nowe.\n\n### Wskazówki\nKSeF ogranicza ten endpoint do 20 zapytań/godz. - nie planuj częściej niż co 15 minut. Zamień **Save PDF To Disk** na Google Drive, S3 albo Dropbox, jeśli wolisz inne miejsce. Ustaw **Error Workflow** w ustawieniach workflowa, żeby dostać alert, gdy bramka ciągle zawodzi.",
         "height": 760,
         "width": 700,
         "color": 1
@@ -65,6 +65,18 @@
               "name": "pdfServiceUrl",
               "value": "",
               "type": "string"
+            },
+            {
+              "id": "notifyEmailFrom",
+              "name": "notifyEmailFrom",
+              "value": "faktury@example.com",
+              "type": "string"
+            },
+            {
+              "id": "notifyEmailTo",
+              "name": "notifyEmailTo",
+              "value": "faktury@example.com",
+              "type": "string"
             }
           ]
         },
@@ -78,7 +90,7 @@
         -400,
         550
       ],
-      "notes": "ksefNip must have a certificate with the InvoiceRead permission. ksefInvoicesDir must exist, be writable by n8n AND lie inside n8n's allowed file path (default ~/.n8n-files, see N8N_RESTRICT_FILE_ACCESS_TO) - otherwise 'Save PDF To Disk' fails with 'Access to the file is not allowed'. pdfServiceUrl: only for Render's free tier (public URL of the PDF service, e.g. https://xxx.onrender.com) - leave empty elsewhere. The gateway API key is NOT stored here - pick a Header Auth credential on the HTTP Request nodes."
+      "notes": "ksefNip must have a certificate with the InvoiceRead permission. ksefInvoicesDir must exist, be writable by n8n AND lie inside n8n's allowed file path (default ~/.n8n-files, see N8N_RESTRICT_FILE_ACCESS_TO) - otherwise 'Save PDF To Disk' fails with 'Access to the file is not allowed'. pdfServiceUrl: only for Render's free tier (public URL of the PDF service, e.g. https://xxx.onrender.com) - leave empty elsewhere. The gateway API key is NOT stored here - pick a Header Auth credential on the HTTP Request nodes. Replace notifyEmailFrom and notifyEmailTo placeholders with real addresses and select an SMTP credential on Send Email; SMTP secrets are not stored here."
     },
     {
       "id": "http-wake",
@@ -409,51 +421,28 @@
     },
     {
       "parameters": {
-        "assignments": {
-          "assignments": [
-            {
-              "id": "ksefNumber",
-              "name": "ksefNumber",
-              "value": "={{ $('Split Invoices').item.json.ksefNumber }}",
-              "type": "string"
-            },
-            {
-              "id": "invoiceNumber",
-              "name": "invoiceNumber",
-              "value": "={{ $('Split Invoices').item.json.invoiceNumber }}",
-              "type": "string"
-            },
-            {
-              "id": "sellerName",
-              "name": "sellerName",
-              "value": "={{ $('Split Invoices').item.json.sellerName }}",
-              "type": "string"
-            },
-            {
-              "id": "amount",
-              "name": "amount",
-              "value": "={{ $('Split Invoices').item.json.grossAmount + ' ' + $('Split Invoices').item.json.currency }}",
-              "type": "string"
-            },
-            {
-              "id": "savedPath",
-              "name": "savedPath",
-              "value": "={{ $('Configuration (EDIT ME)').item.json.ksefInvoicesDir + '/' + $('Split Invoices').item.json.ksefNumber + '.pdf' }}",
-              "type": "string"
-            }
-          ]
-        },
-        "options": {}
+        "resource": "email",
+        "operation": "send",
+        "fromEmail": "={{ $('Configuration (EDIT ME)').first().json.notifyEmailFrom }}",
+        "toEmail": "={{ $('Configuration (EDIT ME)').first().json.notifyEmailTo }}",
+        "subject": "={{ 'KSeF ' + $('Split Invoices').item.json.ksefNumber + ' | ' + ($('Split Invoices').item.json.sellerName || $('Split Invoices').item.json.sellerNip) + ' | ' + $('Split Invoices').item.json.grossAmount + ' ' + $('Split Invoices').item.json.currency }}",
+        "emailFormat": "text",
+        "text": "={{ 'KSeF: ' + $('Split Invoices').item.json.ksefNumber + '\\nSeller: ' + ($('Split Invoices').item.json.sellerName || $('Split Invoices').item.json.sellerNip) + '\\nSeller NIP: ' + $('Split Invoices').item.json.sellerNip + '\\nIssue date: ' + $('Split Invoices').item.json.issueDate.slice(0, 10) + '\\nGross: ' + $('Split Invoices').item.json.grossAmount + ' ' + $('Split Invoices').item.json.currency }}",
+        "options": {
+          "attachments": "data",
+          "appendAttribution": false
+        }
       },
       "id": "set-2",
-      "name": "Notify (TODO)",
-      "type": "n8n-nodes-base.set",
-      "typeVersion": 3.4,
+      "name": "Send Email",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2.1,
       "position": [
         2950,
         550
       ],
-      "notes": "TODO: Connect Slack / email / Discord here to get notified - the PDF is already saved to disk by the previous node."
+      "notes": "Select an SMTP credential and replace notifyEmailFrom/notifyEmailTo in Configuration (EDIT ME). Sends one email per invoice with binary data as its PDF attachment. A send failure stops the run before Commit Checkpoint; retrying the window can repeat already sent emails.",
+      "credentials": {}
     },
     {
       "id": "code-commit",
@@ -735,14 +724,14 @@
       "main": [
         [
           {
-            "node": "Notify (TODO)",
+            "node": "Send Email",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Notify (TODO)": {
+    "Send Email": {
       "main": [
         [
           {

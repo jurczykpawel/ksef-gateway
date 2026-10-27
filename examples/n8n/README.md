@@ -23,7 +23,7 @@ For finding out what's been issued *to* you - KSeF has no email/webhook notifica
 4. Calls `GET /ksef/invoices/received/new?since=<checkpoint>`
 5. *Remembers* the new `nextSince` - it is only **committed after the PDFs are downloaded, saved and notified** (or immediately when nothing new came back). A failed poll or a failure midway leaves the checkpoint untouched, so nothing is skipped; the same window is retried (at-least-once: a notification can repeat after a failed run, an invoice is never lost)
 6. For each new invoice, downloads its PDF (`GET /ksef/invoice/{ksefNumber}/pdf`, one at a time - the gateway allows 16 `invoices/get` per minute) and saves it to disk
-7. Leaves a `Notify (TODO)` node where you wire up Slack, email, or Discord
+7. Sends one SMTP email per invoice using **Send Email**, with its KSeF number, seller, issue date, gross amount/currency and the PDF attached
 8. After 6 failed polls in a row (~2 h) the run fails on purpose - set an **Error Workflow** in the workflow settings to get alerted
 
 ### Setup
@@ -35,8 +35,16 @@ For finding out what's been issued *to* you - KSeF has no email/webhook notifica
    - `ksefNip` - the NIP whose inbox to poll (sent as `X-KSeF-NIP`)
    - `ksefInvoicesDir` - where to save downloaded PDFs on the n8n host. The folder must **exist**, be writable by the n8n user, and lie inside n8n's allowed file path (default `~/.n8n-files`, controlled by `N8N_RESTRICT_FILE_ACCESS_TO`) - otherwise `Save PDF To Disk` fails with *Access to the file is not allowed*. The default value assumes the official Docker image (`/home/node/.n8n-files/ksef-invoices`; create it first)
    - `pdfServiceUrl` - only on Render's free tier: the public URL of the PDF service (e.g. `https://your-pdf.onrender.com`). Leave empty elsewhere
-4. **Wire up notifications** - replace the `Notify (TODO)` node with a Slack/Email/Discord node of your choice
+4. **Configure email** - replace `notifyEmailFrom` and `notifyEmailTo` in **Configuration (EDIT ME)** with real sender/recipient addresses (both default to the placeholder `faktury@example.com`). Create an **SMTP** credential in n8n and select it on **Send Email**
 5. **Activate the workflow** in n8n. Static data is only saved in production runs (triggered by the schedule) - a manual test run does **not** move the checkpoint, so every test fetches the last 30 days again
+
+### E-mail notification
+
+Create an **SMTP** credential in n8n with your mail provider's host, port, TLS settings and login/password, then select it on **Send Email**. Use a sender address authorized by that provider in `notifyEmailFrom` and your destination mailbox in `notifyEmailTo`. The workflow JSON exports no SMTP credential or password; the credential must be selected after import.
+
+**Send Email** sends **one email per invoice**. Its subject contains the KSeF number, seller name (or seller NIP when the name is empty), gross amount and currency. The plain-text body includes the KSeF number, seller name/NIP, issue date and gross amount/currency. The PDF is attached from binary property `data`, which **Download Invoice PDF** produces and **Save PDF To Disk** preserves.
+
+The checkpoint is committed only after the entire batch has been saved and emailed. An SMTP failure stops the run before **Commit Checkpoint**, leaving the previous checkpoint intact. Delivery is **at-least-once**: when a failed run is retried, emails already sent in that window can be sent again (including when SMTP accepted a message but the response was lost). Manual test runs also repeat the window because n8n does not persist their static data. If replacing disk storage, ensure its output still carries binary `data` for the attachment.
 
 ### Customization
 

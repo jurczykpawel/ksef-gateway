@@ -3,7 +3,7 @@
   "nodes": [
     {
       "parameters": {
-        "content": "## Poll KSeF for new received invoices and download the PDFs\n\n### How it works\nKSeF has no email or webhook notifications, so this workflow polls your self-hosted [KSeF Gateway](https://github.com/jurczykpawel/ksef-gateway) every 20 minutes for invoices issued to you, using its stateless `/ksef/invoices/received/new` cursor. The checkpoint (`nextSince`) lives in this workflow's own static data (scope `global`), so the gateway itself doesn't need a database. The checkpoint only moves forward after every PDF of the batch was downloaded and saved; if a run fails midway the whole window is retried (at-least-once: a notification may repeat, an invoice is never skipped). A `Notify (TODO)` node marks where to plug in Slack, email, or Discord.\n\n### Setup\n1. Deploy a KSeF Gateway instance with a certificate that has the `InvoiceRead` permission (KSeF tokens are being phased out - certificates are the durable path). New to KSeF, or need a certificate? See [the main README](https://github.com/jurczykpawel/ksef-gateway#certificate-based-auth-alternative-to-tokens).\n2. Open **Configuration (EDIT ME)** and fill in your gateway URL, NIP, the folder where PDFs should be saved and - on Render's free tier - the PDF service URL. Then pick a **Header Auth** credential (name `X-Api-Key`, value = your `GATEWAY_API_KEY`) on the three HTTP Request nodes.\n3. **Activate** the workflow. Static data is only saved in production runs, so a manual test run does not move the checkpoint. The first run looks back 30 days; later runs only fetch what's new.\n\n### Customization tips\nKSeF caps this endpoint at 20 requests/hour - don't schedule more often than every 15 minutes. Swap **Save PDF To Disk** for a Google Drive, S3, or Dropbox node if you'd rather store invoices there. Set an **Error Workflow** in the workflow settings to get alerted when the gateway keeps failing.",
+        "content": "## Poll KSeF for new received invoices and download the PDFs\n\n### How it works\nKSeF has no email or webhook notifications, so this workflow polls your self-hosted [KSeF Gateway](https://github.com/jurczykpawel/ksef-gateway) every 20 minutes for invoices issued to you, using its stateless `/ksef/invoices/received/new` cursor. The checkpoint (`nextSince`) lives in this workflow's own static data (scope `global`), so the gateway itself doesn't need a database. The checkpoint only moves forward after every PDF of the batch was downloaded, saved and emailed; if a run fails midway the whole window is retried (at-least-once: a notification may repeat, an invoice is never skipped). The **Send Email** node sends one SMTP email per invoice with the PDF attached.\n\n### Setup\n1. Deploy a KSeF Gateway instance with a certificate that has the `InvoiceRead` permission (KSeF tokens are being phased out - certificates are the durable path). New to KSeF, or need a certificate? See [the main README](https://github.com/jurczykpawel/ksef-gateway#certificate-based-auth-alternative-to-tokens).\n2. Open **Configuration (EDIT ME)** and fill in your gateway URL, NIP, the folder where PDFs should be saved and - on Render's free tier - the PDF service URL. Then pick a **Header Auth** credential (name `X-Api-Key`, value = your `GATEWAY_API_KEY`) on the three HTTP Request nodes.\n3. Replace `notifyEmailFrom` and `notifyEmailTo` (`faktury@example.com` placeholders) in **Configuration (EDIT ME)** with real addresses. Select an **SMTP** credential on **Send Email**; never put SMTP passwords in the workflow JSON. Mail failures stop the run before the checkpoint is committed; retries can repeat emails.\n4. **Activate** the workflow. Static data is only saved in production runs, so a manual test run does not move the checkpoint. The first run looks back 30 days; later runs only fetch what's new.\n\n### Customization tips\nKSeF caps this endpoint at 20 requests/hour - don't schedule more often than every 15 minutes. Swap **Save PDF To Disk** for a Google Drive, S3, or Dropbox node if you'd rather store invoices there. Set an **Error Workflow** in the workflow settings to get alerted when the gateway keeps failing.",
         "height": 760,
         "width": 700,
         "color": 1
@@ -65,6 +65,18 @@
               "name": "pdfServiceUrl",
               "value": "",
               "type": "string"
+            },
+            {
+              "id": "notifyEmailFrom",
+              "name": "notifyEmailFrom",
+              "value": "faktury@example.com",
+              "type": "string"
+            },
+            {
+              "id": "notifyEmailTo",
+              "name": "notifyEmailTo",
+              "value": "faktury@example.com",
+              "type": "string"
             }
           ]
         },
@@ -78,7 +90,7 @@
         -400,
         550
       ],
-      "notes": "ksefNip must have a certificate with the InvoiceRead permission. ksefInvoicesDir must exist, be writable by n8n AND lie inside n8n's allowed file path (default ~/.n8n-files, see N8N_RESTRICT_FILE_ACCESS_TO) - otherwise 'Save PDF To Disk' fails with 'Access to the file is not allowed'. pdfServiceUrl: only for Render's free tier (public URL of the PDF service, e.g. https://xxx.onrender.com) - leave empty elsewhere. The gateway API key is NOT stored here - pick a Header Auth credential on the HTTP Request nodes."
+      "notes": "ksefNip must have a certificate with the InvoiceRead permission. ksefInvoicesDir must exist, be writable by n8n AND lie inside n8n's allowed file path (default ~/.n8n-files, see N8N_RESTRICT_FILE_ACCESS_TO) - otherwise 'Save PDF To Disk' fails with 'Access to the file is not allowed'. pdfServiceUrl: only for Render's free tier (public URL of the PDF service, e.g. https://xxx.onrender.com) - leave empty elsewhere. The gateway API key is NOT stored here - pick a Header Auth credential on the HTTP Request nodes. Replace notifyEmailFrom and notifyEmailTo placeholders with real addresses and select an SMTP credential on Send Email; SMTP secrets are not stored here."
     },
     {
       "id": "http-wake",
@@ -409,51 +421,28 @@
     },
     {
       "parameters": {
-        "assignments": {
-          "assignments": [
-            {
-              "id": "ksefNumber",
-              "name": "ksefNumber",
-              "value": "={{ $('Split Invoices').item.json.ksefNumber }}",
-              "type": "string"
-            },
-            {
-              "id": "invoiceNumber",
-              "name": "invoiceNumber",
-              "value": "={{ $('Split Invoices').item.json.invoiceNumber }}",
-              "type": "string"
-            },
-            {
-              "id": "sellerName",
-              "name": "sellerName",
-              "value": "={{ $('Split Invoices').item.json.sellerName }}",
-              "type": "string"
-            },
-            {
-              "id": "amount",
-              "name": "amount",
-              "value": "={{ $('Split Invoices').item.json.grossAmount + ' ' + $('Split Invoices').item.json.currency }}",
-              "type": "string"
-            },
-            {
-              "id": "savedPath",
-              "name": "savedPath",
-              "value": "={{ $('Configuration (EDIT ME)').item.json.ksefInvoicesDir + '/' + $('Split Invoices').item.json.ksefNumber + '.pdf' }}",
-              "type": "string"
-            }
-          ]
-        },
-        "options": {}
+        "resource": "email",
+        "operation": "send",
+        "fromEmail": "={{ $('Configuration (EDIT ME)').first().json.notifyEmailFrom }}",
+        "toEmail": "={{ $('Configuration (EDIT ME)').first().json.notifyEmailTo }}",
+        "subject": "={{ 'KSeF ' + $('Split Invoices').item.json.ksefNumber + ' | ' + ($('Split Invoices').item.json.sellerName || $('Split Invoices').item.json.sellerNip) + ' | ' + $('Split Invoices').item.json.grossAmount + ' ' + $('Split Invoices').item.json.currency }}",
+        "emailFormat": "text",
+        "text": "={{ 'KSeF: ' + $('Split Invoices').item.json.ksefNumber + '\\nSeller: ' + ($('Split Invoices').item.json.sellerName || $('Split Invoices').item.json.sellerNip) + '\\nSeller NIP: ' + $('Split Invoices').item.json.sellerNip + '\\nIssue date: ' + $('Split Invoices').item.json.issueDate.slice(0, 10) + '\\nGross: ' + $('Split Invoices').item.json.grossAmount + ' ' + $('Split Invoices').item.json.currency }}",
+        "options": {
+          "attachments": "data",
+          "appendAttribution": false
+        }
       },
       "id": "set-2",
-      "name": "Notify (TODO)",
-      "type": "n8n-nodes-base.set",
-      "typeVersion": 3.4,
+      "name": "Send Email",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2.1,
       "position": [
         2950,
         550
       ],
-      "notes": "TODO: Connect Slack / email / Discord here to get notified - the PDF is already saved to disk by the previous node."
+      "notes": "Select an SMTP credential and replace notifyEmailFrom/notifyEmailTo in Configuration (EDIT ME). Sends one email per invoice with binary data as its PDF attachment. A send failure stops the run before Commit Checkpoint; retrying the window can repeat already sent emails.",
+      "credentials": {}
     },
     {
       "id": "code-commit",
@@ -735,14 +724,14 @@
       "main": [
         [
           {
-            "node": "Notify (TODO)",
+            "node": "Send Email",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Notify (TODO)": {
+    "Send Email": {
       "main": [
         [
           {

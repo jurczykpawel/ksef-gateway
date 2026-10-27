@@ -51,8 +51,7 @@ docker compose up --build
 ### Use
 Send friendly JSON to `POST /ksef/invoice`, FA(3) XML to `POST /ksef/send`, or xml-js
 JSON to `POST /ksef/send/json`. Fetch XML with `GET /ksef/invoice/{nr}` and PDF with
-`GET /ksef/invoice/{nr}/pdf` (replace `{nr}` with the KSeF number); `POST /pdf/invoice`
-renders supplied XML. Poll `GET /ksef/invoices/received/new?since=…` for received invoices.
+`GET /ksef/invoice/{nr}/pdf` (replace `{nr}` with the KSeF number). Poll `GET /ksef/invoices/received/new?since=…` for received invoices.
 Use `GET /ksef/status` for KSeF authentication/environment diagnostics; `GET /health`
 reports public liveness only. Every request except `/health` needs `X-Api-Key`;
 use `X-KSeF-NIP` to select an authorized NIP context. See both READMEs for contracts.

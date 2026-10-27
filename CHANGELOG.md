@@ -6,6 +6,9 @@
 - Add an agent guide for deployment, gateway usage, n8n email notifications and post-deploy checks.
 - Send one configurable SMTP email with a PDF attachment per received invoice in the EN/PL n8n examples; commit the checkpoint only after successful delivery of the batch.
 
+### Added
+- Add EN/PL n8n error-alert SMTP templates with bounded, redacted error summaries and setup instructions.
+
 ## [0.4.1] - 2026-10-26
 
 ### Fixed

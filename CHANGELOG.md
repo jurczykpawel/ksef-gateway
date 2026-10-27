@@ -2,6 +2,9 @@
 
 ## [Unreleased]
 
+### Changed
+- Send one configurable SMTP email with a PDF attachment per received invoice in the EN/PL n8n examples; commit the checkpoint only after successful delivery of the batch.
+
 ## [0.4.1] - 2026-10-26
 
 ### Fixed

@@ -56,13 +56,17 @@ def main():
              '(pobierz nupkg, zweryfikuj, podmień, zaktualizuj sumy SHA-256 w '
              'THIRD_PARTY_NOTICES.md i zatwierdzony manifest SDK, uruchom testy).\n')
     repo = os.environ['GITHUB_REPOSITORY']
+    # An @mention and an assignment are what make GitHub notify the owner;
+    # a bot-opened issue and its later comments are silent otherwise.
+    owner = os.environ.get('GITHUB_REPOSITORY_OWNER') or repo.split('/')[0]
+    body = f'@{owner} KSeF upstream changed. ' + body
     issues = json.loads(gh('issue', 'list', '--repo', repo, '--label', 'ksef-update',
                            '--state', 'open', '--json', 'number', '--limit', '1'))
     if issues:
         gh('issue', 'comment', str(issues[0]['number']), '--repo', repo, '--body', body)
     else:
         gh('issue', 'create', '--repo', repo, '--title', 'KSeF upstream update detected',
-           '--label', 'ksef-update', '--body', body)
+           '--label', 'ksef-update', '--assignee', owner, '--body', body)
 
     # Notification failure raises before this write, so a later run retries.
     STATE.write_text(json.dumps({'last_notified': current}, indent=2) + '\n')

@@ -26,7 +26,8 @@ class UpdateMonitorTests(unittest.TestCase):
         self.docs_response = None
         for patcher in (patch.object(monitor, 'STATE', self.state),
                         patch.object(monitor, 'gh', side_effect=self.gh),
-                        patch.dict(os.environ, {'GITHUB_REPOSITORY': 'owner/gateway'})):
+                        patch.dict(os.environ, {'GITHUB_REPOSITORY': 'owner/gateway',
+                                        'GITHUB_REPOSITORY_OWNER': 'owner'})):
             patcher.start()
             self.addCleanup(patcher.stop)
 
@@ -65,6 +66,19 @@ class UpdateMonitorTests(unittest.TestCase):
                                     'SHA-256 w THIRD_PARTY_NOTICES.md',
                                     'zatwierdzony manifest SDK', 'uruchom testy'):
                     self.assertIn(instruction, body)
+
+    def test_owner_is_mentioned_and_assigned_so_a_notification_is_sent(self):
+        for issues in ([], [{'number': 12}]):
+            with self.subTest(existing_issue=bool(issues)):
+                self.state.write_bytes(self.original)
+                self.calls.clear()
+                self.issues = issues
+                self.upstream['docs_sha'] = 'd' * 40
+                monitor.main()
+                call = self.notifications()[0]
+                self.assertTrue(call[-1].startswith('@owner '), call[-1][:40])
+                if not issues:
+                    self.assertEqual(call[call.index('--assignee') + 1], 'owner')
 
     def test_empty_docs_sha_preserves_good_state(self):
         self.upstream['docs_sha'] = ''

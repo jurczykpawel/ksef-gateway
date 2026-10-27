@@ -3,6 +3,7 @@
 ## [Unreleased]
 
 ### Changed
+- The upstream-change monitor now runs daily and mentions and assigns the repository owner, so GitHub actually sends a notification (previously a bot-opened issue and its comments were silent).
 - Fix the Quick Start for first-time installs: send examples with the generator's NIP (`jq` one-liners), export the variables, document `output/test-token.*`, how to reach the gateway from a containerized n8n, and that the alert workflow must be active.
 - Add an agent guide for deployment, gateway usage, n8n email notifications and post-deploy checks.
 - Send one configurable SMTP email with a PDF attachment per received invoice in the EN/PL n8n examples; commit the checkpoint only after successful delivery of the batch.

@@ -2,7 +2,7 @@ name: KSeF Update Check
 
 on:
   schedule:
-    - cron: '0 9 * * 1'  # every Monday at 9:00 UTC
+    - cron: '0 9 * * *'  # every day at 9:00 UTC
   workflow_dispatch:
   pull_request:
     paths:

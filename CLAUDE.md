@@ -17,6 +17,66 @@ docker compose up --build
 # Docs: http://localhost:8080/scalar/v1 (needs the header too)
 ```
 
+## Deploy, use, notifications
+
+### Deploy
+- Docker Compose: follow [Quick start](#quick-start), configure `.env` from `.env.example`,
+  then run `docker compose up -d --build` (API + PDF, no database).
+- Required: `GATEWAY_API_KEY`, `KSEF_NIP` and exactly one authentication method:
+  `KSEF_TOKEN`, `KSEF_CERT_PATH` + `KSEF_KEY_PATH`, or
+  `KSEF_CERT_CONTENT` + `KSEF_KEY_CONTENT`; encrypted keys also need `KSEF_KEY_PASSWORD`.
+  See `README.md` / `README.en.md` for certificate setup and multi-NIP `contexts.json`.
+- Set `KSEF_ENV=TEST` for verification, including in the PDF service for matching QR links.
+  Configure `PDF_SERVICE_URL` to reach the PDF service. Optional: `TRUSTED_PROXY_SECRET`
+  (proxy must overwrite its secret header), `PDF_SERVICE_SECRET` (same in API and PDF;
+  required for a public PDF service), `GATEWAY_LICENSE` (more than one NIP).
+- Render from GHCR: choose a release tag such as `vX.Y.Z`; read both image digests from
+  that release's `image-digests.txt` attachment. Verify each image before deploying:
+  ```bash
+  # TAG=vX.Y.Z; DIGEST=sha256:<API digest from image-digests.txt>
+  cosign verify "ghcr.io/jurczykpawel/ksef-gateway-api@${DIGEST}" \
+    --certificate-identity "https://github.com/jurczykpawel/ksef-gateway/.github/workflows/docker-publish.yml@refs/tags/${TAG}" \
+    --certificate-oidc-issuer https://token.actions.githubusercontent.com
+  ```
+  Repeat for `ksef-gateway-pdf` with its digest and the same release identity.
+  Set each Render service's `imagePath` to its verified GHCR reference with `@sha256:…`,
+  `healthCheckPath=/health`, and configure the environment above. After deploy, `GET /health`.
+  On Render free, use the PDF service's public HTTPS URL and matching `PDF_SERVICE_SECRET`.
+- Render Blueprint from git: use `render.yaml`; it builds from the tracked branch.
+  AWS / Azure: follow `deploy/aws/README.md` / `deploy/azure/README.md`.
+- Before a release, follow regression/publication gates in `CONTRIBUTING.md`, review
+  `.github/workflows/docker-publish.yml` and update `CHANGELOG.md` under `[Unreleased]`.
+  Do not publish a release or push a release tag without the owner's explicit approval.
+
+### Use
+Send friendly JSON to `POST /ksef/invoice`, FA(3) XML to `POST /ksef/send`, or xml-js
+JSON to `POST /ksef/send/json`. Fetch XML with `GET /ksef/invoice/{nr}` and PDF with
+`GET /ksef/invoice/{nr}/pdf` (replace `{nr}` with the KSeF number); `POST /pdf/invoice`
+renders supplied XML. Poll `GET /ksef/invoices/received/new?since=…` for received invoices.
+Use `GET /ksef/status` for KSeF authentication/environment diagnostics; `GET /health`
+reports public liveness only. Every request except `/health` needs `X-Api-Key`;
+use `X-KSeF-NIP` to select an authorized NIP context. See both READMEs for contracts.
+
+Use invoice payloads in `examples/` and requests in `bruno/` to exercise the gateway.
+Import n8n templates from `examples/n8n/`; follow `examples/n8n/README.md` for setup,
+Header Auth credentials, configuration nodes and workflow activation.
+
+### Notifications
+KSeF does not push invoice notifications. Import `examples/n8n/receive-invoices.json`
+to poll and send one email per received invoice with its PDF attached. Set
+`notifyEmailFrom` / `notifyEmailTo` in `Configuration (EDIT ME)` and select an SMTP
+credential in `Send Email`. The checkpoint commits after email succeeds; retries can
+send duplicates. Import `examples/n8n/error-alert.json`, configure `alertEmailFrom`,
+`alertEmailTo`, optional `n8nBaseUrl` and SMTP, then select it as the **Error Workflow**
+in each monitored workflow's Settings. See the n8n README for setup and alert contents.
+
+### Post-deploy checks
+1. `GET /health` returns 200 with `{"status":"ok"}` (liveness, not dependency readiness).
+2. Authenticated `GET /ksef/status` shows the intended environment and authenticated NIP.
+3. Send a sample invoice only after confirming KSeF TEST; never send a valid invoice to production as a test.
+4. Execute the configured n8n receiving workflow on TEST; verify PDF email and checkpoint.
+5. Trigger a controlled failure in an active test workflow; verify the Error Workflow email.
+
 ## Key files
 - `src/KSeFGateway.Api/Discovery/SdkReflector.cs` - reflection engine (discovers 60+ SDK methods)
 - `src/KSeFGateway.Api/Discovery/EndpointMapper.cs` - auto-registers POST /ksef/{group}/{method}

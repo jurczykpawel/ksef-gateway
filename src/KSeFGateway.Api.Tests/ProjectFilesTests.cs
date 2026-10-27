@@ -7,6 +7,32 @@ namespace KSeFGateway.Api.Tests;
 public class ProjectFilesTests
 {
     [Fact]
+    public void AgentInstructions_ContainPublicDeploymentAndNotificationGuide()
+    {
+        var root = Directory.Exists("/repo") ? "/repo" : FindProjectRoot();
+        var instructions = File.ReadAllText(Path.Combine(root, "CLAUDE.md"));
+        var section = Regex.Match(instructions,
+            @"(?m)^## Deploy, use, notifications\r?\n(?:(?!^## ).|\n)*");
+
+        Assert.True(section.Success, "CLAUDE.md must contain the Deploy, use, notifications section.");
+        foreach (var required in new[] { "error-alert.json", "receive-invoices.json", "cosign verify" })
+            Assert.Contains(required, section.Value);
+        foreach (var forbidden in new[] { "szepiet", "qreative", "/Users/", "vault" })
+            Assert.False(section.Value.Contains(forbidden, StringComparison.OrdinalIgnoreCase),
+                $"Agent deployment guide contains private pattern: {forbidden}");
+    }
+
+    [Fact]
+    public void AgentInstructions_AgentsRemainsSymlinkToClaude()
+    {
+        var root = Directory.Exists("/repo") ? "/repo" : FindProjectRoot();
+        var agents = new FileInfo(Path.Combine(root, "AGENTS.md"));
+
+        Assert.Equal("CLAUDE.md", agents.LinkTarget);
+        Assert.Equal(Path.Combine(root, "CLAUDE.md"), agents.ResolveLinkTarget(true)!.FullName);
+    }
+
+    [Fact]
     public void VendoredSdk_RestoresWithoutPrivateFeedAndMatchesNotices()
     {
         var root = Directory.Exists("/repo") ? "/repo" : FindProjectRoot();

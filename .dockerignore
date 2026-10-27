@@ -12,6 +12,8 @@
 !docker-compose.yml
 !README*.md
 !CONTRIBUTING.md
+!CLAUDE.md
+!AGENTS.md
 !examples/
 !examples/**
 !LICENSE

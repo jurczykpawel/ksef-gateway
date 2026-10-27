@@ -2,6 +2,9 @@
 
 ## [Unreleased]
 
+### Changed
+- Add an agent guide for deployment, gateway usage, n8n email notifications and post-deploy checks.
+
 ## [0.4.1] - 2026-10-26
 
 ### Fixed

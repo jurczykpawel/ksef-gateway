@@ -22,7 +22,8 @@ async function render(xml: string, nrKSeF?: string) {
   const response = await request(server).post("/pdf/invoice").send({ xml, nrKSeF });
   expect(response.status).toBe(200);
   expect(response.headers["content-type"]).toContain("application/pdf");
-  const pdf = await getDocument({ data: new Uint8Array(response.body), useSystemFonts: false }).promise;
+  const task = getDocument({ data: new Uint8Array(response.body), useSystemFonts: false });
+  const pdf = await task.promise;
   try {
     const pages: string[] = [];
     const urls: string[] = [];
@@ -34,7 +35,7 @@ async function render(xml: string, nrKSeF?: string) {
     }
     return { pages, text: pages.join(" "), compact: pages.join("").replace(/\s/g, ""), urls };
   } finally {
-    await pdf.destroy();
+    await task.destroy();
   }
 }
 

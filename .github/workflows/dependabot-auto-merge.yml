@@ -16,7 +16,25 @@ jobs:
 
       - name: Auto-merge patch updates
         if: steps.metadata.outputs.update-type == 'version-update:semver-patch'
-        run: gh pr merge "$PR_URL" --auto --squash
+        # `gh pr merge --auto` needs branch protection with required checks, which this
+        # repo does not use (it failed with a red job on every patch PR and mailed the
+        # owner). Wait for the other checks ourselves and merge only when all are green.
+        run: |
+          sleep 90  # let the other workflows register their checks
+          for _ in $(seq 1 90); do
+            rollup=$(gh pr view "$PR_URL" --json statusCheckRollup -q \
+              '[.statusCheckRollup[] | select(.name != "auto-merge")]')
+            total=$(jq length <<<"$rollup")
+            pending=$(jq '[.[] | select(.status != "COMPLETED")] | length' <<<"$rollup")
+            bad=$(jq '[.[] | select(.conclusion | IN("FAILURE","CANCELLED","TIMED_OUT","ACTION_REQUIRED"))] | length' <<<"$rollup")
+            if [ "$bad" != 0 ]; then echo "A check failed; not merging."; exit 0; fi
+            if [ "$total" != 0 ] && [ "$pending" = 0 ]; then
+              gh pr merge "$PR_URL" --squash
+              exit 0
+            fi
+            sleep 20
+          done
+          echo "Checks did not finish in time; not merging."
         env:
           PR_URL: ${{ github.event.pull_request.html_url }}
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

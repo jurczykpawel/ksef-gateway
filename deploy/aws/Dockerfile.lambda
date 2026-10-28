@@ -10,6 +10,6 @@ COPY src/KSeFGateway.Api/ KSeFGateway.Api/
 RUN dotnet publish KSeFGateway.Api/KSeFGateway.Api.csproj \
     -c Release -o /app/publish --no-restore
 
-FROM public.ecr.aws/lambda/dotnet:10@sha256:e8af00086e7c9095570a7ed8d24fe813f863d8a590e09a211225c02780f7f2c8 AS runtime
+FROM public.ecr.aws/lambda/dotnet:10@sha256:2b768d5ec87e4d8321ef6961fd1e9ef3185da5c2c5af055c3262d7bf017ace55 AS runtime
 COPY --from=build /app/publish ${LAMBDA_TASK_ROOT}
 CMD ["KSeFGateway.Api"]

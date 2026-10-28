@@ -25,8 +25,8 @@ param ksefKeyContent string = ''
 @secure()
 param ksefKeyPassword string = ''
 
-param apiImage string = 'ghcr.io/jurczykpawel/ksef-gateway-api:v0.4.1'
-param pdfImage string = 'ghcr.io/jurczykpawel/ksef-gateway-pdf:v0.4.1'
+param apiImage string = 'ghcr.io/jurczykpawel/ksef-gateway-api:v0.4.2'
+param pdfImage string = 'ghcr.io/jurczykpawel/ksef-gateway-pdf:v0.4.2'
 
 // Log Analytics workspace (required by Container Apps)
 resource logAnalytics 'Microsoft.OperationalInsights/workspaces@2022-10-01' = {

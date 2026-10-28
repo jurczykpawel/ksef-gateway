@@ -2,7 +2,11 @@
 
 ## [Unreleased]
 
+## [0.4.2] - 2026-10-28
+
 ### Changed
+- Dependabot: group patch/minor updates per ecosystem and Docker base-image digests into single PRs, ignore base-image majors, mute TypeScript 7 for the landing until Astro supports it, and merge green patch PRs from the workflow itself (`gh pr merge --auto` needs branch protection this repo does not use, so it failed on every patch PR).
+- Dependency updates: `pdfjs-dist` 6 (tests only), `i18next` 26 (typing shim for the vendored PDF library), `dotnet/aspnet` base image digest, `actions/download-artifact` 8 (runs only on release tags), `trufflehog` 3.99.7, `motion` 14.6.
 - PDF service image and its CI job now run on Node 26 LTS (previously Node 22).
 - Bump `Amazon.Lambda.AspNetCoreServer.Hosting` 1.10.0 -> 2.2.1 (AWS Lambda image). 2.0 only drops .NET 6 targets (the gateway is .NET 10); `AddAWSLambdaHosting(LambdaEventSource.HttpApi)` is unchanged. Verified with the Lambda runtime interface emulator (`/health` 200, API-key gate 401).
 - The upstream-change monitor now runs daily and mentions and assigns the repository owner, so GitHub actually sends a notification (previously a bot-opened issue and its comments were silent).

@@ -25,8 +25,8 @@ az deployment group create \
     ksefToken=<your-token> \
     ksefNip=<your-nip> \
     ksefEnv=TEST \
-    apiImage=ghcr.io/jurczykpawel/ksef-gateway-api:v0.4.1 \
-    pdfImage=ghcr.io/jurczykpawel/ksef-gateway-pdf:v0.4.1
+    apiImage=ghcr.io/jurczykpawel/ksef-gateway-api:v0.4.2 \
+    pdfImage=ghcr.io/jurczykpawel/ksef-gateway-pdf:v0.4.2
 ```
 
 The output includes the public API URL. **Keep the `gatewayApiKey` value** - the gateway has no other caller-facing auth (see README "Security"), so every request needs it back as the `X-Api-Key` header.
@@ -46,8 +46,8 @@ az deployment group create \
     ksefKeyPassword=<only-if-encrypted> \
     ksefNip=<your-nip> \
     ksefEnv=PRODUCTION \
-    apiImage=ghcr.io/jurczykpawel/ksef-gateway-api:v0.4.1 \
-    pdfImage=ghcr.io/jurczykpawel/ksef-gateway-pdf:v0.4.1
+    apiImage=ghcr.io/jurczykpawel/ksef-gateway-api:v0.4.2 \
+    pdfImage=ghcr.io/jurczykpawel/ksef-gateway-pdf:v0.4.2
 ```
 
 Leave `ksefToken` unset in that case (both work, but pick one - see README "Certificate-Based Auth").

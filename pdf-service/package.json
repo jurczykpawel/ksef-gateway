@@ -11,7 +11,7 @@
   "dependencies": {
     "express": "^5.3.0",
     "i18next": "25.8.4",
-    "pdfmake": "^0.3.12",
+    "pdfmake": "^0.3.13",
     "tsx": "^4.23.15",
     "xml-js": "^1.6.11"
   },

@@ -4,6 +4,7 @@
 
 ### Changed
 - PDF service image and its CI job now run on Node 26 LTS (previously Node 22).
+- Bump `Amazon.Lambda.AspNetCoreServer.Hosting` 1.10.0 -> 2.2.1 (AWS Lambda image). 2.0 only drops .NET 6 targets (the gateway is .NET 10); `AddAWSLambdaHosting(LambdaEventSource.HttpApi)` is unchanged. Verified with the Lambda runtime interface emulator (`/health` 200, API-key gate 401).
 - The upstream-change monitor now runs daily and mentions and assigns the repository owner, so GitHub actually sends a notification (previously a bot-opened issue and its comments were silent).
 - Fix the Quick Start for first-time installs: send examples with the generator's NIP (`jq` one-liners), export the variables, document `output/test-token.*`, how to reach the gateway from a containerized n8n, and that the alert workflow must be active.
 - Add an agent guide for deployment, gateway usage, n8n email notifications and post-deploy checks.

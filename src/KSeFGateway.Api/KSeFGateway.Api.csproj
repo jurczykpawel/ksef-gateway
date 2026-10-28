@@ -13,7 +13,7 @@
 
     <!-- OpenAPI (built-in on .NET 10) -->
     <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="10.0.14" />
-    <PackageReference Include="Scalar.AspNetCore" Version="2.18.3" />
+    <PackageReference Include="Scalar.AspNetCore" Version="2.18.5" />
 
     <!-- AWS Lambda hosting (no-op when not running on Lambda) -->
     <PackageReference Include="Amazon.Lambda.AspNetCoreServer.Hosting" Version="2.2.1" />

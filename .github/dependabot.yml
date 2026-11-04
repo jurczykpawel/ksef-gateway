@@ -1,7 +1,8 @@
 version: 2
-# Noise control: one PR per ecosystem and update kind. Patch updates are grouped and
-# auto-merged (dependabot-auto-merge.yml); minor updates are grouped into one PR for
-# review; majors stay individual PRs. Docker digest bumps of one base image across all
+# Noise control: one PR per ecosystem and update kind. Everything except majors (patch,
+# minor, Docker digests, submodule) is auto-merged once CI is green
+# (dependabot-auto-merge.yml); a failed CI pings the owner on the PR, and majors stay
+# individual PRs for review. Docker digest bumps of one base image across all
 # Dockerfiles arrive as one PR, and base-image majors are ignored (the runtime/LTS lines
 # are pinned deliberately and bumped by hand).
 updates:

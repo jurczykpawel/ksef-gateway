@@ -2,6 +2,9 @@
 
 ## [Unreleased]
 
+### Changed
+- Dependabot: every non-major update (patch, minor, Docker digest, submodule) now merges itself once CI is green; a red CI leaves one `@owner` comment on the PR instead of a silent open PR; majors stay for review. Removed `CODEOWNERS` (no branch protection used it; it only requested the owner's review on every PR and mailed them).
+
 ## [0.4.2] - 2026-10-28
 
 ### Changed

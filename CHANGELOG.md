@@ -3,6 +3,7 @@
 ## [Unreleased]
 
 ### Changed
+- PDF generator: follow upstream CIRFMF release 1.1.48 (was 1.1.46). Invoice PDFs now carry generator metadata (Producer = generator name and version, Creator); upstream also added a watermark for PEF invoices and UPO, which the gateway does not use. A test pins the metadata so a future upstream change is noticed.
 - Dependabot: every non-major update (patch, minor, Docker digest, submodule) now merges itself once CI is green; a red CI leaves one `@owner` comment on the PR instead of a silent open PR; majors stay for review. Removed `CODEOWNERS` (no branch protection used it; it only requested the owner's review on every PR and mailed them).
 
 ## [0.4.2] - 2026-10-28

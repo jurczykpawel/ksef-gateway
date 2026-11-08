@@ -113,3 +113,20 @@ describe("PDF content from real MF and upstream invoices", () => {
     expect(pdf.urls).toContain(`${host}/invoice/9999999999/15-02-2026/${hash}`);
   });
 });
+
+describe("PDF metadata from the upstream generator", () => {
+  it("names the generator and its version, in Polish, and never leaks a translation placeholder", async () => {
+    const libVersion = JSON.parse(readFileSync(new URL("../lib/package.json", import.meta.url), "utf8")).version;
+    const response = await request(server).post("/pdf/invoice").send({ xml: fixture("mf-fa3") });
+    expect(response.status).toBe(200);
+    const task = getDocument({ data: new Uint8Array(response.body), useSystemFonts: false });
+    try {
+      const info = (await (await task.promise).getMetadata()).info as { Creator?: string; Producer?: string };
+      expect(info.Producer).toMatch(new RegExp(`\\S/${libVersion.replaceAll(".", "\\.")}$`));
+      expect(info.Creator?.trim().length).toBeGreaterThan(0);
+      for (const value of [info.Creator, info.Producer]) expect(value).not.toContain("ExampleText");
+    } finally {
+      await task.destroy();
+    }
+  });
+});

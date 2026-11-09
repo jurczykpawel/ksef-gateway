@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## [0.4.3] - 2026-11-09
+
 ### Changed
 - KSeF SDK: follow upstream CIRFMF 2.9.0.1 (was 2.9.0), a maintenance release: NuGet dependencies updated to current stable versions, known vulnerabilities in transitive packages removed, QR label drawing moved to the current SkiaSharp API (the gateway does not call it), new `CertificateSerialNumber` validation pattern. The reflected route/signature manifest of the SDK is unchanged.
 - PDF generator: follow upstream CIRFMF release 1.1.48 (was 1.1.46). Invoice PDFs now carry generator metadata (Producer = generator name and version, Creator); upstream also added a watermark for PEF invoices and UPO, which the gateway does not use. A test pins the metadata so a future upstream change is noticed.

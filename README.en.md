@@ -302,7 +302,7 @@ bru run --env local
 
 ### Auto-discovered SDK Endpoints (low-level)
 
-Reflection discovers 64 methods in 14 groups in SDK 2.9.0. By default, 20 invoice sending/receiving methods are exposed as `POST /ksef/{group}/{method}`:
+Reflection discovers 64 methods in 14 groups in SDK 2.9.0.1. By default, 20 invoice sending/receiving methods are exposed as `POST /ksef/{group}/{method}`:
 
 | Group | Endpoints | Default | Description |
 |-------|-----------|---------|-------------|
@@ -323,7 +323,7 @@ Reflection discovers 64 methods in 14 groups in SDK 2.9.0. By default, 20 invoic
 
 `KSEF_SDK_ENDPOINTS`: unset, empty or `safe` selects the defaults above. `all` enables every method and logs a startup warning. A comma-separated list selects exactly the groups or individual methods, e.g. `online-session,invoice-download/get-invoice`. Names are case-sensitive; surrounding whitespace is ignored. Unknown names or invalid syntax stop startup with a list of available names. `safe` and `all` are standalone modes, not list entries.
 
-**BREAKING (v0.3.0):** if you used `ksef-token`, `permissions` (now four separate groups) or `certificate`, explicitly set `KSEF_SDK_ENDPOINTS=all` or select only the required groups/methods. These operations can create persistent KSeF access outside the gateway. `lighthouse` is absent from SDK 2.9.0 reflection; if a newer SDK adds it, it belongs to `safe`.
+**BREAKING (v0.3.0):** if you used `ksef-token`, `permissions` (now four separate groups) or `certificate`, explicitly set `KSEF_SDK_ENDPOINTS=all` or select only the required groups/methods. These operations can create persistent KSeF access outside the gateway. `lighthouse` is absent from SDK 2.9.0.1 reflection; if a newer SDK adds it, it belongs to `safe`.
 
 Hidden routes return 404 after passing authentication middleware and appear in neither `/openapi/v1.json` nor `/scalar/v1`. Gateway-owned endpoints (`/ksef/send`, `/ksef/send/json`, `/ksef/invoice`, `/ksef/invoice/{ksefNumber}` and `/pdf`, `/ksef/invoices/*`, `/ksef/status`, `/ksef/contexts`) and internal authentication always work independently of this setting. `/health` returns only `{"status":"ok"}`. API-key-protected `/ksef/status` reports environment, authentication state, `exposedEndpoints` and `discoveredEndpoints`; startup logs report both counts too.
 
@@ -333,7 +333,7 @@ Interactive documentation of exposed routes is available at `/scalar/v1`.
 
 ### Updating the SDK
 
-The contract of all 64 discovered SDK 2.9.0 routes (including those hidden by `KSEF_SDK_ENDPOINTS`) is stored in `src/KSeFGateway.Api.Tests/Discovery/sdk-contract.approved.json`. `SdkContract_MatchesApprovedManifest` compares routes, argument names and types, argument order and defaults, and return types against reflection. When updating the pinned SDK, run the tests; a mismatch writes `sdk-contract.actual.json` to the test output directory (`bin/Release/net10.0`). Compare the files, review API compatibility, explicitly replace the approved manifest with the generated file, document the change in CHANGELOG, and rerun tests. For Docker tests, retain the container (omit `--rm`) to retrieve the file with `docker cp`.
+The contract of all 64 discovered SDK 2.9.0.1 routes (including those hidden by `KSEF_SDK_ENDPOINTS`) is stored in `src/KSeFGateway.Api.Tests/Discovery/sdk-contract.approved.json`. `SdkContract_MatchesApprovedManifest` compares routes, argument names and types, argument order and defaults, and return types against reflection. When updating the pinned SDK, run the tests; a mismatch writes `sdk-contract.actual.json` to the test output directory (`bin/Release/net10.0`). Compare the files, review API compatibility, explicitly replace the approved manifest with the generated file, document the change in CHANGELOG, and rerun tests. For Docker tests, retain the container (omit `--rm`) to retrieve the file with `docker cp`.
 
 JSON bodies also work with chunked transfer. Missing required arguments (including explicit `null`) return 400 with the argument name; malformed JSON or an invalid argument type also returns 400. Supply arguments under their SDK names; the entire body can replace an argument only for a method with exactly one composite business parameter. Optional parameters retain SDK defaults.
 

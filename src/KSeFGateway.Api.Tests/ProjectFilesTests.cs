@@ -49,7 +49,7 @@ public class ProjectFilesTests
                 Assert.False(File.ReadAllText(path).Contains(value), $"{Path.GetRelativePath(root, path)} contains {value}");
 
         var notices = File.ReadAllText(Path.Combine(root, "THIRD_PARTY_NOTICES.md"));
-        var packages = new[] { "ksef.client.2.9.0.nupkg", "ksef.client.clientfactory.2.9.0.nupkg", "ksef.client.core.2.9.0.nupkg" };
+        var packages = new[] { "ksef.client.2.9.0.1.nupkg", "ksef.client.clientfactory.2.9.0.1.nupkg", "ksef.client.core.2.9.0.1.nupkg" };
         foreach (var package in packages)
         {
             var match = Regex.Match(notices, $@"(?m)^([a-f0-9]{{64}})  {Regex.Escape(package)}$");

@@ -8,8 +8,8 @@
 
   <ItemGroup>
     <!-- CIRFMF Official KSeF SDK (GitHub Packages) -->
-    <PackageReference Include="KSeF.Client" Version="2.9.0" />
-    <PackageReference Include="KSeF.Client.ClientFactory" Version="2.9.0" />
+    <PackageReference Include="KSeF.Client" Version="2.9.0.1" />
+    <PackageReference Include="KSeF.Client.ClientFactory" Version="2.9.0.1" />
 
     <!-- OpenAPI (built-in on .NET 10) -->
     <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="10.0.14" />

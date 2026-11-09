@@ -354,7 +354,7 @@ bru run --env local
 
 ### Automatycznie odkryte endpointy SDK (niskopoziomowe)
 
-Refleksja odkrywa 64 metody SDK 2.9.0 w 14 grupach. Domyślnie wystawiamy 20 metod potrzebnych do fakturowania i odbioru jako `POST /ksef/{grupa}/{metoda}`:
+Refleksja odkrywa 64 metody SDK 2.9.0.1 w 14 grupach. Domyślnie wystawiamy 20 metod potrzebnych do fakturowania i odbioru jako `POST /ksef/{grupa}/{metoda}`:
 
 | Grupa | Endpointy | Domyślnie | Opis |
 |-------|-----------|-----------|------|
@@ -375,7 +375,7 @@ Refleksja odkrywa 64 metody SDK 2.9.0 w 14 grupach. Domyślnie wystawiamy 20 met
 
 `KSEF_SDK_ENDPOINTS`: brak, pusta wartość lub `safe` oznacza powyższy zestaw domyślny. `all` włącza wszystkie metody i wypisuje ostrzeżenie przy starcie. Lista po przecinku wybiera dokładnie grupy lub pojedyncze metody, np. `online-session,invoice-download/get-invoice`. Nazwy rozróżniają wielkość liter; spacje wokół wpisów są ignorowane. Nieznana nazwa albo błędna składnia zatrzymuje start z listą dostępnych nazw. `safe` i `all` to samodzielne tryby, nie elementy listy.
 
-**BREAKING (v0.3.0):** jeśli używałeś `ksef-token`, `permissions` (obecnie cztery osobne grupy) lub `certificate`, świadomie ustaw `KSEF_SDK_ENDPOINTS=all` albo wybierz tylko potrzebne grupy/metody. Te operacje mogą tworzyć trwały dostęp do KSeF poza bramką. `lighthouse` nie występuje w refleksji SDK 2.9.0; jeśli pojawi się w nowszym SDK, należy do zestawu `safe`.
+**BREAKING (v0.3.0):** jeśli używałeś `ksef-token`, `permissions` (obecnie cztery osobne grupy) lub `certificate`, świadomie ustaw `KSEF_SDK_ENDPOINTS=all` albo wybierz tylko potrzebne grupy/metody. Te operacje mogą tworzyć trwały dostęp do KSeF poza bramką. `lighthouse` nie występuje w refleksji SDK 2.9.0.1; jeśli pojawi się w nowszym SDK, należy do zestawu `safe`.
 
 Ukryte trasy zwracają 404 po przejściu middleware uwierzytelniania i nie występują w `/openapi/v1.json` ani `/scalar/v1`. Własne endpointy (`/ksef/send`, `/ksef/send/json`, `/ksef/invoice`, `/ksef/invoice/{ksefNumber}` i `/pdf`, `/ksef/invoices/*`, `/ksef/status`, `/ksef/contexts`) oraz uwierzytelnianie wewnętrzne zawsze działają niezależnie od tej zmiennej. `/health` zwraca wyłącznie `{"status":"ok"}`. Chronione kluczem `/ksef/status` podaje środowisko, stan uwierzytelnienia, `exposedEndpoints` i `discoveredEndpoints`; obie liczby trafiają też do logu startowego.
 
@@ -385,7 +385,7 @@ Interaktywna dokumentacja wystawionych tras pod `/scalar/v1`.
 
 ### Aktualizacja SDK
 
-Kontrakt wszystkich 64 odkrytych tras SDK 2.9.0 (także ukrytych przez `KSEF_SDK_ENDPOINTS`) zapisano w `src/KSeFGateway.Api.Tests/Discovery/sdk-contract.approved.json`. Test `SdkContract_MatchesApprovedManifest` porównuje trasy, nazwy i typy argumentów, ich kolejność i wartości domyślne oraz typy zwrotne z wynikiem refleksji. Przy aktualizacji przypiętego SDK uruchom testy; różnica zapisuje `sdk-contract.actual.json` w katalogu wynikowym testów (`bin/Release/net10.0`). Porównaj pliki, oceń zgodność API, świadomie zastąp manifest zatwierdzony plikiem wygenerowanym, opisz zmianę w CHANGELOG i ponownie uruchom testy. Przy testach w Dockerze zachowaj kontener (bez `--rm`), aby skopiować plik przez `docker cp`.
+Kontrakt wszystkich 64 odkrytych tras SDK 2.9.0.1 (także ukrytych przez `KSEF_SDK_ENDPOINTS`) zapisano w `src/KSeFGateway.Api.Tests/Discovery/sdk-contract.approved.json`. Test `SdkContract_MatchesApprovedManifest` porównuje trasy, nazwy i typy argumentów, ich kolejność i wartości domyślne oraz typy zwrotne z wynikiem refleksji. Przy aktualizacji przypiętego SDK uruchom testy; różnica zapisuje `sdk-contract.actual.json` w katalogu wynikowym testów (`bin/Release/net10.0`). Porównaj pliki, oceń zgodność API, świadomie zastąp manifest zatwierdzony plikiem wygenerowanym, opisz zmianę w CHANGELOG i ponownie uruchom testy. Przy testach w Dockerze zachowaj kontener (bez `--rm`), aby skopiować plik przez `docker cp`.
 
 Body JSON działa również przy transferze chunked. Brak wymaganego argumentu (także jawne `null`) zwraca 400 z jego nazwą; nieprawidłowy JSON lub typ argumentu również zwraca 400. Argumenty podawaj pod ich nazwami SDK; całe body może zastąpić argument tylko dla metody z dokładnie jednym złożonym parametrem biznesowym. Parametry opcjonalne zachowują wartości domyślne SDK.
 

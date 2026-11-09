@@ -98,7 +98,7 @@ in each monitored workflow's Settings. See the n8n README for setup and alert co
 - `tools/InvoiceDemo/` - E2E invoice send demo
 
 ## SDK
-The MIT-licensed CIRFMF SDK 2.9.0 is included in `vendor/nuget`; no GitHub account or token is required.
+The MIT-licensed CIRFMF SDK 2.9.0.1 is included in `vendor/nuget`; no GitHub account or token is required.
 `nuget.config` in `src/KSeFGateway.Api/` and `tools/*/` configures the source.
 
 ## Build

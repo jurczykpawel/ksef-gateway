@@ -63,6 +63,8 @@ The class fixture shares one self-invoice between XML/PDF and seller/buyer list 
 
 **Red nightly with `502 … 21165` on downloads is usually a KSeF TEST outage, not a gateway bug:** KSeF accepted the invoice but did not publish it for download (it happened on 2026-11-07/08 and recovered on its own with unchanged code). Tell outage from regression by re-downloading the same KSeF number once (downloads are limited to roughly 64 per hour per NIP) and checking that the last green nightly ran the same commit. Do not weaken the tests or add dense polling; it hides the outage and burns the download quota.
 
+**Production rollout.** Pushing a `v*` release tag (without a `-` suffix) makes `docker-publish.yml` run `deploy-prod` after tests, smoke, signing and SBOMs: it calls the Render deploy hooks of the production services with the exact signed digests, then waits for `/health`. The job lives in the GitHub environment `production` (tags `v*` only; secrets `RENDER_HOOK_API`, `RENDER_HOOK_PDF`, variable `PROD_HEALTH_URL`). `/health` has no version field, so the wait proves liveness, not which digest serves; Render keeps the previous instance if the new one fails its health check.
+
 ### Foreign buyers and line discounts (live TEST)
 
 These four scenarios are tagged `Cadence=Nightly`: they share KSeF TEST's small hourly session quota, so `git push`, CI and `scripts/test-full.sh` skip them and the nightly workflow (`regression-nightly.yml`, 02:17 UTC, also runnable via *Run workflow*) runs them. Run them locally with `INCLUDE_NIGHTLY=1 scripts/test-full.sh` or the command below.

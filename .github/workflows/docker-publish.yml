@@ -289,3 +289,49 @@ jobs:
             gh release create "$TAG" --verify-tag --draft --title "$TAG" --notes "Container SBOMs and signed image digests."
           fi
           gh release upload "$TAG" sbom/* --clobber
+
+  # Roll the tested, signed release digests out to the production services on Render.
+  # Production services run image-backed (no Render auto-deploy), so a deploy hook with
+  # imgURL is the only trigger. Render itself keeps the previous instance serving when a
+  # new one fails its health check, so there is no rollback logic here. Skipped for
+  # pre-release tags (v1.0.0-rc.1) and when the production secrets are absent (forks).
+  deploy-prod:
+    name: Deploy release to production (Render)
+    if: startsWith(github.ref, 'refs/tags/v') && !contains(github.ref_name, '-')
+    needs: [build-api, build-pdf, sign, promote, release-sboms]
+    runs-on: ubuntu-latest
+    environment: production
+    concurrency:
+      group: deploy-prod
+      cancel-in-progress: false
+    permissions:
+      contents: read
+    steps:
+      - name: Trigger deploys (PDF first, then API) and wait for liveness
+        env:
+          HOOK_PDF: ${{ secrets.RENDER_HOOK_PDF }}
+          HOOK_API: ${{ secrets.RENDER_HOOK_API }}
+          PDF_IMAGE: ${{ env.REGISTRY }}/jurczykpawel/ksef-gateway-pdf@${{ needs.build-pdf.outputs.digest }}
+          API_IMAGE: ${{ env.REGISTRY }}/jurczykpawel/ksef-gateway-api@${{ needs.build-api.outputs.digest }}
+          HEALTH_URL: ${{ vars.PROD_HEALTH_URL }}
+        run: |
+          set -euo pipefail
+          [ -n "$HOOK_PDF" ] && [ -n "$HOOK_API" ] || { echo "::error::RENDER_HOOK_PDF / RENDER_HOOK_API are not configured"; exit 1; }
+          trigger() {
+            local hook="$1" image="$2" name="$3" url code
+            url="${hook}&imgURL=$(printf '%s' "$image" | jq -sRr @uri)"
+            echo "::add-mask::$url"
+            code=$(curl -sS -o /dev/null -w '%{http_code}' -X POST "$url")
+            echo "$name deploy hook -> HTTP $code ($image)"
+            [ "$code" -ge 200 ] && [ "$code" -lt 300 ] || { echo "::error::$name deploy hook failed"; exit 1; }
+          }
+          trigger "$HOOK_PDF" "$PDF_IMAGE" pdf
+          trigger "$HOOK_API" "$API_IMAGE" api
+          # Liveness only: /health does not report a version, so this proves the service is
+          # up after the rollout, not which digest serves. Up to 10 minutes (free-plan cold start).
+          for i in $(seq 1 60); do
+            code=$(curl -s -o /dev/null -w '%{http_code}' --max-time 15 "$HEALTH_URL" || true)
+            [ "$code" = 200 ] && { echo "production /health is 200 after ~$((i*10))s"; exit 0; }
+            sleep 10
+          done
+          echo "::error::production /health did not return 200 within 10 minutes"; exit 1

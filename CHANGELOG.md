@@ -2,6 +2,9 @@
 
 ## [Unreleased]
 
+### Changed
+- Release workflow: after a `v*` tag passes tests, smoke and signing, the production services are rolled out automatically to the same signed image digests through Render deploy hooks (GitHub environment `production`).
+
 ## [0.4.3] - 2026-11-09
 
 ### Changed

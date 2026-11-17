@@ -192,7 +192,8 @@ public class ClientApiKeyTests
         var helper = typeof(ApiKeyMiddleware).Assembly.GetType("KSeFGateway.Api.Middleware.SecretComparison")!
             .GetMethod("ConstantTimeEquals")!;
         Assert.True(Calls(method!, helper), "Client hashes must use SecretComparison.ConstantTimeEquals");
-        Assert.True(Calls(helper, typeof(CryptographicOperations).GetMethod("FixedTimeEquals")!),
+        Assert.True(Calls(helper, typeof(CryptographicOperations).GetMethods().Single(m => m.Name == "FixedTimeEquals" && !m.IsGenericMethod
+                && m.GetParameters().Select(p => p.ParameterType).SequenceEqual(new[] { typeof(ReadOnlySpan<byte>), typeof(ReadOnlySpan<byte>) }))),
             "SecretComparison must use CryptographicOperations.FixedTimeEquals");
     }
 

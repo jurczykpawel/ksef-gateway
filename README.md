@@ -962,7 +962,7 @@ Zaawansowana konfiguracja: `GATEWAY_LICENSE_JWKS_URL` i `GATEWAY_LICENSE_REVOCAT
 docker compose up
        |
   ksef-api:8080            ksef-pdf:3000
-  (ASP.NET 10)              (Node.js + tsx)
+  (ASP.NET 11)              (Node.js + tsx)
        |                        |
   CIRFMF C# SDK           CIRFMF ksef-pdf-generator
   (NuGet, GitHub Pkgs)     (submoduł git)
@@ -999,7 +999,7 @@ Dwa kontenery, bez bazy danych, bez Redis. Stan autoryzacji w pamięci (restart 
 
 | Technologia | Rola |
 |------------|------|
-| [ASP.NET 10 Minimal API](https://learn.microsoft.com/en-us/aspnet/core/fundamentals/minimal-apis) | Warstwa HTTP usługi |
+| [ASP.NET 11 Minimal API](https://learn.microsoft.com/en-us/aspnet/core/fundamentals/minimal-apis) | Warstwa HTTP usługi |
 | [CIRFMF KSeF.Client](https://github.com/CIRFMF/ksef-client-csharp) | Oficjalne SDK KSeF (Ministerstwo Finansów) |
 | [CIRFMF ksef-pdf-generator](https://github.com/CIRFMF/ksef-pdf-generator) | Oficjalne generowanie PDF z XML FA(3) |
 | [xml-js](https://www.npmjs.com/package/xml-js) | Dwukierunkowa konwersja JSON/XML |

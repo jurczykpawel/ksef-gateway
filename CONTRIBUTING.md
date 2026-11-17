@@ -7,7 +7,7 @@ Thanks for your interest in contributing!
 ### Prerequisites
 
 - Docker & Docker Compose
-- Optionally: .NET 10 SDK (for local development without Docker)
+- Optionally: .NET 11 SDK (for local development without Docker)
 
 ### Running locally
 

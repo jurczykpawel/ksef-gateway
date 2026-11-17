@@ -3,6 +3,7 @@
 ## [Unreleased]
 
 ### Changed
+- .NET 11: the API, tests and tools target `net11.0`; Docker images use the .NET 11 SDK and ASP.NET runtime; CI uses the .NET 11 SDK; `Microsoft.AspNetCore.OpenApi`, `Mvc.Testing` and `TestHost` are 11.0.0. The AWS Lambda image keeps building the same code for `net10.0` (AWS has no .NET 11 Lambda base image yet). .NET 11 adds an overload of `CryptographicOperations.FixedTimeEquals`; the reflection test now selects the byte-span overload explicitly.
 - Dependabot: the base-image major ignore rule is gone (we follow upstream); majors and PRs that edit workflow files are no longer pinged to the owner, the maintaining agent tests and merges them. Updates: `System.Security.Cryptography.Pkcs`/`.Xml` 11.0.0 (all projects), `Scalar.AspNetCore` 3.0.1, Docker base-image digests, `trufflehog` 3.99.9, `i18next` 27.
 - Landing: TypeScript 7.0.2 (was 6). `@astrojs/check` and the `check` script are removed: `astro check` refuses TypeScript 7 and nothing ran it in CI. Type-checking `.astro` files returns through `@astrojs/ts-content-mapper` once TypeScript 7.1 is stable. Clean `npm ci`, audit and build pass.
 - Test project and InvoiceDemo: `System.Security.Cryptography.Pkcs` and `.Xml` 11.0.0 (were 10.0.15). 801 unit tests pass and the tool builds.

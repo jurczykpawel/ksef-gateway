@@ -133,7 +133,7 @@ docker run --rm \
   -v "$REPO_ROOT/README.md:/docs/README.md:ro" \
   -v "$REPO_ROOT/README.en.md:/docs/README.en.md:ro" \
   -v "$REPO_ROOT/examples:/docs/examples:ro" \
-  mcr.microsoft.com/dotnet/sdk:10.0 \
+  mcr.microsoft.com/dotnet/sdk:11.0 \
   bash -c "
     set -euo pipefail
     cd /src

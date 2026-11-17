@@ -1,7 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk.Web">
 
   <PropertyGroup>
-    <TargetFramework>net10.0</TargetFramework>
+    <TargetFramework>net11.0</TargetFramework>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
   </PropertyGroup>
@@ -12,7 +12,10 @@
     <PackageReference Include="KSeF.Client.ClientFactory" Version="2.9.0.1" />
 
     <!-- OpenAPI (built-in on .NET 10) -->
-    <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="10.0.15" />
+    <!-- 11.x on .NET 11; the AWS Lambda image builds with -p:TargetFramework=net10.0 (no .NET 11
+         Lambda base image yet), which needs the 10.x package. -->
+    <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="11.0.0" Condition="'$(TargetFramework)' == 'net11.0'" />
+    <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="10.0.15" Condition="'$(TargetFramework)' == 'net10.0'" />
     <PackageReference Include="Scalar.AspNetCore" Version="3.0.1" />
 
     <!-- AWS Lambda hosting (no-op when not running on Lambda) -->

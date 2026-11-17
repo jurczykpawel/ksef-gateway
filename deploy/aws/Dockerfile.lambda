@@ -1,14 +1,16 @@
-FROM mcr.microsoft.com/dotnet/sdk:10.0@sha256:fe0fd4e93bd2fbb47c883b7a6369e5c8d3db8bf01cdc5981f6ee35fbdf3ff4fb AS build
+FROM mcr.microsoft.com/dotnet/sdk:11.0@sha256:65f3c7c6a25a239ab3e6719f2896147e7b68242ff2d8818dd70498bde6ef8bea AS build
 WORKDIR /src
 
 COPY vendor/nuget/ /vendor/nuget/
 COPY src/nuget.config ./nuget.config
 COPY src/KSeFGateway.Api/KSeFGateway.Api.csproj KSeFGateway.Api/
-RUN dotnet restore KSeFGateway.Api/KSeFGateway.Api.csproj --configfile nuget.config
+# The Lambda base image is still .NET 10 (no .NET 11 image from AWS yet), so this image
+# builds the same code for net10.0 while the other images and the tests use net11.0.
+RUN dotnet restore KSeFGateway.Api/KSeFGateway.Api.csproj --configfile nuget.config -p:TargetFramework=net10.0
 
 COPY src/KSeFGateway.Api/ KSeFGateway.Api/
 RUN dotnet publish KSeFGateway.Api/KSeFGateway.Api.csproj \
-    -c Release -o /app/publish --no-restore
+    -c Release -o /app/publish --no-restore -p:TargetFramework=net10.0
 
 FROM public.ecr.aws/lambda/dotnet:10@sha256:e9261e09a3d05c875458e6bb22a2ad6fbfc731b08b07ebae6aa9fed9362bf8f1 AS runtime
 COPY --from=build /app/publish ${LAMBDA_TASK_ROOT}

@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## [0.4.4] - 2026-11-17
+
 ### Changed
 - .NET 11: the API, tests and tools target `net11.0`; Docker images use the .NET 11 SDK and ASP.NET runtime; CI uses the .NET 11 SDK; `Microsoft.AspNetCore.OpenApi`, `Mvc.Testing` and `TestHost` are 11.0.0. The AWS Lambda image keeps building the same code for `net10.0` (AWS has no .NET 11 Lambda base image yet). .NET 11 adds an overload of `CryptographicOperations.FixedTimeEquals`; the reflection test now selects the byte-span overload explicitly.
 - Dependabot: the base-image major ignore rule is gone (we follow upstream); majors and PRs that edit workflow files are no longer pinged to the owner, the maintaining agent tests and merges them. Updates: `System.Security.Cryptography.Pkcs`/`.Xml` 11.0.0 (all projects), `Scalar.AspNetCore` 3.0.1, Docker base-image digests, `trufflehog` 3.99.9, `i18next` 27.

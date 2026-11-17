@@ -16,6 +16,15 @@ updates:
     schedule:
       interval: weekly
     open-pull-requests-limit: 3
+    # The projects target .NET 10 LTS; the Microsoft/System packages move to 11.x with the
+    # .NET 11 release train, so those majors wait for a deliberate runtime migration.
+    ignore:
+      - dependency-name: "Microsoft.AspNetCore.*"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "Microsoft.Extensions.*"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "System.*"
+        update-types: ["version-update:semver-major"]
     groups:
       compatible-patches:
         update-types: [patch]

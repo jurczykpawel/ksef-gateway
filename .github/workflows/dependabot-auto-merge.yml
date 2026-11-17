@@ -22,6 +22,12 @@ jobs:
         # repo does not use (it failed with a red job on every patch PR and mailed the
         # owner). Wait for the other checks ourselves and merge only when all are green.
         run: |
+          # GitHub refuses to let the workflow token merge a PR that edits workflow files
+          # (`workflows` permission); that PR needs a human, so say so once instead of failing.
+          if gh pr diff "$PR_URL" --name-only | grep -q '^\.github/workflows/'; then
+            gh pr comment "$PR_URL" --body "@${OWNER} This update changes workflow files, which the workflow token is not allowed to merge. Merge it by hand once CI is green."
+            exit 0
+          fi
           sleep 90  # let the other workflows register their checks
           for _ in $(seq 1 90); do
             rollup=$(gh pr view "$PR_URL" --json statusCheckRollup -q \

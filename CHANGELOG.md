@@ -3,6 +3,7 @@
 ## [Unreleased]
 
 ### Changed
+- CI: Dependabot PRs now run the .NET build with unit tests and the Docker image builds before the self-merge (they were skipped, so NuGet and base-image updates merged unchecked); an update that edits workflow files gets one `@owner` comment instead of a failed merge. Dependabot ignores NuGet majors of the Microsoft/System packages (the .NET 11 train) while the projects target .NET 10 LTS.
 - Release workflow: after a `v*` tag passes tests, smoke and signing, the production services are rolled out automatically to the same signed image digests through Render deploy hooks; the services follow the `latest` image tag, so a manual redeploy in Render cannot roll production back (GitHub environment `production`).
 
 ## [0.4.3] - 2026-11-09

@@ -1,10 +1,9 @@
 version: 2
-# Noise control: one PR per ecosystem and update kind. Everything except majors (patch,
-# minor, Docker digests, submodule) is auto-merged once CI is green
-# (dependabot-auto-merge.yml); a failed CI pings the owner on the PR, and majors stay
-# individual PRs for review. Docker digest bumps of one base image across all
-# Dockerfiles arrive as one PR, and base-image majors are ignored (the runtime/LTS lines
-# are pinned deliberately and bumped by hand).
+# Noise control: one PR per ecosystem and update kind. Patch, minor, Docker digests and
+# submodule bumps are auto-merged once CI is green (dependabot-auto-merge.yml); a failed CI
+# pings the owner on the PR. Majors and PRs that edit workflow files stay open for the
+# maintaining agent to test and merge. Nothing is ignored: we follow upstream. Docker digest
+# bumps of one base image across all Dockerfiles arrive as one PR.
 updates:
   - package-ecosystem: nuget
     directories:
@@ -65,9 +64,6 @@ updates:
     groups:
       base-images:
         patterns: ["*"]
-    ignore:
-      - dependency-name: "*"
-        update-types: ["version-update:semver-major"]
   - package-ecosystem: gitsubmodule
     directory: /
     schedule:

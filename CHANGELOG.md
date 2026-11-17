@@ -3,6 +3,7 @@
 ## [Unreleased]
 
 ### Changed
+- Dependabot: the base-image major ignore rule is gone (we follow upstream); majors and PRs that edit workflow files are no longer pinged to the owner, the maintaining agent tests and merges them. Updates: `System.Security.Cryptography.Pkcs`/`.Xml` 11.0.0 (all projects), `Scalar.AspNetCore` 3.0.1, Docker base-image digests, `trufflehog` 3.99.9, `i18next` 27.
 - Landing: TypeScript 7.0.2 (was 6). `@astrojs/check` and the `check` script are removed: `astro check` refuses TypeScript 7 and nothing ran it in CI. Type-checking `.astro` files returns through `@astrojs/ts-content-mapper` once TypeScript 7.1 is stable. Clean `npm ci`, audit and build pass.
 - Test project and InvoiceDemo: `System.Security.Cryptography.Pkcs` and `.Xml` 11.0.0 (were 10.0.15). 801 unit tests pass and the tool builds.
 - CI: Dependabot PRs now run the .NET build with unit tests and the Docker image builds before the self-merge (they were skipped, so NuGet and base-image updates merged unchecked); an update that edits workflow files gets one `@owner` comment instead of a failed merge.

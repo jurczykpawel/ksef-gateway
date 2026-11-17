@@ -3,6 +3,7 @@
 ## [Unreleased]
 
 ### Changed
+- Landing: TypeScript 7.0.2 (was 6). `@astrojs/check` and the `check` script are removed: `astro check` refuses TypeScript 7 and nothing ran it in CI. Type-checking `.astro` files returns through `@astrojs/ts-content-mapper` once TypeScript 7.1 is stable. Clean `npm ci`, audit and build pass.
 - Test project and InvoiceDemo: `System.Security.Cryptography.Pkcs` and `.Xml` 11.0.0 (were 10.0.15). 801 unit tests pass and the tool builds.
 - CI: Dependabot PRs now run the .NET build with unit tests and the Docker image builds before the self-merge (they were skipped, so NuGet and base-image updates merged unchecked); an update that edits workflow files gets one `@owner` comment instead of a failed merge.
 - Release workflow: after a `v*` tag passes tests, smoke and signing, the production services are rolled out automatically to the same signed image digests through Render deploy hooks; the services follow the `latest` image tag, so a manual redeploy in Render cannot roll production back (GitHub environment `production`).

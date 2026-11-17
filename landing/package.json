@@ -3,12 +3,11 @@
   "type": "module",
   "version": "0.1.0",
   "private": true,
-  "description": "KSeF Gateway — marketing landing page. Static Astro, deploys to Cloudflare Pages.",
+  "description": "KSeF Gateway \u2014 marketing landing page. Static Astro, deploys to Cloudflare Pages.",
   "scripts": {
     "dev": "astro dev --port 4340",
     "build": "astro build",
-    "preview": "astro preview --port 4340",
-    "check": "astro check"
+    "preview": "astro preview --port 4340"
   },
   "dependencies": {
     "@astrojs/sitemap": "^3.7.5",
@@ -21,7 +20,6 @@
     "tailwindcss": "^4.3.3"
   },
   "devDependencies": {
-    "@astrojs/check": "^0.9.12",
-    "typescript": "^6.0.3"
+    "typescript": "^7.0.2"
   }
 }

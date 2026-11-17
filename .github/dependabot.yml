@@ -41,12 +41,6 @@ updates:
         update-types: [patch]
       compatible-minors:
         update-types: [minor]
-    ignore:
-      # Muted until Astro supports it: `astro check` (@astrojs/check 0.9.12, latest) refuses
-      # TypeScript 7 and `npm ci` fails on its peer range. Revisit when @astrojs/check
-      # accepts ^7 or the TS 7.1 + @astrojs/ts-content-mapper path is stable (issue #181).
-      - dependency-name: typescript
-        update-types: ["version-update:semver-major"]
   - package-ecosystem: github-actions
     directory: /
     schedule:

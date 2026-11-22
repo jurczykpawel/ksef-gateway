@@ -134,7 +134,8 @@ static string GenerateRandomNip()
             sum += digits[i] * weights[i];
 
         digits[9] = sum % 11;
-    } while (digits[9] == 10); // checksum digit must be 0-9
+    } while (digits[9] == 10 // checksum digit must be 0-9
+             || (digits[1] == 0 && digits[2] == 0)); // the SDK/KSeF NIP pattern rejects 2nd and 3rd digit both 0
 
     return string.Join("", digits);
 }

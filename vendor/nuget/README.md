@@ -1,6 +1,6 @@
-KSeF.Client, KSeF.Client.ClientFactory and KSeF.Client.Core 2.9.0.1, from https://nuget.pkg.github.com/CIRFMF/index.json; MIT (see THIRD_PARTY_NOTICES.md).
+KSeF.Client, KSeF.Client.ClientFactory and KSeF.Client.Core 2.10.0, from https://nuget.pkg.github.com/CIRFMF/index.json; MIT (see THIRD_PARTY_NOTICES.md).
 SHA-256:
-1f02fd9cf5440d3eff718dcdff615598f2bd0535d1c721bfe00f7740f591e72f  ksef.client.core.2.9.0.1.nupkg
-f1cf030d7e4743ab4dd7c4885edbf851d7f50ec2d5ba00c4933d0fa509826b0f  ksef.client.2.9.0.1.nupkg
-7dbb88ec62fb05263955b091726859cd1e4b835c45f757664cb2b72e152598fb  ksef.client.clientfactory.2.9.0.1.nupkg
+9a6beb401c4245d83eaaf0f32c21159abf82d39d27d5045b39be78eab869286f  ksef.client.core.2.10.0.nupkg
+6214f1b740d1a7c5bf958dfa42c1ac2324ff747619a963873ef2f2097a6f0edb  ksef.client.2.10.0.nupkg
+2db8a91872448c54a8c266c9e4fd8a7a1e30a6a6c1ec6f2171d98cf9c62c9ba3  ksef.client.clientfactory.2.10.0.nupkg
 To update: download from the CIRFMF feed using any read:packages token, compare with the tag in CIRFMF/ksef-client-csharp, replace packages and checksums here and in THIRD_PARTY_NOTICES.md, and update the approved SDK manifest in tests.

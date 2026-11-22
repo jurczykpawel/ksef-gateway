@@ -8,7 +8,7 @@ release SBOMs identify the actual resolved dependencies and versions.
 | Component | License | Source |
 | --- | --- | --- |
 | CIRFMF ksef-pdf-generator | MIT (original LICENSE, despite ISC in package.json) | https://github.com/CIRFMF/ksef-pdf-generator |
-| KSeF.Client / KSeF.Client.ClientFactory / KSeF.Client.Core 2.9.0.1 | MIT | https://github.com/CIRFMF/ksef-client-csharp/tree/2.9.0.1 |
+| KSeF.Client / KSeF.Client.ClientFactory / KSeF.Client.Core 2.10.0 | MIT | https://github.com/CIRFMF/ksef-client-csharp/tree/2.10.0 |
 | .NET / ASP.NET Core, Microsoft.AspNetCore.OpenApi | MIT | https://github.com/dotnet/aspnetcore |
 | Scalar.AspNetCore | MIT | https://github.com/scalar/scalar |
 | Amazon.Lambda.AspNetCoreServer.Hosting | Apache-2.0 | https://github.com/aws/aws-lambda-dotnet |
@@ -52,7 +52,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 ```
 
-## KSeF.Client SDK 2.9.0.1 — original LICENCE.txt (MIT)
+## KSeF.Client SDK 2.10.0 — original LICENCE.txt (MIT)
 
 ```text
 Copyright (c) 2025 Ministerstwo Finansów
@@ -65,7 +65,7 @@ THE SOFTWARE IS PROVIDED “AS IS”, WITHOUT WARRANTY OF ANY KIND, EXPRESS OR I
 ## Vendored KSeF SDK package SHA-256
 
 ```text
-1f02fd9cf5440d3eff718dcdff615598f2bd0535d1c721bfe00f7740f591e72f  ksef.client.core.2.9.0.1.nupkg
-f1cf030d7e4743ab4dd7c4885edbf851d7f50ec2d5ba00c4933d0fa509826b0f  ksef.client.2.9.0.1.nupkg
-7dbb88ec62fb05263955b091726859cd1e4b835c45f757664cb2b72e152598fb  ksef.client.clientfactory.2.9.0.1.nupkg
+9a6beb401c4245d83eaaf0f32c21159abf82d39d27d5045b39be78eab869286f  ksef.client.core.2.10.0.nupkg
+6214f1b740d1a7c5bf958dfa42c1ac2324ff747619a963873ef2f2097a6f0edb  ksef.client.2.10.0.nupkg
+2db8a91872448c54a8c266c9e4fd8a7a1e30a6a6c1ec6f2171d98cf9c62c9ba3  ksef.client.clientfactory.2.10.0.nupkg
 ```

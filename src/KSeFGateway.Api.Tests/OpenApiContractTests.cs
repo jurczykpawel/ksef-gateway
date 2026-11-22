@@ -57,7 +57,7 @@ public class OpenApiContractTests
         Assert.True((discount.TryGetProperty("nullable", out var nullable) ? nullable : numeric.GetProperty("nullable")).GetBoolean(), discount.GetRawText());
         Assert.DoesNotContain(item.GetProperty("required").EnumerateArray(), p => p.GetString() == "discount");
         var paths = document.RootElement.GetProperty("paths");
-        Assert.Equal(74, paths.EnumerateObject().Count());
+        Assert.Equal(80, paths.EnumerateObject().Count());
         foreach (var route in new[] { "/ksef/invoices/received", "/ksef/invoices/issued" })
         {
             var parameters = paths.GetProperty(route).GetProperty("get").GetProperty("parameters");

@@ -35,7 +35,7 @@ public class SdkEndpointPolicyTests(ITestOutputHelper output)
     {
         foreach (var group in _all.GroupBy(e => e.GroupName).OrderBy(g => g.Key))
             output.WriteLine($"{group.Key} ({group.Count()}): {string.Join(", ", group.Select(e => e.MethodName))}");
-        Assert.Equal(64, _all.Count);
+        Assert.Equal(70, _all.Count);
         Assert.Equal(14, _all.Select(e => e.GroupName).Distinct().Count());
         Assert.Equal(_all, SdkEndpointPolicy.Select(_all, " all "));
     }

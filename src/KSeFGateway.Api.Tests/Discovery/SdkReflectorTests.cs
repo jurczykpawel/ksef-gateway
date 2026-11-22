@@ -19,9 +19,9 @@ public class SdkReflectorTests
     }
 
     [Fact]
-    public void DiscoverEndpoints_PreservesSdk290Surface()
+    public void DiscoverEndpoints_PreservesSdkSurface()
     {
-        Assert.Equal(64, _endpoints.Count);
+        Assert.Equal(70, _endpoints.Count);
         var groups = _endpoints.Select(e => e.GroupName).Distinct().OrderBy(name => name).ToArray();
         Assert.Equal(new[]
         {
@@ -55,7 +55,7 @@ public class SdkReflectorTests
     public void DiscoverEndpoints_ContainsKsefTokenGroup()
     {
         var group = _endpoints.Where(e => e.GroupName == "ksef-token").ToList();
-        Assert.Equal(4, group.Count);
+        Assert.Equal(8, group.Count);
     }
 
     [Fact]

@@ -2,6 +2,9 @@
 
 ## [Unreleased]
 
+### Changed
+- KSeF SDK: follow upstream CIRFMF 2.10.0 (was 2.9.0.1). Reflection now discovers 70 methods (was 64): six additions, nothing removed or changed (`ksef-token`: `approve-ksef-token`, `generate-/get-/query-ksef-token-rev2`; `authorization`: `get-auth-status-rev2`; `active-sessions`: `get-active-sessions-rev2`). None of them is in the default `safe` set; the approved route manifest, the route-count tests and the OpenAPI path count (74 to 80) are updated. The three tools (`TokenGenerator`, `CertGenerator`, `InvoiceDemo`) now use the rev2 operations (`GetAuthStatusRev2Async`, rev2 token generation and status), because the old ones are marked obsolete and go away on 15.06.2027 (auth status) and 30.09.2027 (tokens); the token generator was verified end to end on KSeF TEST.
+
 ## [0.4.4] - 2026-11-17
 
 ### Changed

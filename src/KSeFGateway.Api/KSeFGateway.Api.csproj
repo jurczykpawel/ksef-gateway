@@ -8,8 +8,8 @@
 
   <ItemGroup>
     <!-- CIRFMF Official KSeF SDK (GitHub Packages) -->
-    <PackageReference Include="KSeF.Client" Version="2.9.0.1" />
-    <PackageReference Include="KSeF.Client.ClientFactory" Version="2.9.0.1" />
+    <PackageReference Include="KSeF.Client" Version="2.10.0" />
+    <PackageReference Include="KSeF.Client.ClientFactory" Version="2.10.0" />
 
     <!-- OpenAPI (built-in on .NET 10) -->
     <!-- 11.x on .NET 11; the AWS Lambda image builds with -p:TargetFramework=net10.0 (no .NET 11

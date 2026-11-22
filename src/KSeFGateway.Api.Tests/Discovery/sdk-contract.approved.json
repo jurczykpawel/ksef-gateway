@@ -37,6 +37,43 @@
     "returnType": "System.Threading.Tasks.Task\u00601[KSeF.Client.Core.Models.Sessions.ActiveSessions.AuthenticationListResponse]"
   },
   {
+    "route": "/ksef/active-sessions/get-active-sessions-rev2",
+    "group": "active-sessions",
+    "method": "get-active-sessions-rev2",
+    "sdkMethod": "GetActiveSessionsRev2Async",
+    "parameters": [
+      {
+        "name": "accessToken",
+        "type": "System.String",
+        "business": false,
+        "optional": false,
+        "defaultValue": null
+      },
+      {
+        "name": "pageSize",
+        "type": "System.Nullable\u00601[System.Int32]",
+        "business": true,
+        "optional": true,
+        "defaultValue": null
+      },
+      {
+        "name": "continuationToken",
+        "type": "System.String",
+        "business": true,
+        "optional": true,
+        "defaultValue": null
+      },
+      {
+        "name": "cancellationToken",
+        "type": "System.Threading.CancellationToken",
+        "business": false,
+        "optional": true,
+        "defaultValue": null
+      }
+    ],
+    "returnType": "System.Threading.Tasks.Task\u00601[KSeF.Client.Core.Models.Sessions.ActiveSessions.Rev2.AuthenticationListResponseRev2]"
+  },
+  {
     "route": "/ksef/active-sessions/revoke-current-session",
     "group": "active-sessions",
     "method": "revoke-current-session",
@@ -157,6 +194,36 @@
       }
     ],
     "returnType": "System.Threading.Tasks.Task\u00601[KSeF.Client.Core.Models.AuthStatus]"
+  },
+  {
+    "route": "/ksef/authorization/get-auth-status-rev2",
+    "group": "authorization",
+    "method": "get-auth-status-rev2",
+    "sdkMethod": "GetAuthStatusRev2Async",
+    "parameters": [
+      {
+        "name": "authOperationReferenceNumber",
+        "type": "System.String",
+        "business": true,
+        "optional": false,
+        "defaultValue": null
+      },
+      {
+        "name": "authenticationToken",
+        "type": "System.String",
+        "business": true,
+        "optional": false,
+        "defaultValue": null
+      },
+      {
+        "name": "cancellationToken",
+        "type": "System.Threading.CancellationToken",
+        "business": false,
+        "optional": true,
+        "defaultValue": null
+      }
+    ],
+    "returnType": "System.Threading.Tasks.Task\u00601[KSeF.Client.Core.Models.Authorization.Rev2.AuthStatusRev2]"
   },
   {
     "route": "/ksef/authorization/refresh-access-token",
@@ -1106,6 +1173,36 @@
     "returnType": "System.Threading.Tasks.Task\u00601[KSeF.Client.Core.Models.Invoices.PagedInvoiceResponse]"
   },
   {
+    "route": "/ksef/ksef-token/approve-ksef-token",
+    "group": "ksef-token",
+    "method": "approve-ksef-token",
+    "sdkMethod": "ApproveKsefTokenAsync",
+    "parameters": [
+      {
+        "name": "tokenReferenceNumber",
+        "type": "System.String",
+        "business": true,
+        "optional": false,
+        "defaultValue": null
+      },
+      {
+        "name": "accessToken",
+        "type": "System.String",
+        "business": false,
+        "optional": false,
+        "defaultValue": null
+      },
+      {
+        "name": "cancellationToken",
+        "type": "System.Threading.CancellationToken",
+        "business": false,
+        "optional": true,
+        "defaultValue": null
+      }
+    ],
+    "returnType": "System.Threading.Tasks.Task"
+  },
+  {
     "route": "/ksef/ksef-token/generate-ksef-token",
     "group": "ksef-token",
     "method": "generate-ksef-token",
@@ -1136,6 +1233,36 @@
     "returnType": "System.Threading.Tasks.Task\u00601[KSeF.Client.Core.Models.Authorization.KsefTokenResponse]"
   },
   {
+    "route": "/ksef/ksef-token/generate-ksef-token-rev2",
+    "group": "ksef-token",
+    "method": "generate-ksef-token-rev2",
+    "sdkMethod": "GenerateKsefTokenRev2Async",
+    "parameters": [
+      {
+        "name": "requestPayload",
+        "type": "KSeF.Client.Core.Models.Authorization.Rev2.KsefTokenRequestRev2",
+        "business": true,
+        "optional": false,
+        "defaultValue": null
+      },
+      {
+        "name": "accessToken",
+        "type": "System.String",
+        "business": false,
+        "optional": false,
+        "defaultValue": null
+      },
+      {
+        "name": "cancellationToken",
+        "type": "System.Threading.CancellationToken",
+        "business": false,
+        "optional": true,
+        "defaultValue": null
+      }
+    ],
+    "returnType": "System.Threading.Tasks.Task\u00601[KSeF.Client.Core.Models.Authorization.Rev2.KsefTokenResponseRev2]"
+  },
+  {
     "route": "/ksef/ksef-token/get-ksef-token",
     "group": "ksef-token",
     "method": "get-ksef-token",
@@ -1164,6 +1291,36 @@
       }
     ],
     "returnType": "System.Threading.Tasks.Task\u00601[KSeF.Client.Core.Models.Authorization.AuthenticationKsefToken]"
+  },
+  {
+    "route": "/ksef/ksef-token/get-ksef-token-rev2",
+    "group": "ksef-token",
+    "method": "get-ksef-token-rev2",
+    "sdkMethod": "GetKsefTokenRev2Async",
+    "parameters": [
+      {
+        "name": "tokenReferenceNumber",
+        "type": "System.String",
+        "business": true,
+        "optional": false,
+        "defaultValue": null
+      },
+      {
+        "name": "accessToken",
+        "type": "System.String",
+        "business": false,
+        "optional": false,
+        "defaultValue": null
+      },
+      {
+        "name": "cancellationToken",
+        "type": "System.Threading.CancellationToken",
+        "business": false,
+        "optional": true,
+        "defaultValue": null
+      }
+    ],
+    "returnType": "System.Threading.Tasks.Task\u00601[KSeF.Client.Core.Models.Authorization.Rev2.AuthenticationKsefTokenRev2]"
   },
   {
     "route": "/ksef/ksef-token/query-ksef-tokens",
@@ -1229,6 +1386,85 @@
       }
     ],
     "returnType": "System.Threading.Tasks.Task\u00601[KSeF.Client.Core.Models.Authorization.QueryKsefTokensResponse]"
+  },
+  {
+    "route": "/ksef/ksef-token/query-ksef-tokens-rev2",
+    "group": "ksef-token",
+    "method": "query-ksef-tokens-rev2",
+    "sdkMethod": "QueryKsefTokensRev2Async",
+    "parameters": [
+      {
+        "name": "accessToken",
+        "type": "System.String",
+        "business": false,
+        "optional": false,
+        "defaultValue": null
+      },
+      {
+        "name": "statuses",
+        "type": "System.Collections.Generic.ICollection\u00601[KSeF.Client.Core.Models.Authorization.Rev2.KsefTokenStatusFilterRev2]",
+        "business": true,
+        "optional": true,
+        "defaultValue": null
+      },
+      {
+        "name": "authorIdentifier",
+        "type": "System.String",
+        "business": true,
+        "optional": true,
+        "defaultValue": null
+      },
+      {
+        "name": "authorIdentifierType",
+        "type": "System.Nullable\u00601[KSeF.Client.Core.Models.Token.TokenContextIdentifierType]",
+        "business": true,
+        "optional": true,
+        "defaultValue": null
+      },
+      {
+        "name": "description",
+        "type": "System.String",
+        "business": true,
+        "optional": true,
+        "defaultValue": null
+      },
+      {
+        "name": "validFrom",
+        "type": "System.Nullable\u00601[System.DateTimeOffset]",
+        "business": true,
+        "optional": true,
+        "defaultValue": null
+      },
+      {
+        "name": "validTo",
+        "type": "System.Nullable\u00601[System.DateTimeOffset]",
+        "business": true,
+        "optional": true,
+        "defaultValue": null
+      },
+      {
+        "name": "continuationToken",
+        "type": "System.String",
+        "business": true,
+        "optional": true,
+        "defaultValue": null
+      },
+      {
+        "name": "pageSize",
+        "type": "System.Nullable\u00601[System.Int32]",
+        "business": true,
+        "optional": true,
+        "defaultValue": null
+      },
+      {
+        "name": "cancellationToken",
+        "type": "System.Threading.CancellationToken",
+        "business": false,
+        "optional": true,
+        "defaultValue": null
+      }
+    ],
+    "returnType": "System.Threading.Tasks.Task\u00601[KSeF.Client.Core.Models.Authorization.Rev2.QueryKsefTokensResponseRev2]"
   },
   {
     "route": "/ksef/ksef-token/revoke-ksef-token",

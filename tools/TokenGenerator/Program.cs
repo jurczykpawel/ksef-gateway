@@ -7,6 +7,7 @@ using KSeF.Client.Core.Interfaces.Clients;
 using KSeF.Client.Core.Interfaces.Services;
 using KSeF.Client.Core.Models;
 using KSeF.Client.Core.Models.Authorization;
+using KSeF.Client.Core.Models.Authorization.Rev2;
 using KSeF.Client.DI;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -73,11 +74,11 @@ Console.WriteLine($"  Reference: {authOp.ReferenceNumber}");
 
 // Poll for auth completion
 Console.Write("  Waiting for auth to complete");
-AuthStatus? authStatus = null;
+AuthStatusRev2? authStatus = null;
 for (int i = 0; i < MaxPollAttempts; i++)
 {
     await Task.Delay(PollDelayMs);
-    authStatus = await authClient.GetAuthStatusAsync(authOp.ReferenceNumber, authOp.AuthenticationToken.Token);
+    authStatus = await authClient.GetAuthStatusRev2Async(authOp.ReferenceNumber, authOp.AuthenticationToken.Token);
     Console.Write(".");
     if (authStatus.Status.Code != 100) break;
 }
@@ -99,7 +100,7 @@ Console.WriteLine();
 
 // Step 2: Generate KSeF token
 Console.WriteLine("[4/5] Generating KSeF token with InvoiceRead + InvoiceWrite permissions...");
-var tokenRequest = new KsefTokenRequest
+var tokenRequest = new KsefTokenRequestRev2
 {
     Permissions = [
         KsefTokenPermissionType.InvoiceRead,
@@ -109,24 +110,24 @@ var tokenRequest = new KsefTokenRequest
     Description = "ksef-gateway test token"
 };
 
-var tokenResponse = await ksefClient.GenerateKsefTokenAsync(tokenRequest, accessToken);
+var tokenResponse = await ksefClient.GenerateKsefTokenRev2Async(tokenRequest, accessToken);
 Console.WriteLine($"  Token reference: {tokenResponse.ReferenceNumber}");
 
 // Wait for token activation
 Console.Write("  Waiting for token activation");
-AuthenticationKsefToken? activeToken = null;
+AuthenticationKsefTokenRev2? activeToken = null;
 for (int i = 0; i < MaxPollAttempts; i++)
 {
     await Task.Delay(PollDelayMs);
-    activeToken = await ksefClient.GetKsefTokenAsync(tokenResponse.ReferenceNumber, accessToken);
+    activeToken = await ksefClient.GetKsefTokenRev2Async(tokenResponse.ReferenceNumber, accessToken);
     Console.Write(".");
-    if (activeToken.Status == AuthenticationKsefTokenStatus.Active) break;
+    if (activeToken.Status.Code == KsefTokenStatusRev2Code.Active) break;
 }
 Console.WriteLine();
 
-if (activeToken?.Status != AuthenticationKsefTokenStatus.Active)
+if (activeToken?.Status.Code != KsefTokenStatusRev2Code.Active)
 {
-    Console.Error.WriteLine($"  TOKEN ACTIVATION FAILED: status={activeToken?.Status}");
+    Console.Error.WriteLine($"  TOKEN ACTIVATION FAILED: status={activeToken?.Status.Code} ({activeToken?.Status.RawCode})");
     Environment.Exit(1);
 }
 

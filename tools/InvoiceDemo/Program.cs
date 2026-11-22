@@ -8,6 +8,7 @@ using KSeF.Client.Core.Interfaces.Clients;
 using KSeF.Client.Core.Interfaces.Services;
 using KSeF.Client.Core.Models;
 using KSeF.Client.Core.Models.Authorization;
+using KSeF.Client.Core.Models.Authorization.Rev2;
 using KSeF.Client.Core.Models.Sessions.OnlineSession;
 using KSeF.Client.DI;
 using Microsoft.Extensions.DependencyInjection;
@@ -77,11 +78,11 @@ var authOp = await authClient.SubmitXadesAuthRequestAsync(signedXml, verifyCerti
 Console.WriteLine($"  Reference: {authOp.ReferenceNumber}");
 
 Console.Write("  Waiting for auth to complete");
-AuthStatus? authStatus = null;
+AuthStatusRev2? authStatus = null;
 for (int i = 0; i < MaxPollAttempts; i++)
 {
     await Task.Delay(PollDelayMs);
-    authStatus = await authClient.GetAuthStatusAsync(authOp.ReferenceNumber, authOp.AuthenticationToken.Token);
+    authStatus = await authClient.GetAuthStatusRev2Async(authOp.ReferenceNumber, authOp.AuthenticationToken.Token);
     Console.Write(".");
     if (authStatus.Status.Code != 100) break;
 }
